@@ -76,7 +76,7 @@ struct IntakeView: View {
     private var header: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: KoiTheme.space.s5) {
-                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()).uppercased()).font(KoiTheme.section).tracking(1.6).opacity(0.72)
+                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased()).font(KoiTheme.section).tracking(2.7).opacity(0.92)
                 Text(composerActive ? "Meal" : "Intake").font(KoiTheme.title)
             }
             Spacer()

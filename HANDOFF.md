@@ -85,7 +85,9 @@ what's partial, known issues, and the next step.
   meal logging into the screen with an animated food ring and composer, and
   corrected AI meal logging analytics to capture estimate state before the save
   clears it. The seeded Intake screen and composer were captured; all 55
-  simulator tests pass.
+  simulator tests pass. The header now uses the full month name and shared
+  section-label spacing/contrast; paired seeded captures were reviewed on two
+  iPhone 17 Pro simulators, and the latest 62-test run passes.
 - Phase 4: added editable nutrient goals and types, calorie/nutrient scoring,
   manual daily adjustments, meal estimate and manual-entry flows, camera/library
   image selection, saved meal editing and deletion, supplement tracking, and
@@ -110,7 +112,9 @@ what's partial, known issues, and the next step.
   left-edge semicircle, step hero and weekly workout segments inside the curve.
   Added an animated workout log ring whose selected state follows today's
   training record; retained Apple Health refresh and goal/journal entry points.
-  The seeded Movement screen was captured and all 55 simulator tests pass.
+  The header now uses the full month name and shared section-label styling.
+  Paired seeded Movement captures were reviewed on two iPhone 17 Pro
+  simulators; all 62 simulator tests pass.
 - Phase 7: added outdoor run tracking with an injected Core Location service,
   route and mile split persistence, pace, resume/discard, and route detail maps.
   Treadmill sessions track time, distance and pace; class and other activities
@@ -256,7 +260,8 @@ what's partial, known issues, and the next step.
   state review was completed in earlier phases; this pass did not repeat every
   screen in both appearances. The root currently requests light system
   appearance for the intended glass and status-bar treatment.
-- Paired demo captures now cover Hub and To-Do on two iPhone 17 Pro simulators.
+- Paired demo captures now cover Hub, To-Do, Movement and Intake on two iPhone
+  17 Pro simulators.
   Simulator preferences were used to dismiss the daily check-in and guided tour
   overlays for the captures. Other screen pairs and paired empty-state captures
   are still outstanding.
