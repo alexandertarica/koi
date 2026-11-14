@@ -6,6 +6,7 @@ struct MovementView: View {
     @Environment(\.healthProvider) private var healthProvider
     @State private var model = MovementViewModel()
     @State private var showsGoals = false
+    @State private var showsWorkoutJournal = false
 
     var body: some View {
         ScrollView {
@@ -26,6 +27,7 @@ struct MovementView: View {
             Task { await model.refreshHealth(using: healthProvider) }
         }
         .sheet(isPresented: $showsGoals) { MovementGoalEditor(model: model).presentationDetents([.medium]) }
+        .sheet(isPresented: $showsWorkoutJournal) { WorkoutJournalView().presentationDetents([.large]) }
         .alert("Movement", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.clearError() } })) {
             Button("OK", role: .cancel) { model.clearError() }
         } message: { Text(model.errorMessage ?? "") }
@@ -38,11 +40,18 @@ struct MovementView: View {
                 Text("Find your pace.").font(KoiTheme.title)
             }
             Spacer()
-            Button { showsGoals = true } label: {
-                Image(systemName: "slider.horizontal.3").font(.system(size: 18, weight: .light))
-                    .frame(width: 44, height: 44).background(.ultraThinMaterial.opacity(0.45), in: Circle())
-                    .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.26), lineWidth: 1))
-            }.buttonStyle(.plain).accessibilityLabel("Movement goals")
+            HStack(spacing: KoiTheme.space.s8) {
+                Button { showsWorkoutJournal = true } label: {
+                    Image(systemName: "dumbbell").font(.system(size: 18, weight: .light))
+                        .frame(width: 42, height: 42).background(.ultraThinMaterial.opacity(0.4), in: Circle())
+                        .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.24), lineWidth: 1))
+                }.buttonStyle(.plain).accessibilityLabel("Workout journal")
+                Button { showsGoals = true } label: {
+                    Image(systemName: "slider.horizontal.3").font(.system(size: 18, weight: .light))
+                        .frame(width: 42, height: 42).background(.ultraThinMaterial.opacity(0.45), in: Circle())
+                        .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.26), lineWidth: 1))
+                }.buttonStyle(.plain).accessibilityLabel("Movement goals")
+            }
         }
     }
 

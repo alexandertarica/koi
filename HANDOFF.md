@@ -13,7 +13,7 @@ what's partial, known issues, and the next step.
 | 3 | To-Do: habits + to-dos, list + matrix, new to-do, new habit, archive, auto-urgent | ✅ |
 | 4 | Intake: dial, quiet rows, food log with AI, meals, supplements, edit mode | ✅ |
 | 5 | Movement: dial, steps, Health sync | ✅ |
-| 6 | Workout journal + workout mode + rest + summary + routines + Koi's pick | ☐ |
+| 6 | Workout journal + workout mode + rest + summary + routines + Koi's pick | ✅ |
 | 7 | Cardio: GPS run, treadmill, class, stats | ☐ |
 | 8 | Progress + Profile (fold rows, body weight) | ☐ |
 | 9 | Onboarding + tour | ☐ |
@@ -63,11 +63,18 @@ what's partial, known issues, and the next step.
   The Hub now derives its Exercise pillar from movement events. Thirty-one
   simulator tests pass; the empty Movement screen, step logging, training mark,
   and Hub score update were reviewed on iPhone 17 Pro.
+- Phase 6: added the workout journal, configurable routines and planned days,
+  rest-aware Koi picks, workout sessions with editable and warm-up sets, rest
+  countdown, progression suggestions, lift history, summaries and one-tap
+  logging of a recent matching workout. Completed workouts persist into the
+  Movement score and survived an app relaunch. Thirty-four simulator tests pass;
+  the empty journal, session logging, rest, summary and saved history were
+  reviewed on iPhone 17 Pro.
 
 ## Partial / known issues
 
-- Workout journal and cardio remain planned for Phases 6 and 7. The Hub's
-  Profile and Progress sheets are previews; Phase 8 replaces them with full views.
+- Cardio remains planned for Phase 7. The Hub's Profile and Progress sheets
+  are previews; Phase 8 replaces them with full views.
 - To-Do reminder notifications and calendar free-time selection/sync are deferred
   to Phase 10. The `-koiDemo` full-week seed is part of Phase 13, so Phase 3 was
   visually checked with empty data and in-session task entry.
@@ -76,4 +83,4 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Phase 6: build the workout journal and workout mode.
+Phase 7: build cardio sessions, GPS tracking, and movement stats.

@@ -262,3 +262,112 @@ public final class KoiMovementDay {
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 }
+
+@Model
+public final class KoiWorkoutRoutine {
+    @Attribute(.unique) public var id: UUID
+    public var name: String
+    public var muscleGroup: String
+    public var createdAt: Date
+    public var plannedAt: Date? = nil
+
+    public init(name: String, muscleGroup: String = "full body", createdAt: Date = .now, plannedAt: Date? = nil) {
+        self.id = UUID()
+        self.name = name
+        self.muscleGroup = muscleGroup
+        self.createdAt = createdAt
+        self.plannedAt = plannedAt
+    }
+}
+
+@Model
+public final class KoiRoutineLift {
+    @Attribute(.unique) public var id: UUID
+    public var routineID: UUID
+    public var name: String
+    public var muscleGroup: String
+    public var targetSets: Int
+    public var targetReps: Int
+    public var order: Int
+    public var restSeconds: Int
+
+    public init(routineID: UUID, name: String, muscleGroup: String? = nil, targetSets: Int = 3, targetReps: Int = 8, order: Int = 0, restSeconds: Int = 90) {
+        self.id = UUID()
+        self.routineID = routineID
+        self.name = name
+        self.muscleGroup = muscleGroup ?? "full body"
+        self.targetSets = min(max(targetSets, 1), 12)
+        self.targetReps = min(max(targetReps, 1), 100)
+        self.order = max(order, 0)
+        self.restSeconds = min(max(restSeconds, 15), 600)
+    }
+}
+
+@Model
+public final class KoiWorkoutSession {
+    @Attribute(.unique) public var id: UUID
+    public var routineID: UUID? = nil
+    public var name: String
+    public var muscleGroup: String
+    public var startedAt: Date
+    public var endedAt: Date? = nil
+    public var restUntil: Date? = nil
+    public var isComplete: Bool = false
+
+    public init(name: String = "Workout", muscleGroup: String = "full body", routineID: UUID? = nil, startedAt: Date = .now) {
+        self.id = UUID()
+        self.name = name
+        self.muscleGroup = muscleGroup
+        self.routineID = routineID
+        self.startedAt = startedAt
+        self.endedAt = nil
+        self.restUntil = nil
+        self.isComplete = false
+    }
+}
+
+@Model
+public final class KoiWorkoutLift {
+    @Attribute(.unique) public var id: UUID
+    public var sessionID: UUID
+    public var name: String
+    public var muscleGroup: String
+    public var order: Int
+    public var targetSets: Int
+    public var targetReps: Int
+    public var restSeconds: Int
+
+    public init(sessionID: UUID, name: String, muscleGroup: String? = nil, order: Int = 0, targetSets: Int = 3, targetReps: Int = 8, restSeconds: Int = 90) {
+        self.id = UUID()
+        self.sessionID = sessionID
+        self.name = name
+        self.muscleGroup = muscleGroup ?? "full body"
+        self.order = max(order, 0)
+        self.targetSets = min(max(targetSets, 1), 12)
+        self.targetReps = min(max(targetReps, 1), 100)
+        self.restSeconds = min(max(restSeconds, 15), 600)
+    }
+}
+
+@Model
+public final class KoiWorkoutSet {
+    @Attribute(.unique) public var id: UUID
+    public var sessionID: UUID
+    public var liftID: UUID
+    public var loggedAt: Date
+    public var weightLB: Double
+    public var reps: Int
+    public var isWarmUp: Bool
+    public var isBodyweight: Bool
+
+    public init(sessionID: UUID, liftID: UUID, loggedAt: Date = .now, weightLB: Double, reps: Int, isWarmUp: Bool = false, isBodyweight: Bool = false) {
+        self.id = UUID()
+        self.sessionID = sessionID
+        self.liftID = liftID
+        self.loggedAt = loggedAt
+        self.weightLB = weightLB.isFinite ? max(weightLB, 0) : 0
+        self.reps = min(max(reps, 0), 1_000)
+        self.isWarmUp = isWarmUp
+        self.isBodyweight = isBodyweight
+    }
+}
