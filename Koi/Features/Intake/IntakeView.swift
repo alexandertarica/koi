@@ -463,7 +463,13 @@ private struct MealComposer: View {
                         Task { if let data = try? await item?.loadTransferable(type: Data.self) { photoData = UIImage(data: data)?.jpegData(compressionQuality: 0.76) } }
                     }
                     if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                        Button { showsCameraPicker = true } label: {
+                        Button {
+                            #if targetEnvironment(simulator)
+                            model.showCameraUnavailable()
+                            #else
+                            showsCameraPicker = true
+                            #endif
+                        } label: {
                             HStack(spacing: 8) { Image(systemName: "camera"); Text("Take a photo") }.font(KoiTheme.caption).padding(13).frame(maxWidth: .infinity).background(.ultraThinMaterial.opacity(0.18), in: RoundedRectangle(cornerRadius: 16))
                         }.buttonStyle(.plain)
                     }
@@ -503,7 +509,11 @@ private struct MealComposer: View {
         .onAppear {
             guard startsCamera else { return }
             startsCamera = false
+            #if targetEnvironment(simulator)
+            model.showCameraUnavailable()
+            #else
             if UIImagePickerController.isSourceTypeAvailable(.camera) { showsCameraPicker = true }
+            #endif
         }
     }
 

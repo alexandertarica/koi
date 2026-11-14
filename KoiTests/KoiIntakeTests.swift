@@ -20,6 +20,14 @@ final class KoiIntakeTests: XCTestCase {
         XCTAssertEqual(estimate.confidence, 0.5)
     }
 
+    func testCameraFallbackExplainsSimulatorLimitAndKeepsManualPathAvailable() {
+        let model = IntakeViewModel()
+        model.showCameraUnavailable()
+        XCTAssertEqual(model.errorMessage, "The camera isn't available in Simulator. Choose a photo instead.")
+        model.clearEstimate()
+        XCTAssertNil(model.errorMessage)
+    }
+
     func testDefaultGoalsMealAndManualAdjustmentPersist() throws {
         let container = try KoiSchema.makeContainer(inMemory: true)
         let context = ModelContext(container)

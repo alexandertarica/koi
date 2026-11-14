@@ -205,6 +205,10 @@ final class IntakeViewModel {
 
     func clearEstimate() { estimate = nil; estimatePhotoJPEG = nil; errorMessage = nil }
 
+    func showCameraUnavailable() {
+        errorMessage = "The camera isn't available in Simulator. Choose a photo instead."
+    }
+
     func addMeal(_ value: FoodEstimateValue, note: String, jpegData: Data?) {
         guard let context else { return }
         context.insert(makeFoodEntry(value, note: note, image: jpegData))

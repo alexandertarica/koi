@@ -313,6 +313,14 @@ what's partial, known issues, and the next step.
   all 65 tests. Live API use, library/camera interaction, widget routing, and
   Smart Note network save still need direct end-to-end simulator exercise.
 
+- Food flow simulator pass: on one iPhone 17 Pro simulator, typed a meal and
+  received all seven nutrient values from the live service, saved it, confirmed
+  the Intake dial/rows and today's log updated, edited calories and confirmed
+  the totals changed, then deleted it and confirmed the totals returned. Picked
+  a library photo and confirmed preview/selection. Smart Note's food action
+  estimated, saved once, and showed its success state. Simulator camera currently
+  opens an empty camera preview; replacing that with a clear photo-picker fallback.
+
 ## Next step
 
 The analytics event-name audit found all required event names wired to feature
