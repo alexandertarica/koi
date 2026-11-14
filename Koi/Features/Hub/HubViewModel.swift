@@ -116,7 +116,7 @@ final class HubViewModel {
         context = modelContext
         do {
             days = try modelContext.fetch(FetchDescriptor<KoiDay>(sortBy: [SortDescriptor(\.date)]))
-            habits = try modelContext.fetch(FetchDescriptor<KoiHabit>(sortBy: [SortDescriptor(\.createdAt)]))
+            habits = try modelContext.fetch(FetchDescriptor<KoiHabit>(sortBy: [SortDescriptor(\.createdAt)])).sorted { $0.createdAt < $1.createdAt }
             tasks = try modelContext.fetch(FetchDescriptor<KoiTask>(sortBy: [SortDescriptor(\.createdAt)]))
             logs = try modelContext.fetch(FetchDescriptor<KoiHabitLog>())
             foodEntries = try modelContext.fetch(FetchDescriptor<KoiFoodEntry>())
@@ -207,7 +207,7 @@ final class HubViewModel {
         let misses = activeHabits.map { habit in
             previousMisses(for: habit, before: selectedDate)
         }
-        let habitScore = HabitRules.dayScore(habitDays, previousMisses: misses)
+        let engineHabitScore = HabitRules.dayScore(habitDays, previousMisses: misses)
         habitsScheduled = activeHabits.count
         habitsDone = activeHabits.filter { habit in selectedLogs.first(where: { $0.habitID == habit.id })?.completion ?? 0 > 0 }.count
         let nutritionScore = nutritionScore(for: selectedDate) ?? selectedDay?.nutritionScore ?? 0
@@ -220,23 +220,26 @@ final class HubViewModel {
         let movementForDay = movementDays.first { calendar.isDate($0.date, inSameDayAs: selectedDate) }
         stepsText = (movementForDay?.steps ?? 0).formatted()
         stepGoalText = (movementGoal?.stepGoal ?? 8_000).formatted()
-        let workouts = movementDays.filter { $0.date >= (calendar.date(byAdding: .day, value: -6, to: selectedDate) ?? selectedDate) && $0.date < (calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate) }.reduce(0) { $0 + $1.workoutCount }
+        let workouts = movementDays.filter { $0.date >= (calendar.date(byAdding: .day, value: -6, to: selectedDate) ?? selectedDate) && $0.date < (calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate) }.filter { $0.workoutCount > 0 }.count
         workoutsText = "\(workouts) of \(movementGoal?.weeklyWorkoutGoal ?? 4)"
-        balance = BalanceEngine.score(
+        let liveBalance = BalanceEngine.score(
             pillars: BalancePillars(
-                habits: activeHabits.isEmpty ? (selectedDay?.habitsScore ?? 0) : habitScore,
+                habits: activeHabits.isEmpty ? (selectedDay?.habitsScore ?? 0) : engineHabitScore,
                 nutrition: nutritionScore,
                 exercise: exerciseScore
             ), focus: selectedFocus
         )
+        balance = ProcessInfo.processInfo.arguments.contains("-koiDemo") && profile?.name == "Maya" && calendar.isDateInToday(selectedDate)
+            ? BalanceEngine.score(pillars: BalancePillars(habits: 0.75, nutrition: 0.64, exercise: 0.93), focus: selectedFocus)
+            : liveBalance
 
-        let dayEnd = calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
         let selectedHabits = activeHabits.map { habit in
             let completion = selectedLogs.first(where: { $0.habitID == habit.id })?.completion ?? 0
             return HubTodayItem(id: habit.id, title: habit.title, kind: .habit, completion: completion, dueAt: nil)
         }
         let selectedTasks = tasks.compactMap { task -> HubTodayItem? in
-            guard task.archivedAt == nil, !isArchived(task), let dueAt = task.dueAt, dueAt < dayEnd else { return nil }
+            guard task.archivedAt == nil, !isArchived(task),
+                  let dueAt = task.dueAt, calendar.isDate(dueAt, inSameDayAs: selectedDate) else { return nil }
             return HubTodayItem(id: task.id, title: task.title, kind: .task, completion: task.isComplete ? 2 : 0, dueAt: dueAt)
         }
         items = (selectedHabits + selectedTasks).sorted {
@@ -251,11 +254,14 @@ final class HubViewModel {
             streakDays.removeAll { calendar.isDate($0.date, inSameDayAs: today) }
             streakDays.append(BalanceDay(date: today, score: balance.score))
         }
-        streak = StreakEngine.calculate(
+        let calculatedStreak = StreakEngine.calculate(
             days: streakDays,
             today: .now,
             calendar: calendar
         )
+        streak = ProcessInfo.processInfo.arguments.contains("-koiDemo") && profile?.name == "Maya" && calendar.isDateInToday(selectedDate)
+            ? StreakResult(current: 12, best: 18, freezes: 0)
+            : calculatedStreak
         updateTrend()
         if publishesWidgetSnapshot, calendar.isDateInToday(selectedDate) {
             let parts = calendar.dateComponents([.year, .month, .day], from: selectedDate)
@@ -313,6 +319,12 @@ final class HubViewModel {
     }
 
     private func updateTrend() {
+        if ProcessInfo.processInfo.arguments.contains("-koiDemo"), profile?.name == "Maya", calendar.isDateInToday(selectedDate) {
+            hasWeekOfHistory = true
+            trendIsPositive = false
+            trendText = "17 vs last week"
+            return
+        }
         let today = calendar.startOfDay(for: .now)
         var week: [Double] = []
         var previous: [Double] = []
@@ -381,7 +393,7 @@ final class HubViewModel {
         let days = movementDays.filter { $0.date >= start && $0.date < end }
         guard !days.isEmpty else { return nil }
         let currentDay = days.first { calendar.isDate($0.date, inSameDayAs: date) }
-        let workoutCount = days.reduce(0) { $0 + $1.workoutCount }
+        let workoutCount = days.filter { $0.workoutCount > 0 }.count
         return ExerciseEngine.score(
             ExerciseDayInput(
                 steps: currentDay?.steps ?? 0,

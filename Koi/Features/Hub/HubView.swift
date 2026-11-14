@@ -13,7 +13,7 @@ struct HubView: View {
     var body: some View {
         ZStack {
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
+                VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
                     header.modifier(KoiIntroReveal(order: 0))
                     if model.isProfileOpen { KoiProfileView(onSelectTab: onSelectTab, onPresentSmartNote: onPresentSmartNote).transition(.opacity) }
                     else if model.isProgressOpen { KoiProgressView().transition(.opacity) }
@@ -23,7 +23,7 @@ struct HubView: View {
                     }
                 }
                 .padding(.horizontal, KoiTheme.space.s21)
-                .padding(.top, KoiTheme.space.s21)
+                .padding(.top, KoiTheme.space.s13)
                 .padding(.bottom, KoiTheme.space.s89)
             }
             .scrollClipDisabled()
@@ -32,9 +32,8 @@ struct HubView: View {
         .onAppear {
             model.refresh(using: modelContext)
             #if DEBUG
-            if let marker = ProcessInfo.processInfo.arguments.firstIndex(of: "-koiHubPanel"),
-               ProcessInfo.processInfo.arguments.indices.contains(marker + 1) {
-                switch ProcessInfo.processInfo.arguments[marker + 1].lowercased() {
+            if let panel = KoiLaunch.screen ?? launchPanelArgument {
+                switch panel.lowercased() {
                 case "progress": model.toggleProgress()
                 case "profile": model.toggleProfile()
                 default: break
@@ -49,6 +48,14 @@ struct HubView: View {
         .animation(KoiTheme.morph, value: model.isProgressOpen)
     }
 
+    #if DEBUG
+    private var launchPanelArgument: String? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let marker = arguments.firstIndex(of: "-koiHubPanel"), arguments.indices.contains(marker + 1) else { return nil }
+        return arguments[marker + 1]
+    }
+    #endif
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
@@ -57,7 +64,7 @@ struct HubView: View {
                     .renderingMode(.template)
                     .scaledToFit()
                     .frame(width: 240, height: 28)
-                    .foregroundStyle(KoiTheme.onBase)
+                    .foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95))
                     .accessibilityLabel("Koi")
                     .onTapGesture {
                         KoiHaptics.tap()
@@ -82,12 +89,12 @@ struct HubView: View {
                 Text(model.dateLabel.uppercased())
                     .font(KoiTheme.section)
                     .tracking(2.7)
-                    .foregroundStyle(KoiTheme.onBase.opacity(0.8))
+                    .foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95).opacity(0.88))
                     .padding(.top, 7)
                 Text(model.isProfileOpen ? "Profile" : (model.isProgressOpen ? "Progress" : model.greeting))
                     .id(model.isProfileOpen ? "Profile" : (model.isProgressOpen ? "Progress" : model.greeting))
                     .font(KoiTheme.title)
-                    .foregroundStyle(KoiTheme.onBase)
+                    .foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95))
                     .transition(.opacity.combined(with: .blurReplace))
                     .padding(.top, 3)
             }
@@ -160,12 +167,14 @@ struct HubView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Open progress. \(model.trendText)")
-                streakBlock
-                    .padding(.top, 100)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             .padding(.trailing, KoiTheme.space.s21)
             .padding(.top, 128)
+            streakBlock
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .padding(.trailing, KoiTheme.space.s21)
+                .padding(.top, 273)
             if model.selectedDayOffset > 0 {
                 Text(model.dateLabel.uppercased())
                     .font(KoiTheme.section).tracking(2.7)
@@ -189,26 +198,26 @@ struct HubView: View {
             }
             Text("DAY STREAK").font(KoiTheme.section).tracking(2.7)
             Text("best \(model.streak.best)").font(KoiTheme.caption).opacity(0.78)
-            if model.streak.freezes > 0 { Text("❄ \(model.streak.freezes) freezes").font(.system(size: 11, weight: .light)) }
         }
         .foregroundStyle(KoiTheme.onBase.opacity(0.8))
         .accessibilityLabel("Streak \(model.streak.current), best \(model.streak.best), \(model.streak.freezes) freezes")
     }
 
     private var todaySection: some View {
-        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("TODAY")
                     .font(KoiTheme.section)
                     .tracking(2.7)
                     .foregroundStyle(KoiTheme.onBase.opacity(0.92))
+                Spacer(minLength: 0)
                 if model.hiddenItemCount > 0 {
                     Button {
                         KoiHaptics.tap()
                         withAnimation(KoiTheme.morph) { model.toggleExpandedItems() }
                     } label: {
                         HStack(spacing: 4) { Text(model.expandedItems ? "Less" : "+\(model.hiddenItemCount) more"); Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).rotationEffect(.degrees(model.expandedItems ? 180 : 0)) }
-                            .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase).frame(minHeight: 30)
+                            .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase).frame(minHeight: 24)
                     }.buttonStyle(.plain)
                 }
             }
@@ -236,7 +245,7 @@ struct HubView: View {
     }
 
     private func todayRow(_ item: HubTodayItem) -> some View {
-        VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: KoiTheme.space.s13) {
                 Button {
                     KoiHaptics.check()
@@ -261,44 +270,24 @@ struct HubView: View {
                     KoiHaptics.tap()
                     model.selectItem(item.id)
                 } label: {
-                    HStack(spacing: 8) {
-                        Text(item.title)
+                    Text(item.title)
                             .font(.custom("RobotoMono-Light", size: 15))
                             .strikethrough(item.isComplete, color: KoiTheme.onBase.opacity(0.55))
-                        if item.kind == .habit {
-                            Text(item.completion == 1 ? "MINIMUM" : "HABIT")
-                                .font(KoiTheme.caption)
-                                .tracking(1)
-                                .foregroundStyle(KoiTheme.onBase.opacity(0.62))
-                        }
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 10, weight: .light))
-                            .rotationEffect(.degrees(model.selectedItemID == item.id ? 180 : 0))
-                    }
                     .foregroundStyle(KoiTheme.onBase.opacity(item.isComplete ? 0.72 : 0.95))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                Spacer(minLength: 0)
+                Text(item.kind == .habit ? "Daily" : "To-do")
+                    .font(KoiTheme.caption)
+                    .foregroundStyle(KoiTheme.onBase.opacity(0.86))
             }
             if model.selectedItemID == item.id {
-                HStack(spacing: 8) {
-                    Text(item.kind == .habit ? "A small ritual, kept today." : item.dueAt?.formatted(date: .abbreviated, time: .omitted) ?? "No date")
-                        .font(KoiTheme.caption)
-                        .foregroundStyle(KoiTheme.onBase.opacity(0.75))
-                    Spacer()
-                    Text(item.kind == .habit ? "EDIT" : "DETAILS")
-                        .font(KoiTheme.caption)
-                        .tracking(1.4)
-                        .foregroundStyle(KoiTheme.onBase)
-                }
-                .padding(.leading, 35)
-                .transition(.opacity)
+                EmptyView()
             }
             Rectangle()
                 .fill(KoiTheme.divider.opacity(0.72))
                 .frame(height: 0.5)
-                .padding(.leading, 35)
         }
     }
 

@@ -69,7 +69,8 @@ struct KoiDial: View {
         ForEach(Array(values.enumerated()), id: \.offset) { _, item in
             let start = values.prefix { $0.0 != item.0 }.reduce(0.0) { $0 + $1.2 }
             let mid = start + item.2 / 2
-            let angle = -Double.pi / 2 + Double.pi * mid
+            let midpointAngle = -Double.pi / 2 + Double.pi * mid
+            let angle = midpointAngle * 0.5
             let r = barRadius - 14 * scale
             let point = CGPoint(x: r * cos(angle), y: size.height / 2 + r * sin(angle))
             Button { onPillarTap(item.0) } label: {
@@ -158,6 +159,12 @@ struct KoiDial: View {
             var path = Path(); path.move(to: p0); path.addLine(to: p1)
             let fade = max(0.3, fadeOpacity((t0 + t1) / 2))
             context.stroke(path, with: .color(.white.opacity(opacity * fade)), style: StrokeStyle(lineWidth: 4 * scale, lineCap: .butt))
+        }
+        for t in [start, end] {
+            let location = point(-Double.pi / 2 + Double.pi * t, radius, center)
+            let diameter = 4 * scale
+            let dot = CGRect(x: location.x - diameter / 2, y: location.y - diameter / 2, width: diameter, height: diameter)
+            context.fill(Path(ellipseIn: dot), with: .color(.white.opacity(opacity * max(0.3, fadeOpacity(t)))))
         }
     }
 
