@@ -15,7 +15,7 @@ what's partial, known issues, and the next step.
 | 5 | Movement: dial, steps, Health sync | ✅ |
 | 6 | Workout journal + workout mode + rest + summary + routines + Koi's pick | ✅ |
 | 7 | Cardio: GPS run, treadmill, class, stats | ✅ |
-| 8 | Progress + Profile (fold rows, body weight) | ☐ |
+| 8 | Progress + Profile (fold rows, body weight) | ✅ |
 | 9 | Onboarding + tour | ☐ |
 | 10 | Notifications + calendar sync + iCloud backup | ☐ |
 | 11 | Widgets, Live Activity (log set from lock screen), Log-a-meal control | ☐ |
@@ -77,13 +77,17 @@ what's partial, known issues, and the next step.
   counts and recent sessions feed Movement training credit. Thirty-seven
   simulator tests pass; Cardio empty state, treadmill start/discard, class entry
   and saved activity detail were reviewed on iPhone 17 Pro.
+- Phase 8: added weekly and monthly Progress views with selected-day Balance,
+  pillar detail and weekly averages. Profile now persists a name, focus, avatar,
+  body weight history, nutrition goals and movement targets; Hub greeting and
+  Balance weighting follow the saved profile. Forty simulator tests pass, and
+  Progress and Profile flows were reviewed on iPhone 17 Pro.
 
 ## Partial / known issues
 
-- The Hub's Profile and Progress sheets are previews; Phase 8 replaces them
-  with full views. The GPS authorization and route math are covered through the
-  injected run-tracker test double; physical-device GPS accuracy still needs a
-  device run.
+- Replay tour and service settings in Profile are deferred to their later
+  phases. GPS authorization and route math are covered through the injected
+  run-tracker test double; physical-device GPS accuracy still needs a device run.
 - To-Do reminder notifications and calendar free-time selection/sync are deferred
   to Phase 10. The `-koiDemo` full-week seed is part of Phase 13, so Phase 3 was
   visually checked with empty data and in-session task entry.
@@ -92,4 +96,4 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Phase 8: build Progress and Profile with body-weight tracking.
+Phase 9: build persistent onboarding and the guided tour.

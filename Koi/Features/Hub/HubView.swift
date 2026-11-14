@@ -32,13 +32,13 @@ struct HubView: View {
         }
         .task { model.refresh(using: modelContext) }
         .sheet(isPresented: $model.presentsProgress) {
-            ProgressPreview(model: model)
-                .presentationDetents([.medium, .large])
+            KoiProgressView()
+                .presentationDetents([.large])
                 .presentationBackground(.ultraThinMaterial)
         }
-        .sheet(isPresented: $model.presentsProfile) {
-            ProfilePreview()
-                .presentationDetents([.medium])
+        .sheet(isPresented: $model.presentsProfile, onDismiss: { model.refresh(using: modelContext) }) {
+            KoiProfileView(onSelectTab: onSelectTab)
+                .presentationDetents([.large])
                 .presentationBackground(.ultraThinMaterial)
         }
     }
@@ -316,55 +316,3 @@ struct HubView: View {
     }
 }
 
-private struct ProgressPreview: View {
-    @Environment(\.dismiss) private var dismiss
-    let model: HubViewModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
-            HStack {
-                Text("Progress")
-                    .font(KoiTheme.title)
-                Spacer()
-                Button("Done") { dismiss() }
-                    .font(KoiTheme.caption)
-                    .buttonStyle(.plain)
-            }
-            Text(model.trendText)
-                .font(KoiTheme.section)
-                .tracking(2)
-                .foregroundStyle(KoiTheme.onBase.opacity(0.78))
-            Text("\(model.formattedBalance) Balance")
-                .font(.custom("KOINumerals", size: 38, relativeTo: .largeTitle))
-            Text("Your daily Balance grows from the small things you do.")
-                .font(KoiTheme.body)
-                .foregroundStyle(KoiTheme.onBase.opacity(0.85))
-            Spacer()
-        }
-        .padding(34)
-        .foregroundStyle(KoiTheme.onBase)
-    }
-}
-
-private struct ProfilePreview: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
-            HStack {
-                Text("Profile")
-                    .font(KoiTheme.title)
-                Spacer()
-                Button("Done") { dismiss() }
-                    .font(KoiTheme.caption)
-                    .buttonStyle(.plain)
-            }
-            Text("Your focus and goals live here.")
-                .font(KoiTheme.body)
-                .foregroundStyle(KoiTheme.onBase.opacity(0.85))
-            Spacer()
-        }
-        .padding(34)
-        .foregroundStyle(KoiTheme.onBase)
-    }
-}

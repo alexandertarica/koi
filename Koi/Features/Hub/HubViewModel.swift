@@ -49,6 +49,7 @@ final class HubViewModel {
     private var nutrientGoals: [KoiNutrientGoal] = []
     private var movementDays: [KoiMovementDay] = []
     private var movementGoal: KoiMovementGoal?
+    private var profile: KoiProfile?
 
     private(set) var selectedDate: Date
     private(set) var balance = BalanceResult(score: 0, habits: 0, nutrition: 0, exercise: 0)
@@ -76,11 +77,13 @@ final class HubViewModel {
 
     var greeting: String {
         let hour = calendar.component(.hour, from: .now)
-        return switch hour {
+        let salutation: String = switch hour {
         case 5..<12: "Good morning."
         case 12..<17: "Good afternoon."
         default: "Good evening."
         }
+        let prefix = salutation.replacingOccurrences(of: ".", with: "")
+        return "\(prefix), \(profile?.name ?? "Friend")."
     }
 
     var dateLabel: String {
@@ -101,6 +104,7 @@ final class HubViewModel {
             nutrientGoals = try modelContext.fetch(FetchDescriptor<KoiNutrientGoal>())
             movementDays = try modelContext.fetch(FetchDescriptor<KoiMovementDay>())
             movementGoal = try modelContext.fetch(FetchDescriptor<KoiMovementGoal>()).first
+            profile = try modelContext.fetch(FetchDescriptor<KoiProfile>()).first
             updateDerivedState()
         } catch {
             logger.error("Unable to load Hub data.")
@@ -175,7 +179,7 @@ final class HubViewModel {
                 habits: activeHabits.isEmpty ? (selectedDay?.habitsScore ?? 0) : habitScore,
                 nutrition: nutritionScore,
                 exercise: exerciseScore
-            )
+            ), focus: selectedFocus
         )
 
         let dayEnd = calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
@@ -252,7 +256,7 @@ final class HubViewModel {
             let nutrition = nutritionScore(for: day) ?? snapshot?.nutritionScore ?? 0
             let exercise = exerciseScore(for: day) ?? snapshot?.exerciseScore ?? 0
             let score = snapshot.map {
-                BalanceEngine.score(pillars: BalancePillars(habits: $0.habitsScore, nutrition: nutrition, exercise: exercise)).score
+                BalanceEngine.score(pillars: BalancePillars(habits: $0.habitsScore, nutrition: nutrition, exercise: exercise), focus: selectedFocus).score
             } ?? (calendar.isDate(day, inSameDayAs: today) ? balance.score : 0)
             if offset < 7 { week.append(score) } else { previous.append(score) }
         }
@@ -274,6 +278,8 @@ final class HubViewModel {
             trendText = "Even with last week"
         }
     }
+
+    private var selectedFocus: BalanceFocus { BalanceFocus(rawValue: profile?.focusKey ?? "") ?? .allRounder }
 
     private func nutritionScore(for date: Date) -> Double? {
         let meals = foodEntries.filter { calendar.isDate($0.loggedAt, inSameDayAs: date) }.map {

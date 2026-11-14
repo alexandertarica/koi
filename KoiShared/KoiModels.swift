@@ -2,6 +2,39 @@ import Foundation
 import SwiftData
 
 @Model
+public final class KoiProfile {
+    @Attribute(.unique) public var id: String
+    public var name: String
+    public var joinedAt: Date
+    public var focusKey: String
+    public var avatarJPEG: Data? = nil
+
+    public init(name: String = "Friend", joinedAt: Date = .now, focusKey: String = "allRounder", avatarJPEG: Data? = nil) {
+        self.id = "profile"
+        self.name = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Friend" : name.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.joinedAt = joinedAt
+        self.focusKey = focusKey
+        self.avatarJPEG = avatarJPEG
+    }
+}
+
+@Model
+public final class KoiBodyWeightEntry {
+    @Attribute(.unique) public var dayID: String
+    public var date: Date
+    public var weightLB: Double
+
+    public init(date: Date = .now, weightLB: Double) {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .autoupdatingCurrent
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        self.dayID = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+        self.date = calendar.startOfDay(for: date)
+        self.weightLB = weightLB.isFinite ? min(max(weightLB, 50), 600) : 150
+    }
+}
+
+@Model
 public final class KoiDay {
     @Attribute(.unique) public var dayID: String
     public var date: Date

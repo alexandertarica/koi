@@ -4,6 +4,8 @@ import SwiftData
 /// The shared model schema is used by the app and its widget extension.
 public enum KoiSchema {
     public static let models: [any PersistentModel.Type] = [
+        KoiProfile.self,
+        KoiBodyWeightEntry.self,
         KoiDay.self,
         KoiHabit.self,
         KoiHabitLog.self,
