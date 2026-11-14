@@ -127,6 +127,7 @@ struct KoiRootView: View {
                 case "onboarding": isOnboardingPresented = true
                 case "smartNote": presentsSmartNote = true
                 case "mealLog": selectedTab = .intake; presentsMealComposer = true
+                case "mealCamera": selectedTab = .intake; presentsMealComposer = true; startsMealCamera = true
                 case "profile", "progress": selectedTab = .hub
                 case "workoutJournal", "workout", "workoutMode", "routineBuilder", "run": selectedTab = .movement
                 case "todoNew", "newTodo", "newHabit": selectedTab = .toDo

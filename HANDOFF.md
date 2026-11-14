@@ -388,6 +388,14 @@ what's partial, known issues, and the next step.
   choices until the user scrolls or dismisses it. The CLI capture pass cannot
   tap through these lower controls or replay the full flows. No additional
   source change was indicated by the static captures.
+- Error and permission states: a Debug-only launch route now presents the meal
+  composer with the camera-unavailable state; its screenshot confirms the
+  friendly simulator message and “Enter manually” action with no clipping.
+  Calendar and motion permission access were revoked through `simctl privacy`
+  on the audit simulator. The onboarding rows catch denied authorization and
+  show recovery copy, but a tap-driven denial/retry was not possible through
+  the command-line-only capture. A forced offline estimator response likewise
+  remains unverified; its friendly error and manual-entry branch are present.
 
 - Food flow: typed estimate returned all seven nutrient values; save updated
   Intake totals and the day's meal list, edit changed the totals, and delete
