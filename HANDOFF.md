@@ -379,6 +379,15 @@ what's partial, known issues, and the next step.
   The 67-test simulator suite passes after this change. Simulator screenshots
   cannot verify physical vibration strength or timing; confirm those on an
   iPhone before judging the haptic feel.
+- Remaining screen review: direct simulator launches and screenshots reviewed
+  workout journal, workout mode, routine builder, run mode, new to-do, new
+  habit, Smart Note, Profile, Progress, and the inline food composer. The empty
+  workout state offers “Add a lift when you're ready”; run mode offers the
+  start action; the routine form and food pane fit within their scroll views.
+  New to-do and habit focus the title field, so the keyboard covers lower form
+  choices until the user scrolls or dismisses it. The CLI capture pass cannot
+  tap through these lower controls or replay the full flows. No additional
+  source change was indicated by the static captures.
 
 - Food flow: typed estimate returned all seven nutrient values; save updated
   Intake totals and the day's meal list, edit changed the totals, and delete
