@@ -64,4 +64,25 @@ final class KoiOnboardingTests: XCTestCase {
         XCTAssertEqual(try context.fetch(FetchDescriptor<KoiHabit>()).count, 3)
         XCTAssertEqual(try context.fetch(FetchDescriptor<KoiMovementGoal>()).first?.stepGoal, 8_000)
     }
+
+    func testQuickSetupStartsWithAnEmptyHubAndKeepsTheTourOptional() throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let model = OnboardingViewModel()
+        model.load(context)
+        model.name = "Ari"
+        model.focus = .nourisher
+        model.wantsHealth = true
+        model.wantsCalendar = true
+        model.finishQuickSetup()
+
+        XCTAssertTrue(model.isCompleted)
+        XCTAssertFalse(model.shouldShowTour)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiHabit>()).count, 0)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiTask>()).count, 0)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiProfile>()).first?.focusKey, BalanceFocus.nourisher.rawValue)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiMovementGoal>()).first?.stepGoal, 8_000)
+        XCTAssertTrue(try XCTUnwrap(context.fetch(FetchDescriptor<KoiOnboardingState>()).first).healthConnected)
+        XCTAssertTrue(try XCTUnwrap(context.fetch(FetchDescriptor<KoiOnboardingState>()).first).calendarConnected)
+    }
 }

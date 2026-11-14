@@ -81,7 +81,8 @@ struct KoiRootView: View {
     @State private var presentsMealComposer = false
     @State private var startsMealCamera = false
     @State private var presentsSmartNote = false
-    @State private var opensSmartNoteAfterOnboarding = false
+    @State private var presentsTour = false
+    @State private var showTourOffer = false
     @State private var didRouteDebugScreen = false
     @State private var launchVisible: Bool = {
         #if DEBUG
@@ -93,39 +94,16 @@ struct KoiRootView: View {
 
     var body: some View {
         ZStack {
-        TabView(selection: $selectedTab) {
-            HubView(onSelectTab: { selectedTab = $0 }, onPresentSmartNote: { presentsSmartNote = true })
-                .tag(KoiTab.hub)
-            TodoView()
-                .tag(KoiTab.toDo)
-            MovementView()
-                .tag(KoiTab.movement)
-            IntakeView(presentsMealComposer: $presentsMealComposer, startsCamera: $startsMealCamera)
-                .tag(KoiTab.intake)
-        }
-        .id(rootRefreshID)
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                KoiSmartNoteHandle { presentsSmartNote = true }.padding(.bottom, 6)
-                KoiTabBar(selection: $selectedTab) { presentsSmartNote = true }
-            }
-            .padding(.horizontal, KoiTheme.space.s21)
-            .padding(.top, 4)
-            .padding(.bottom, 3)
-        }
-        .compositingGroup()
-        .shadow(color: KoiTheme.legibilityShadow, radius: 7)
-        .background(KoiBackground().ignoresSafeArea())
-        .tint(KoiTheme.onBase)
-        .preferredColorScheme(.light)
-        .environment(\.koiIntroRevealed, !launchVisible)
+        styledTabs
         .fullScreenCover(isPresented: $isOnboardingPresented, onDismiss: {
-            guard opensSmartNoteAfterOnboarding else { return }
-            opensSmartNoteAfterOnboarding = false
-            presentsSmartNote = true
+            refreshTourOffer()
         }) {
-            OnboardingView(onSelectTab: { selectedTab = $0 }, onTrySmartNote: { opensSmartNoteAfterOnboarding = true })
+            OnboardingView()
+        }
+        .sheet(isPresented: $presentsTour, onDismiss: { markTourSeen() }) {
+            AnyView(KoiTourView(onSelectTab: selectTab, onTrySmartNote: showSmartNote, onFinish: closeTour)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible))
         }
         .sheet(isPresented: $presentsSmartNote) {
             SmartNoteSheet()
@@ -156,15 +134,12 @@ struct KoiRootView: View {
                 if state?.isComplete != true {
                     if try await backupProvider.hasBackup() { isRestoreOfferPresented = true }
                     else { isOnboardingPresented = true }
-                }
+                } else { showTourOffer = !(state?.hasSeenTour ?? true) }
             } catch {
                 isOnboardingPresented = true
             }
         }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await notificationProvider.refreshPlan(using: modelContext) } }
-            if phase == .background { Task { await createAutomaticBackup() } }
-        }
+        .onChange(of: scenePhase) { _, phase in handleScenePhase(phase) }
         .onReceive(NotificationCenter.default.publisher(for: .koiHealthMovementDidChange)) { _ in
             Task { await notificationProvider.refreshPlan(using: modelContext) }
         }
@@ -179,15 +154,7 @@ struct KoiRootView: View {
             default: selectedTab = .hub
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: KoiNotificationRouter.didOpen)) { notification in
-            let tab = notification.userInfo?["tab"] as? Int ?? 0
-            switch tab {
-            case 1: selectedTab = .toDo
-            case 2: selectedTab = .movement
-            case 3: selectedTab = .intake
-            default: selectedTab = .hub
-            }
-        }
+        .onReceive(NotificationCenter.default.publisher(for: KoiNotificationRouter.didOpen), perform: handleNotificationRoute)
         .onChange(of: selectedTab) { _, tab in analyticsProvider.signal("Screen.opened", parameters: ["screen": tab.title]) }
         .alert("A Koi backup is available", isPresented: $isRestoreOfferPresented) {
             Button("Restore backup") { Task { await restoreStartupBackup() } }
@@ -206,6 +173,73 @@ struct KoiRootView: View {
         }
     }
 
+    private var styledTabs: some View {
+        AnyView(tabContent)
+            .safeAreaInset(edge: .bottom, spacing: 0) { bottomControls }
+            .compositingGroup()
+            .shadow(color: KoiTheme.legibilityShadow, radius: 7)
+            .background(KoiBackground().ignoresSafeArea())
+            .tint(KoiTheme.onBase)
+            .preferredColorScheme(.light)
+            .environment(\.koiIntroRevealed, !launchVisible)
+    }
+
+    private var tabContent: some View {
+        TabView(selection: $selectedTab) {
+            HubView(onSelectTab: { selectedTab = $0 }, onPresentSmartNote: { presentsSmartNote = true }).tag(KoiTab.hub)
+            TodoView().tag(KoiTab.toDo)
+            MovementView().tag(KoiTab.movement)
+            IntakeView(presentsMealComposer: $presentsMealComposer, startsCamera: $startsMealCamera).tag(KoiTab.intake)
+        }
+        .id(rootRefreshID)
+        .tabViewStyle(.page(indexDisplayMode: .never))
+    }
+
+    private var bottomControls: some View {
+            VStack(spacing: 0) {
+                if showTourOffer {
+                    Button {
+                        presentsTour = true
+                    } label: {
+                        Text("Show me around").font(KoiTheme.caption)
+                            .padding(.horizontal, KoiTheme.space.s13)
+                            .padding(.vertical, KoiTheme.space.s5)
+                            .background(.ultraThinMaterial.opacity(0.7), in: Capsule())
+                            .overlay(Capsule().stroke(KoiTheme.onBase.opacity(0.3), lineWidth: 1))
+                    }.buttonStyle(.plain).padding(.bottom, 5)
+                }
+                KoiSmartNoteHandle { presentsSmartNote = true }.padding(.bottom, 6)
+                KoiTabBar(selection: $selectedTab) { presentsSmartNote = true }
+            }
+            .padding(.horizontal, KoiTheme.space.s21)
+            .padding(.top, 4)
+            .padding(.bottom, 3)
+    }
+
+    @MainActor
+    private func selectTab(_ tab: KoiTab) { selectedTab = tab }
+
+    private func showSmartNote() { presentsSmartNote = true }
+
+    private func closeTour() { presentsTour = false }
+
+    @MainActor
+    private func handleNotificationRoute(_ notification: Notification) {
+        let route = notification.userInfo?["tab"] as? Int ?? 0
+        switch route {
+        case 1: selectedTab = .toDo
+        case 2: selectedTab = .movement
+        case 3: selectedTab = .intake
+        default: selectedTab = .hub
+        }
+    }
+
+    @MainActor
+    private func handleScenePhase(_ phase: ScenePhase) {
+        if phase == .active { Task { await notificationProvider.refreshPlan(using: modelContext) } }
+        if phase == .background { Task { await createAutomaticBackup() } }
+    }
+
     @MainActor
     private func createAutomaticBackup() async {
         do {
@@ -216,6 +250,21 @@ struct KoiRootView: View {
         } catch {
             Logger(subsystem: "com.alexandertarica.koi", category: "Backup").error("Automatic backup didn't finish.")
         }
+    }
+
+    @MainActor
+    private func refreshTourOffer() {
+        showTourOffer = (try? modelContext.fetch(FetchDescriptor<KoiOnboardingState>()).first)
+            .map { $0.isComplete && !$0.hasSeenTour } ?? false
+    }
+
+    @MainActor
+    private func markTourSeen() {
+        guard let state = try? modelContext.fetch(FetchDescriptor<KoiOnboardingState>()).first,
+              state.isComplete else { return }
+        state.hasSeenTour = true
+        do { try modelContext.save(); showTourOffer = false }
+        catch { Logger(subsystem: "com.alexandertarica.koi", category: "Onboarding").error("Unable to save tour preference.") }
     }
 
     @MainActor

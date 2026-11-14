@@ -318,8 +318,19 @@ what's partial, known issues, and the next step.
   the Intake dial/rows and today's log updated, edited calories and confirmed
   the totals changed, then deleted it and confirmed the totals returned. Picked
   a library photo and confirmed preview/selection. Smart Note's food action
-  estimated, saved once, and showed its success state. Simulator camera currently
-  opens an empty camera preview; replacing that with a clear photo-picker fallback.
+  estimated, saved once, and showed its success state. Simulator camera now
+  explains that capture is unavailable and offers the photo picker. The live
+  service and library-photo paths work; camera permission UI was not exercised
+  on a physical device. The camera fallback is covered by an automated test.
+
+- Onboarding quick-start pass: replaced the long first-launch setup with three
+  screens (Welcome, Connect, Focus), optional name, optional Health/Calendar
+  switches, and focus presets. Start saves balanced defaults (2,200 kcal, 140 g
+  protein, 8,000 steps, four workouts/week), creates no starter habits, and
+  offers the tour as a Hub chip. A clean iPhone 17 Pro install showed Welcome,
+  Connect and the Apple Health permission request. Calendar permission, Focus,
+  final Hub state, and tour chip remain to be checked interactively. A model
+  persistence test covers empty setup, saved focus and defaults.
 
 ## Next step
 

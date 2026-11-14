@@ -116,6 +116,25 @@ final class OnboardingViewModel {
         finish()
     }
 
+    func skipQuickSetup() {
+        name = ""
+        focus = .allRounder
+        habits = []
+        wantsHealth = false
+        wantsCalendar = false
+        stepGoal = 8_000
+        weeklyWorkoutGoal = 4
+        finish(offerTour: false)
+    }
+
+    func finishQuickSetup() {
+        habits = []
+        stepGoal = 8_000
+        weeklyWorkoutGoal = 4
+        notificationMode = "none"
+        finish(offerTour: false)
+    }
+
     func toggleHabit(_ id: UUID) {
         guard let index = habits.firstIndex(where: { $0.id == id }) else { return }
         habits[index].isSelected.toggle()
@@ -126,7 +145,7 @@ final class OnboardingViewModel {
         habits[index].title = title
     }
 
-    func finish() {
+    func finish(offerTour: Bool = true) {
         guard let context else { return }
         do {
             let profile = try context.fetch(FetchDescriptor<KoiProfile>()).first ?? KoiProfile()
@@ -179,7 +198,7 @@ final class OnboardingViewModel {
             try context.save()
             state = storedState
             isCompleted = true
-            shouldShowTour = true
+            shouldShowTour = offerTour
         } catch {
             logger.error("Unable to save onboarding choices.")
             errorMessage = "Couldn't save your setup. Try again."
