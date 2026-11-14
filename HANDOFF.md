@@ -208,10 +208,11 @@ what's partial, known issues, and the next step.
   cleared the runner state.
 - HealthKit pass: the service now observes step and workout changes and requests
   hourly background delivery, then posts a refresh event so Movement and
-  readiness can reload current samples. This remains read-only. The simulator
-  app and widget build succeeds; the test runner again stalled before XCTest
-  launch, so this observer change has build verification only. Health sample
-  delivery and background scheduling need a device with Apple Health data.
+  readiness can reload current samples. This remains read-only. The app and
+  widget build succeeds; the subsequent Reminders test run and final serial
+  simulator run both passed all 61 tests with this observer code included.
+  Health sample delivery and background scheduling need a device with Apple
+  Health data.
 - Reminders pass: Profile now has a separate Apple Reminders connection. Timed
   to-dos create, update and remove EventKit reminders independently from Apple
   Calendar events; both integration preferences and item identifiers survive
@@ -252,11 +253,11 @@ what's partial, known issues, and the next step.
   state review was completed in earlier phases; this pass did not repeat every
   screen in both appearances. The root currently requests light system
   appearance for the intended glass and status-bar treatment.
-- The second simulator opens setup rather than the seeded dashboard when
-  launched with demo mode, so paired screenshots of feature screens remain
-  unavailable. Direct screenshot capture works on both simulators; the host's
-  simulator UI input path is unavailable, so interactive setup cannot be
-  dismissed from the command line.
+- Paired screenshot review is still incomplete. The second iPhone 17 Pro
+  simulator launches but its captured surface remains at SpringBoard; the
+  primary simulator shows the seeded Hub, dimmed by an OS first-run overlay.
+  Host UI automation could not control Simulator, so the overlay and setup
+  flow could not be dismissed for paired screen captures.
 - The haptic engine and intro reveal are wired into primary tab interactions;
   the remaining screen-specific interaction audit is still in progress.
 - Intake's second-device paired visual review remains unavailable because that
@@ -271,7 +272,13 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Continue through system integrations: HealthKit writes, Calendar/Reminders,
-analytics event audit, and signup configuration. Physical-device verification
-remains for HealthKit, CloudKit, GPS accuracy, notification delivery, widgets,
-Control Center actions, and configured-network workout imports.
+The requested analytics event-name audit found all required event names wired
+to feature actions; TelemetryDeck initializes and signals only in Release.
+Calendar and Reminders sync, Apple Notes handoff, and CloudKit backup/restore
+are implemented. A final serial iPhone 17 Pro simulator test run passes all 61
+tests. Continue the remaining visual and interaction audit in checklist order;
+paired screenshots and screen-specific haptics/animations are not yet fully
+verified. A Koi-owned signup endpoint is not configured, and HealthKit writes
+are not implemented. Physical-device verification remains for HealthKit data,
+CloudKit account/restore, GPS accuracy, notification delivery, widgets, Live
+Activity, Control Center actions, and configured-network workout imports.
