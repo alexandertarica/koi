@@ -7,7 +7,7 @@ protocol AnalyticsProviding: Sendable {
     func signal(_ name: String, parameters: [String: String])
 }
 
-/// Records product events locally in debug builds. Nothing leaves the device.
+/// Records product events in local on-device logs. Nothing leaves the device.
 struct LocalAnalytics: AnalyticsProviding {
     private let logger = Logger(subsystem: "com.alexandertarica.koi", category: "Analytics")
 
