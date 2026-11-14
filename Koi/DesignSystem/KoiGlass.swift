@@ -60,12 +60,13 @@ struct GlassChip: View {
 
 struct KoiPrimaryButton: View {
     let title: String
+    var uppercase = true
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             KoiGlass(strength: .strong) {
-                Text(title.uppercased())
+                Text(uppercase ? title.uppercased() : title)
                     .font(KoiTheme.caption)
                     .tracking(3)
                     .frame(maxWidth: .infinity, minHeight: 40)

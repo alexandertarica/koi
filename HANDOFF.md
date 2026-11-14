@@ -350,6 +350,13 @@ what's partial, known issues, and the next step.
   simulator taps through workout logging, rest/PR feedback, run tracking, and
   the onboarding tour remain outstanding.
 
+- Quick setup simulator pass: confirmed all three screens render on the iPhone
+  17 Pro, with title-case Next/Start labels, and completed Start into the
+  demo-free Hub. The optional “Show me around” chip opened the tour and Skip
+  returned to Hub. The Connect screen shows both optional toggles. Health
+  permission UI appeared during the earlier clean-install run; Calendar's
+  permission prompt was not exercised. All 67 simulator tests pass.
+
 ## Next step
 
 The analytics event-name audit found all required event names wired to feature

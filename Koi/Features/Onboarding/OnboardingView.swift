@@ -31,7 +31,7 @@ struct OnboardingView: View {
                     }
                 }
                 Spacer(minLength: 0)
-                KoiPrimaryButton(title: screen == 2 ? "Start" : "Next") {
+                KoiPrimaryButton(title: screen == 2 ? "Start" : "Next", uppercase: false) {
                     KoiHaptics.tap()
                     if screen < 2 {
                         analyticsProvider.signal("Onboarding.step", parameters: ["step": sections[screen]])
@@ -52,7 +52,16 @@ struct OnboardingView: View {
             .foregroundStyle(KoiTheme.onBase)
         }
         .preferredColorScheme(.dark)
-        .task { model.load(context) }
+        .task {
+            model.load(context)
+            #if DEBUG
+            let arguments = ProcessInfo.processInfo.arguments
+            if let index = arguments.firstIndex(of: "-koiOnboardingStep"), arguments.indices.contains(index + 1),
+               let requested = Int(arguments[index + 1]) {
+                screen = min(max(requested, 0), 2)
+            }
+            #endif
+        }
         .onChange(of: model.isCompleted) { _, complete in if complete { dismiss() } }
         .alert("Setup", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK", role: .cancel) { errorMessage = nil }

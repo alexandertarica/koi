@@ -119,6 +119,7 @@ struct KoiRootView: View {
             if !didRouteDebugScreen {
                 didRouteDebugScreen = true
                 switch KoiLaunch.screen {
+                case "onboarding": isOnboardingPresented = true
                 case "smartNote": presentsSmartNote = true
                 case "mealLog": selectedTab = .intake; presentsMealComposer = true
                 case "profile", "progress": selectedTab = .hub
