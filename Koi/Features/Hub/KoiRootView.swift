@@ -423,7 +423,10 @@ private struct SmartNoteSheet: View {
     @State private var aiAction: SmartNoteAction?
     @State private var isClassifying = false
 
-    private var action: SmartNoteAction? { aiAction ?? SmartNoteParser.parse(text) }
+    private var action: SmartNoteAction? {
+        guard !SmartNoteParser.isActivityWithoutFood(text) else { return nil }
+        return aiAction ?? SmartNoteParser.parse(text)
+    }
 
     var body: some View {
         NavigationStack {

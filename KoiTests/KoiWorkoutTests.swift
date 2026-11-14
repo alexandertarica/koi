@@ -56,6 +56,9 @@ final class KoiWorkoutTests: XCTestCase {
 
     func testSmartNoteRecognizesMealWaterToDoAndSets() {
         XCTAssertEqual(SmartNoteParser.parse("oatmeal with berries"), .food("oatmeal with berries"))
+        XCTAssertNil(SmartNoteParser.parse("Walked to coffee"))
+        XCTAssertTrue(SmartNoteParser.isActivityWithoutFood("Walked to coffee"))
+        XCTAssertFalse(SmartNoteParser.isActivityWithoutFood("Walked, then had coffee"))
         XCTAssertEqual(SmartNoteParser.parse("drank 12 oz water"), .water(12))
         guard case let .workout(name, weight, reps, sets)? = SmartNoteParser.parse("bench press 185x5x3") else {
             return XCTFail("Expected a logged workout")

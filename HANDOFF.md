@@ -27,9 +27,10 @@ what's partial, known issues, and the next step.
 - Phase 0: created the Xcode project with app, widget extension, shared schema
   framework and unit-test targets. Set bundle IDs, version/build, team, iOS
   deployment targets, App Group, HealthKit, iCloud, location background mode,
-  Live Activities and local notification descriptions. Added the local analytics
-  package and its release-only app ID, app-group SwiftData container and shared
-  day/habit/task/food models.
+  Live Activities and local notification descriptions. Analytics use
+  `LocalAnalytics` and stay on device, with no external analytics dependency or
+  app ID. Added the app-group SwiftData container and shared day/habit/task/food
+  models.
 - Phase 0: added the brand image catalog and fonts, water background, theme
   tokens, glass components and four-tab shell. The iPhone 17 Pro simulator build
   succeeded, the SwiftData persistence test passed, and the app launched for a
@@ -363,13 +364,47 @@ what's partial, known issues, and the next step.
   nutrient tracks within their rows and restored the broader filled track and
   marker sizing. Debug build succeeds; all 67 simulator tests pass.
 
-## Next step
+## Final pass status (2026-11-14)
 
-The analytics event-name audit found all required event names wired to feature
-actions; analytics events stay on device.
-Calendar and Reminders sync, Apple Notes handoff, and CloudKit backup/restore
-are implemented. Next, continue the deeper feature and system review. A Koi-
-owned signup endpoint is not configured, and HealthKit writes are not
-implemented. Physical-device verification remains for HealthKit data, CloudKit
-account/restore, GPS accuracy, notification delivery, widgets, Live Activity,
-Control Center actions, and configured-network workout imports.
+- Food flow: typed estimate returned all seven nutrient values; save updated
+  Intake totals and the day's meal list, edit changed the totals, and delete
+  restored them. A library photo was selected and previewed. Smart Note saved a
+  meal once. Simulator camera fallback explains the limitation and offers the
+  library picker. Widget meal links are registered; opening the URL on a fresh
+  simulator install reached iOS's first-open confirmation, so the widget and
+  Control Center launch action still need direct device interaction. Friendly
+  service-error/manual-entry behavior is implemented, but a forced network
+  failure was not exercised end to end. The phrase “Walked to coffee” was
+  classified as a meal; it produced an empty estimate. That test entry was
+  deleted. Smart Note now treats movement-only notes as reflections instead of
+  sending them to food estimation; parser tests cover movement notes with and
+  without a food-consumption phrase.
+- Onboarding: a clean install showed all three steps, optional Health and
+  Calendar connections, four focus choices, Start, the demo-free Hub, and the
+  optional tour chip. Calendar permission was granted in Simulator; Health
+  remains optional. Defaults are 2,200 kcal, 140 g protein, 8,000 steps, and
+  four workouts per week.
+- Tab and screen pass: seeded Hub, To-Do, Movement, and Intake were captured on
+  the same iPhone 17 Pro simulator. Workout set logging, PR feedback, rest timer,
+  plate math, workout finish/history, routine creation, treadmill logging, class
+  logging, new to-do, new habit, and Smart Note save were exercised. Progress,
+  Profile, onboarding, tour, meal composer, and other sub-screens were launched
+  and visually reviewed. Treadmill/class paths work in Simulator; GPS accuracy,
+  physical haptics, camera capture, notification delivery, HealthKit data,
+  CloudKit account/restore, widget placement/actions, Live Activity and Control
+  Center actions still need a physical device or system UI interaction.
+- Stability: the app was launched with an empty store and with `-koiDemo` on the
+  same booted iPhone 17 Pro. The principal screens and create/log flows above
+  completed without a crash. The latest full simulator suite passes all 67
+  tests. A configured-network workout import and deliberately induced estimator
+  failure remain unverified.
+- The four app targets currently resolve to version 1.0 build 1. Set the next
+  release build number to 2 before TestFlight upload; marketing version stays
+  1.0.
+
+## Remaining work
+
+Set `CURRENT_PROJECT_VERSION` to 2 across the app's app/widget/shared/test
+targets, run the final build and test suite, and commit the release build-number
+change. Keep analytics on device through `LocalAnalytics`. A Koi-owned signup
+endpoint is not configured, and HealthKit writes are not implemented.

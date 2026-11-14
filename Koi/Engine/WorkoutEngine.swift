@@ -178,9 +178,17 @@ enum SmartNoteAction: Equatable, Sendable {
 }
 
 enum SmartNoteParser {
+    static func isActivityWithoutFood(_ rawText: String) -> Bool {
+        let words = Set(rawText.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init))
+        let activityWords: Set<String> = ["walk", "walked", "walking", "ran", "run", "running", "jog", "jogged", "cycled", "cycling", "hiked", "hiking", "trained", "training"]
+        let foodActionWords: Set<String> = ["ate", "eat", "eating", "had", "having", "drank", "drink", "drinking", "meal", "snack"]
+        return !words.isDisjoint(with: activityWords) && words.isDisjoint(with: foodActionWords)
+    }
+
     static func parse(_ rawText: String, now: Date = .now, calendar: Calendar = .autoupdatingCurrent) -> SmartNoteAction? {
         let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, text.count <= 8000 else { return nil }
+        guard !isActivityWithoutFood(text) else { return nil }
         let lower = text.lowercased()
         let words = Set(lower.split(whereSeparator: { !$0.isLetter }).map(String.init))
         if lower.contains("water") || lower.contains("drank") {
