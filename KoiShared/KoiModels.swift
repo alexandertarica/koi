@@ -119,8 +119,11 @@ public final class KoiFoodEntry {
     public var fiberGrams: Double
     public var addedSugarGrams: Double
     public var sodiumMilligrams: Double
+    public var confidence: Double = 1
+    public var imageJPEG: Data? = nil
+    public var notes: String = ""
 
-    public init(name: String, loggedAt: Date = .now, calories: Double = 0, proteinGrams: Double = 0, carbohydrateGrams: Double = 0, fatGrams: Double = 0, fiberGrams: Double = 0, addedSugarGrams: Double = 0, sodiumMilligrams: Double = 0) {
+    public init(name: String, loggedAt: Date = .now, calories: Double = 0, proteinGrams: Double = 0, carbohydrateGrams: Double = 0, fatGrams: Double = 0, fiberGrams: Double = 0, addedSugarGrams: Double = 0, sodiumMilligrams: Double = 0, confidence: Double = 1, imageJPEG: Data? = nil, notes: String = "") {
         self.id = UUID()
         self.loggedAt = loggedAt
         self.name = name
@@ -131,5 +134,86 @@ public final class KoiFoodEntry {
         self.fiberGrams = fiberGrams
         self.addedSugarGrams = addedSugarGrams
         self.sodiumMilligrams = sodiumMilligrams
+        self.confidence = min(max(confidence, 0), 1)
+        self.imageJPEG = imageJPEG
+        self.notes = notes
+    }
+}
+
+@Model
+public final class KoiNutrientGoal {
+    @Attribute(.unique) public var key: String
+    public var name: String
+    public var unit: String
+    public var goal: Double
+    public var step: Double
+    public var goalType: String
+    public var isActive: Bool
+
+    public init(key: String, name: String, unit: String, goal: Double, step: Double, goalType: String = "reach", isActive: Bool = true) {
+        self.key = key
+        self.name = name
+        self.unit = unit
+        self.goal = max(goal.isFinite ? goal : 0, 0)
+        self.step = max(step.isFinite ? step : 1, 1)
+        self.goalType = goalType
+        self.isActive = isActive
+    }
+}
+
+@Model
+public final class KoiNutrientEntry {
+    @Attribute(.unique) public var id: String
+    public var dayID: String
+    public var nutrientKey: String
+    /// Signed adjustment layered over meal totals. Negative values let the user
+    /// set a daily counter below the nutrition already contained in meal logs.
+    public var value: Double
+
+    public init(date: Date, nutrientKey: String, value: Double = 0) {
+        let dayID = Self.dayIdentifier(for: date)
+        self.dayID = dayID
+        self.nutrientKey = nutrientKey
+        self.id = "\(dayID)|\(nutrientKey)"
+        self.value = value.isFinite ? value : 0
+    }
+
+    private static func dayIdentifier(for date: Date) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .autoupdatingCurrent
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+}
+
+@Model
+public final class KoiSupplement {
+    @Attribute(.unique) public var id: UUID
+    public var name: String
+    public var isActive: Bool
+
+    public init(name: String, isActive: Bool = true) {
+        self.id = UUID()
+        self.name = name
+        self.isActive = isActive
+    }
+}
+
+@Model
+public final class KoiSupplementLog {
+    @Attribute(.unique) public var id: String
+    public var supplementID: UUID
+    public var dayID: String
+    public var isTaken: Bool
+
+    public init(supplementID: UUID, date: Date, isTaken: Bool = false) {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .autoupdatingCurrent
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        let dayID = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+        self.supplementID = supplementID
+        self.dayID = dayID
+        self.id = "\(dayID)|\(supplementID.uuidString)"
+        self.isTaken = isTaken
     }
 }

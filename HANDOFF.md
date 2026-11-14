@@ -11,7 +11,7 @@ what's partial, known issues, and the next step.
 | 1 | Engine: Balance, streak + freezes, habit rules, date parsing (tests) | ✅ |
 | 2 | Hub: dial, scrub, pillar lines, Today list, trend chip | ✅ |
 | 3 | To-Do: habits + to-dos, list + matrix, new to-do, new habit, archive, auto-urgent | ✅ |
-| 4 | Intake: dial, quiet rows, food log with AI, meals, supplements, edit mode | ☐ |
+| 4 | Intake: dial, quiet rows, food log with AI, meals, supplements, edit mode | ✅ |
 | 5 | Movement: dial, steps, Health sync | ☐ |
 | 6 | Workout journal + workout mode + rest + summary + routines + Koi's pick | ☐ |
 | 7 | Cardio: GPS run, treadmill, class, stats | ☐ |
@@ -50,12 +50,19 @@ what's partial, known issues, and the next step.
   respects habit schedules and task archives. Twenty-three simulator tests pass;
   build, launch, empty state, create flows, matrix and urgency undo were checked
   on the iPhone 17 Pro.
+- Phase 4: added editable nutrient goals and types, calorie/nutrient scoring,
+  manual daily adjustments, meal estimate and manual-entry flows, camera/library
+  image selection, saved meal editing and deletion, supplement tracking, and
+  nutrition event scoring in the Hub. Estimate requests use the injected service
+  and the private configuration is conditionally copied into the app bundle.
+  Twenty-eight simulator tests pass; the empty Intake screen, meal entry, saved
+  meal state, and goal editor were reviewed on iPhone 17 Pro.
 
 ## Partial / known issues
 
-- Intake and Movement pillar values currently come from daily score records;
-  Phases 4 and 5 add event-level food and activity data.
-- Movement and Intake remain placeholders pending their phases. The Hub's
+- Movement pillar values currently come from daily score records; Phase 5 adds
+  event-level activity data.
+- Movement remains a placeholder pending its phase. The Hub's
   Profile and Progress sheets are previews; Phase 8 replaces them with full views.
 - To-Do reminder notifications and calendar free-time selection/sync are deferred
   to Phase 10. The `-koiDemo` full-week seed is part of Phase 13, so Phase 3 was
@@ -65,4 +72,4 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Phase 4: build intake goals, food logging and nutrition scoring.
+Phase 5: build Movement goals, step logging and Health sync.

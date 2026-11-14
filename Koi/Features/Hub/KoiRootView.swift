@@ -36,7 +36,7 @@ struct KoiRootView: View {
                 .tag(KoiTab.toDo)
             KoiTabPlaceholder(tab: .movement)
                 .tag(KoiTab.movement)
-            KoiTabPlaceholder(tab: .intake)
+            IntakeView()
                 .tag(KoiTab.intake)
         }
         .tabViewStyle(.page(indexDisplayMode: .never))

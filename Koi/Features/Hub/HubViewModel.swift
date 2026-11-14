@@ -44,6 +44,9 @@ final class HubViewModel {
     private var habits: [KoiHabit] = []
     private var tasks: [KoiTask] = []
     private var logs: [KoiHabitLog] = []
+    private var foodEntries: [KoiFoodEntry] = []
+    private var nutrientEntries: [KoiNutrientEntry] = []
+    private var nutrientGoals: [KoiNutrientGoal] = []
 
     private(set) var selectedDate: Date
     private(set) var balance = BalanceResult(score: 0, habits: 0, nutrition: 0, exercise: 0)
@@ -91,6 +94,9 @@ final class HubViewModel {
             habits = try modelContext.fetch(FetchDescriptor<KoiHabit>(sortBy: [SortDescriptor(\.createdAt)]))
             tasks = try modelContext.fetch(FetchDescriptor<KoiTask>(sortBy: [SortDescriptor(\.createdAt)]))
             logs = try modelContext.fetch(FetchDescriptor<KoiHabitLog>())
+            foodEntries = try modelContext.fetch(FetchDescriptor<KoiFoodEntry>())
+            nutrientEntries = try modelContext.fetch(FetchDescriptor<KoiNutrientEntry>())
+            nutrientGoals = try modelContext.fetch(FetchDescriptor<KoiNutrientGoal>())
             updateDerivedState()
         } catch {
             logger.error("Unable to load Hub data.")
@@ -158,10 +164,11 @@ final class HubViewModel {
             previousMisses(for: habit, before: selectedDate)
         }
         let habitScore = HabitRules.dayScore(habitDays, previousMisses: misses)
+        let nutritionScore = nutritionScore(for: selectedDate) ?? selectedDay?.nutritionScore ?? 0
         balance = BalanceEngine.score(
             pillars: BalancePillars(
                 habits: activeHabits.isEmpty ? (selectedDay?.habitsScore ?? 0) : habitScore,
-                nutrition: selectedDay?.nutritionScore ?? 0,
+                nutrition: nutritionScore,
                 exercise: selectedDay?.exerciseScore ?? 0
             )
         )
@@ -236,9 +243,11 @@ final class HubViewModel {
         var previous: [Double] = []
         for offset in 0..<14 {
             guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
-            let score = days.first(where: { calendar.isDate($0.date, inSameDayAs: day) }).map {
-                BalanceEngine.score(pillars: BalancePillars(habits: $0.habitsScore, nutrition: $0.nutritionScore, exercise: $0.exerciseScore)).score
-            } ?? 0
+            let snapshot = days.first(where: { calendar.isDate($0.date, inSameDayAs: day) })
+            let nutrition = nutritionScore(for: day) ?? snapshot?.nutritionScore ?? 0
+            let score = snapshot.map {
+                BalanceEngine.score(pillars: BalancePillars(habits: $0.habitsScore, nutrition: nutrition, exercise: $0.exerciseScore)).score
+            } ?? (calendar.isDate(day, inSameDayAs: today) ? balance.score : 0)
             if offset < 7 { week.append(score) } else { previous.append(score) }
         }
         let historyStart = calendar.date(byAdding: .day, value: -6, to: today) ?? today
@@ -258,5 +267,30 @@ final class HubViewModel {
         } else {
             trendText = "Even with last week"
         }
+    }
+
+    private func nutritionScore(for date: Date) -> Double? {
+        let meals = foodEntries.filter { calendar.isDate($0.loggedAt, inSameDayAs: date) }.map {
+            MealNutritionInput(calories: $0.calories, protein: $0.proteinGrams, carbs: $0.carbohydrateGrams, fat: $0.fatGrams, fiber: $0.fiberGrams, addedSugar: $0.addedSugarGrams, sodium: $0.sodiumMilligrams)
+        }
+        let dayID = Self.dayIdentifier(for: date, calendar: calendar)
+        let adjustments = nutrientEntries.filter { $0.dayID == dayID }.map { NutritionAdjustmentInput(key: $0.nutrientKey, value: $0.value) }
+        guard NutritionEngine.hasAnyIntake(meals: meals, adjustments: adjustments) else { return nil }
+        let totals = NutritionEngine.totals(meals: meals, adjustments: adjustments)
+        let calorieGoal = nutrientGoals.first(where: { $0.key == "calories" })?.goal ?? 2_200
+        return NutritionEngine.score(
+            goals: nutrientGoals.filter(\.isActive).map { NutrientGoalInput(key: $0.key, goal: $0.goal, type: NutrientGoalType(rawValue: $0.goalType) ?? .track) },
+            values: totals,
+            calories: totals["calories"] ?? 0,
+            calorieGoal: calorieGoal,
+            hasAnyIntake: true
+        ).score
+    }
+
+    private static func dayIdentifier(for date: Date, calendar input: Calendar) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = input.timeZone
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 }

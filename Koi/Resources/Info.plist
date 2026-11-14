@@ -10,6 +10,7 @@
     </array>
     <key>NSHealthShareUsageDescription</key><string>Koi reads your steps and workouts to reflect your movement.</string>
     <key>NSHealthUpdateUsageDescription</key><string>Koi can save workouts and body weight you choose to log.</string>
+    <key>NSCameraUsageDescription</key><string>Koi uses the camera when you choose to photograph a meal.</string>
     <key>NSLocationWhenInUseUsageDescription</key><string>Koi uses your location to map outdoor runs.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key><string>Koi keeps recording your route while an outdoor run is in progress.</string>
     <key>NSCalendarsFullAccessUsageDescription</key><string>Koi adds timed to-dos to your calendar when you choose.</string>
