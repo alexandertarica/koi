@@ -50,9 +50,8 @@ what's partial, known issues, and the next step.
   its label line. Demo nutrition uses the tracked goal values and the sample
   history maintains a qualifying seven-day run. Added coverage for the seeded
   nutrition score and streak. The app builds and all 55 simulator tests pass.
-  Captured the Hub on the iPhone 17 Pro simulator. The second simulator opens
-  first-run setup even with demo mode, so paired visual review remains
-  incomplete.
+  Captured the Hub on the iPhone 17 Pro simulator. Early paired attempts were
+  blocked by first-run overlays; a later pass captured the Hub on both devices.
 - Design foundation pass: added the tonal background wash, tiled film grain,
   device-motion tilt with Reduce Motion support, halo shadow, stronger glass
   treatment, shared splash sequence, staggered intro reveal, and the haptic
@@ -60,8 +59,8 @@ what's partial, known issues, and the next step.
   Matched the Hub header and shared tab bar proportions, and wired the initial
   reveal cascade and interaction feedback through Hub, To-Do, Intake, and
   Movement. The app builds and all 55 simulator tests pass. Captured the Hub
-  after launch; the paired simulator currently opens setup even when launched
-  with demo mode, so paired review of feature screens remains incomplete.
+  after launch; paired screen captures were completed later for Hub, To-Do,
+  Movement and Intake.
 - Phase 3: added persistent habit schedules/check-ins and to-dos with title date
   parsing, required matrix placement, optional due times, notes, edit/detail
   folds, list and draggable matrix views, pause/archive/restore, delayed task
@@ -268,19 +267,15 @@ what's partial, known issues, and the next step.
 - Paired demo captures now cover Hub, To-Do, Movement and Intake on two iPhone
   17 Pro simulators.
   Simulator preferences were used to dismiss the daily check-in and guided tour
-  overlays for the captures. Other screen pairs and paired empty-state captures
-  are still outstanding.
+  overlays for the captures. Each app has its own seed values, so the numerical
+  scores and sample entries differ. Other screen pairs and paired empty-state
+  captures are still outstanding.
 - The haptic engine and intro reveal are wired into primary tab interactions;
   the remaining screen-specific interaction audit is still in progress.
-- Intake's second-device paired visual review remains unavailable because that
-  simulator still opens first-run setup. The seeded screen and composer were
-  reviewed on the primary iPhone 17 Pro simulator.
-- Movement's second-device paired visual review remains unavailable for the
-  same first-run setup behavior. Its seeded screen was reviewed on the primary
-  iPhone 17 Pro simulator.
-- Progress and Profile paired visual review remains unavailable because the
-  second simulator stays in first-run setup. Both seeded panels were captured on
-  the primary iPhone 17 Pro simulator.
+- Progress and Profile were reviewed on the primary iPhone 17 Pro simulator;
+  paired captures of their in-place panels remain outstanding because they
+  require interactions that the available simulator command interface cannot
+  send.
 
 ## Next step
 
