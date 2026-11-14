@@ -10,6 +10,20 @@ enum KoiTab: Int, CaseIterable, Identifiable {
     case intake
 
     var id: Int { rawValue }
+    static var launchSelection: KoiTab {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let marker = arguments.firstIndex(of: "-koiTab"), arguments.indices.contains(marker + 1) {
+            switch arguments[marker + 1].lowercased() {
+            case "todo": return .toDo
+            case "movement": return .movement
+            case "intake": return .intake
+            default: break
+            }
+        }
+        #endif
+        return .hub
+    }
     var title: String {
         switch self {
         case .hub: "Hub"
@@ -33,7 +47,7 @@ struct KoiRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.backupProvider) private var backupProvider
     @Environment(\.analyticsProvider) private var analyticsProvider
-    @State private var selectedTab: KoiTab = .hub
+    @State private var selectedTab: KoiTab = KoiTab.launchSelection
     @State private var isOnboardingPresented = false
     @State private var hasLoadedOnboarding = false
     @State private var isRestoreOfferPresented = false
@@ -79,7 +93,7 @@ struct KoiRootView: View {
                 .presentationDragIndicator(.visible)
         }
         .task {
-            analyticsProvider.signal("Screen.opened", parameters: ["screen": "Hub"])
+            analyticsProvider.signal("Screen.opened", parameters: ["screen": selectedTab.title])
             if ProcessInfo.processInfo.arguments.contains("-koiDemo") {
                 do { try KoiDemoSeeder.seedIfEmpty(modelContext) }
                 catch { Logger(subsystem: "com.alexandertarica.koi", category: "Demo").error("Unable to seed demo data.") }

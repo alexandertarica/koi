@@ -230,8 +230,9 @@ final class TodoViewModel {
 
     func dismissAutoUrgent() { toast = nil; toastTaskID = nil }
 
-    func saveTask() {
-        guard let context, canSaveTask else { return }
+    @discardableResult
+    func saveTask() -> Bool {
+        guard let context, canSaveTask else { return false }
         let title = taskDraft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if let editingTaskID, let task = tasks.first(where: { $0.id == editingTaskID }) {
             task.title = title
@@ -246,7 +247,7 @@ final class TodoViewModel {
             showingNewTask = false
             self.editingTaskID = nil
             taskDraft = TodoDraft()
-            return
+            return true
         }
         let task = KoiTask(title: title, notes: taskDraft.notes.trimmingCharacters(in: .whitespacesAndNewlines), dueAt: taskDraft.dueAt, quadrant: taskDraft.quadrant.quadrant, important: taskDraft.important, hasTime: taskDraft.hasTime)
         task.lastTouchedAt = .now
@@ -259,11 +260,13 @@ final class TodoViewModel {
             parsedTitleDate = nil
             _ = applyAutoUrgency(for: task)
             persist()
-        } catch { logger.error("Unable to save a to-do."); errorMessage = "Couldn't save this to-do. Try again." }
+            return true
+        } catch { logger.error("Unable to save a to-do."); errorMessage = "Couldn't save this to-do. Try again."; return false }
     }
 
-    func saveHabit() {
-        guard let context, canSaveHabit else { return }
+    @discardableResult
+    func saveHabit() -> Bool {
+        guard let context, canSaveHabit else { return false }
         let reminder: Date? = habitDraft.reminderHour.flatMap { hour in
             calendar.date(from: DateComponents(hour: hour, minute: habitDraft.reminderMinute))
         }
@@ -286,7 +289,7 @@ final class TodoViewModel {
             showingNewHabit = false
             self.editingHabitID = nil
             habitDraft = HabitDraft()
-            return
+            return true
         }
         let habit = KoiHabit(title: title, note: note, schedule: habitDraft.schedule, weekdays: weekdays, reminderTime: reminder, minimumVersion: minimum, stackingCue: cue, identity: identity)
         context.insert(habit)
@@ -295,7 +298,8 @@ final class TodoViewModel {
             habits.append(habit)
             showingNewHabit = false
             habitDraft = HabitDraft()
-        } catch { logger.error("Unable to save a habit."); errorMessage = "Couldn't save this habit. Try again." }
+            return true
+        } catch { logger.error("Unable to save a habit."); errorMessage = "Couldn't save this habit. Try again."; return false }
     }
 
     func toggleCompletion(_ task: KoiTask) {
@@ -341,6 +345,14 @@ final class TodoViewModel {
     func restoreTask(_ task: KoiTask) { task.archivedAt = nil; task.completedAt = nil; task.isComplete = false; persist() }
     func pauseHabit(_ habit: KoiHabit) { habit.isActive = false; habit.pausedAt = .now; persist() }
     func restoreHabit(_ habit: KoiHabit) { habit.isActive = true; habit.pausedAt = nil; persist() }
+    func deleteHabit(_ habit: KoiHabit) {
+        guard let context else { return }
+        for log in logs where log.habitID == habit.id { context.delete(log) }
+        context.delete(habit)
+        habits.removeAll { $0.id == habit.id }
+        logs.removeAll { $0.habitID == habit.id }
+        persist()
+    }
     func reviewHabitCoach() {
         guard let action = coachAction else { return }
         switch action {

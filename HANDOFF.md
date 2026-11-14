@@ -50,9 +50,9 @@ what's partial, known issues, and the next step.
   its label line. Demo nutrition uses the tracked goal values and the sample
   history maintains a qualifying seven-day run. Added coverage for the seeded
   nutrition score and streak. The app builds and all 55 simulator tests pass.
-  Captured the Hub on the iPhone 17 Pro simulator. A second simulator starts
-  the comparison app process but continues to display SpringBoard, so the
-  paired visual review remains incomplete.
+  Captured the Hub on the iPhone 17 Pro simulator. The second simulator opens
+  first-run setup even with demo mode, so paired visual review remains
+  incomplete.
 - Design foundation pass: added the tonal background wash, tiled film grain,
   device-motion tilt with Reduce Motion support, halo shadow, stronger glass
   treatment, shared splash sequence, staggered intro reveal, and the haptic
@@ -69,6 +69,13 @@ what's partial, known issues, and the next step.
   respects habit schedules and task archives. Twenty-three simulator tests pass;
   build, launch, empty state, create flows, matrix and urgency undo were checked
   on the iPhone 17 Pro.
+- To-Do visual pass: aligned the screen header and add controls with the shared
+  design, added today's completion count and a horizontal habit tick-ring strip,
+  grouped open tasks into today, undated, and upcoming sections, and collapsed
+  finished tasks behind a count row. Task and habit composers now open in place;
+  archive rows include restore and delete actions. Added swipe-to-complete and
+  swipe-to-reveal-delete behavior, plus placement analytics and completion
+  feedback. All 55 simulator tests pass, and the seeded To-Do screen was captured.
 - Phase 4: added editable nutrient goals and types, calorie/nutrient scoring,
   manual daily adjustments, meal estimate and manual-entry flows, camera/library
   image selection, saved meal editing and deletion, supplement tracking, and
@@ -187,14 +194,16 @@ what's partial, known issues, and the next step.
   appearance for the intended glass and status-bar treatment.
 - The second simulator opens setup rather than the seeded dashboard when
   launched with demo mode, so paired screenshots of feature screens remain
-  unavailable. Direct screenshot capture works on both simulators.
+  unavailable. Direct screenshot capture works on both simulators; the host's
+  simulator UI input path is unavailable, so interactive setup cannot be
+  dismissed from the command line.
 - The haptic engine and intro reveal are wired into primary tab interactions;
   the remaining screen-specific interaction audit is still in progress.
 
 ## Next step
 
-Continue the visual and interaction pass in order with To-Do, then Intake,
-Movement, Progress/Profile, onboarding, and system integrations. Physical-device
+Continue the visual and interaction pass in order with Intake, Movement,
+Progress/Profile, onboarding, and system integrations. Physical-device
 verification remains for HealthKit, CloudKit, GPS accuracy, notification
 delivery, widgets, Control Center actions, and configured-network workout
 imports.

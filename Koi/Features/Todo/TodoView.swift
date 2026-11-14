@@ -8,17 +8,20 @@ struct TodoView: View {
     @Environment(\.notificationProvider) private var notificationProvider
     @Environment(\.analyticsProvider) private var analyticsProvider
     @State private var model = TodoViewModel()
+    @AppStorage("koiTodoGrid") private var startsInMatrix = false
+    @State private var showFinished = false
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: KoiTheme.space.s34) {
+            VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
                 header.modifier(KoiIntroReveal(order: 0))
-                if !model.showingArchive { modePicker.modifier(KoiIntroReveal(order: 1)) }
                 if model.showingArchive { archiveContent.modifier(KoiIntroReveal(order: 2)) }
+                else if model.showingNewTask { NewTaskSheet(model: model, embedded: true).modifier(KoiIntroReveal(order: 1)) }
+                else if model.showingNewHabit { NewHabitSheet(model: model, embedded: true).modifier(KoiIntroReveal(order: 1)) }
                 else {
                     if model.shouldShowCoach { habitCoachCard.modifier(KoiIntroReveal(order: 2)) }
-                    habitsSection.modifier(KoiIntroReveal(order: 3))
-                    if model.mode == .list { listContent.modifier(KoiIntroReveal(order: 4)) } else { matrixContent.modifier(KoiIntroReveal(order: 4)) }
+                    if !todayHabits.isEmpty { habitsSection.modifier(KoiIntroReveal(order: 2)) }
+                    if model.mode == .list { listContent.modifier(KoiIntroReveal(order: 3)) } else { matrixContent.modifier(KoiIntroReveal(order: 3)) }
                 }
             }
             .padding(.horizontal, KoiTheme.space.s21)
@@ -26,9 +29,10 @@ struct TodoView: View {
             .padding(.bottom, KoiTheme.space.s34)
         }
         .scrollIndicators(.hidden)
-        .onAppear { model.load(modelContext, calendarProvider: calendarProvider, notificationProvider: notificationProvider) }
-        .sheet(isPresented: Binding(get: { model.showingNewTask }, set: { if !$0 { model.cancelNewTask() } })) { NewTaskSheet(model: model) }
-        .sheet(isPresented: Binding(get: { model.showingNewHabit }, set: { if !$0 { model.cancelNewHabit() } })) { NewHabitSheet(model: model) }
+        .onAppear {
+            model.setMode(startsInMatrix ? .matrix : .list)
+            model.load(modelContext, calendarProvider: calendarProvider, notificationProvider: notificationProvider)
+        }
         .alert("Keep this for later?", isPresented: Binding(get: { model.staleTaskID != nil }, set: { if !$0 { model.dismissStaleTask(keep: true) } })) {
             Button("Keep", role: .cancel) { model.dismissStaleTask(keep: true) }
             Button("Let go", role: .destructive) { model.dismissStaleTask(keep: false) }
@@ -57,71 +61,190 @@ struct TodoView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 13) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("TO-DO").font(KoiTheme.section).tracking(2.4).foregroundStyle(KoiTheme.onBase.opacity(0.8))
-                Text(model.showingArchive ? "A quiet place." : "One thing at a time.")
-                    .font(KoiTheme.title).foregroundStyle(KoiTheme.onBase)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
+                Image("KoiWordmark")
+                    .resizable().renderingMode(.template).scaledToFit()
+                    .frame(width: 240, height: 28)
+                    .foregroundStyle(KoiTheme.onBase)
+                    .accessibilityLabel("Koi")
+                Spacer()
+                Button {
+                    KoiHaptics.tap()
+                    withAnimation(KoiTheme.morph) {
+                        if model.showingNewTask { model.cancelNewTask() }
+                        else if model.showingNewHabit { model.cancelNewHabit() }
+                        else { model.toggleArchive() }
+                    }
+                } label: {
+                    Image(systemName: model.showingArchive || model.showingNewTask || model.showingNewHabit ? "xmark" : "archivebox")
+                        .font(.system(size: 21, weight: .light)).foregroundStyle(KoiTheme.onBase)
+                        .frame(width: 44, height: 44).contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(model.showingArchive || model.showingNewTask || model.showingNewHabit ? "Close" : "Archive")
             }
-            Spacer(minLength: 2)
-            Button { KoiHaptics.tap(); withAnimation(KoiTheme.morph) { model.toggleArchive() } } label: {
-                Image(systemName: model.showingArchive ? "arrow.uturn.backward" : "archivebox")
-                    .font(.system(size: 18, weight: .light)).foregroundStyle(KoiTheme.onBase)
-                    .frame(width: 42, height: 42).contentShape(Circle())
+            VStack(alignment: .leading, spacing: 0) {
+                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()).uppercased())
+                    .font(KoiTheme.section).tracking(2.7).foregroundStyle(KoiTheme.onBase.opacity(0.8))
+                    .padding(.top, 7)
+                Text(model.showingArchive ? "Archive" : (model.showingNewTask ? (model.editingTaskID == nil ? "New to-do" : "Edit to-do") : model.showingNewHabit ? (model.editingHabitID == nil ? "New habit" : "Edit habit") : "Practice"))
+                    .font(KoiTheme.title).foregroundStyle(KoiTheme.onBase).padding(.top, 3)
             }
-            .accessibilityLabel(model.showingArchive ? "Close archive" : "Archive")
-        }
-    }
-
-    private var modePicker: some View {
-        HStack(spacing: 8) {
-            ForEach(TodoMode.allCases) { mode in
-                Button { KoiHaptics.change(); withAnimation(KoiTheme.morph) { model.setMode(mode) } } label: {
-                    GlassChip(title: mode.rawValue, symbol: mode == .list ? "list.bullet" : "square.grid.2x2", isOn: model.mode == mode)
-                }.buttonStyle(.plain)
+            if model.showingArchive || model.showingNewTask || model.showingNewHabit {
+                EmptyView()
+            } else {
+                HStack(spacing: KoiTheme.space.s8) {
+                    Button { KoiHaptics.tap(); model.beginTask() } label: { GlassChip(title: "To-do", symbol: "plus") }
+                        .buttonStyle(.plain)
+                    Button { KoiHaptics.tap(); model.beginHabit() } label: { GlassChip(title: "Habit", symbol: "plus") }
+                        .buttonStyle(.plain)
+                    Spacer(minLength: 0)
+                    if todayTotal > 0 {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text("\(todayDone)").contentTransition(.numericText())
+                            Text("of \(todayTotal) done").font(KoiTheme.caption)
+                        }
+                        .font(KoiTheme.body).foregroundStyle(KoiTheme.onBase)
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                .padding(.top, KoiTheme.space.s13)
             }
-            Spacer()
-            Button { model.beginHabit() } label: { Label("Habit", systemImage: "plus") }.buttonStyle(QuietTextButtonStyle())
         }
     }
 
     private var habitsSection: some View {
         VStack(alignment: .leading, spacing: 13) {
-            HStack {
-                sectionLabel("HABITS")
-                Spacer()
-                Button { model.beginHabit() } label: { Text("+ New habit") }.buttonStyle(QuietTextButtonStyle())
-            }
-            if model.activeHabits.isEmpty {
-                Text("A few steady rituals help the day take shape.")
-                    .font(KoiTheme.body).foregroundStyle(KoiTheme.onBase.opacity(0.75))
-                Button("Start a habit") { model.beginHabit() }.buttonStyle(QuietTextButtonStyle())
-            } else {
-                ForEach(model.activeHabits) { habit in
-                    VStack(spacing: 0) {
-                        HStack(spacing: 13) {
-                            Button {
-                                if model.todayCompletion(for: habit) == 0 { analyticsProvider.signal("Habit.completed") }
-                                KoiHaptics.check()
-                                model.toggleHabit(habit)
-                            } label: { CheckCircle(isOn: model.todayCompletion(for: habit) > 0) }
-                                .buttonStyle(.plain).accessibilityLabel("Check in: \(habit.title)")
-                                .disabled(habit.graduatedAt != nil)
-                            Button { model.openHabit(habit) } label: {
-                                HStack(spacing: 5) {
-                                    Text(habit.title).font(KoiTheme.body)
-                                    if !habit.identity.isEmpty { Text("· Part of you").font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.7)) }
-                                }.foregroundStyle(KoiTheme.onBase).frame(maxWidth: .infinity, alignment: .leading)
-                            }.buttonStyle(.plain)
-                            Text(habit.graduatedAt == nil ? scheduleLabel(habit) : "Graduated")
-                                .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.68))
-                        }.frame(minHeight: 42)
-                        if model.selectedHabitID == habit.id { habitDetail(habit) }
-                        Rectangle().fill(KoiTheme.divider.opacity(0.6)).frame(height: 0.5)
-                    }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 11) {
+                    ForEach(todayHabits) { habit in habitRing(habit) }
                 }
+                .padding(.vertical, 4)
+            }
+            .scrollClipDisabled()
+        }
+    }
+
+    private var todayHabits: [KoiHabit] {
+        let calendar = Calendar.autoupdatingCurrent
+        let weekday = calendar.component(.weekday, from: .now)
+        let day = calendar.component(.day, from: .now)
+        return model.activeHabits.filter { habit in
+            guard habit.graduatedAt == nil else { return false }
+            switch habit.schedule {
+            case "weekly": return calendar.component(.weekday, from: habit.createdAt) == weekday
+            case "monthly": return calendar.component(.day, from: habit.createdAt) == day
+            case "someDays": return habit.weekdays.contains(weekday)
+            default: return true
             }
         }
+    }
+
+    private var dueTodayTasks: [KoiTask] {
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: .now)
+        return model.pendingTasks.filter { task in
+            guard let due = task.dueAt else { return false }
+            return calendar.startOfDay(for: due) <= today
+        }.sorted { ($0.dueAt ?? .distantPast) < ($1.dueAt ?? .distantPast) }
+    }
+
+    private var allDueTodayTasks: [KoiTask] {
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: .now)
+        return model.activeTasks.filter { task in
+            guard let due = task.dueAt else { return false }
+            return calendar.startOfDay(for: due) <= today
+        }
+    }
+
+    private var undatedTasks: [KoiTask] {
+        model.pendingTasks.filter { $0.dueAt == nil }.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    private var upcomingTasks: [KoiTask] {
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: .now)
+        return model.pendingTasks.filter { task in
+            guard let due = task.dueAt else { return false }
+            return calendar.startOfDay(for: due) > today
+        }.sorted { ($0.dueAt ?? .distantFuture) < ($1.dueAt ?? .distantFuture) }
+    }
+
+    private var todayTotal: Int { todayHabits.count + allDueTodayTasks.count }
+    private var todayDone: Int {
+        todayHabits.filter { model.todayCompletion(for: $0) > 0 }.count
+            + allDueTodayTasks.filter(\.isComplete).count
+    }
+
+    private func habitRing(_ habit: KoiHabit) -> some View {
+        let complete = model.todayCompletion(for: habit) > 0
+        return VStack(spacing: 6) {
+            Button {
+                if !complete { analyticsProvider.signal("Habit.completed") }
+                KoiHaptics.check()
+                withAnimation(.snappy) { model.toggleHabit(habit) }
+            } label: {
+                ZStack {
+                    Circle().strokeBorder(KoiTheme.onBase.opacity(0.45), lineWidth: 1.5)
+                    ForEach(0..<24, id: \.self) { index in
+                        Capsule().fill(KoiTheme.onBase.opacity(complete ? 0.85 : 0.5))
+                            .frame(width: 1, height: index.isMultiple(of: 4) ? 6 : 3)
+                            .offset(y: -21)
+                            .rotationEffect(.degrees(Double(index) * 15))
+                    }
+                    if complete {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 16, weight: .light))
+                            .foregroundStyle(KoiTheme.onBase)
+                            .transition(.scale.combined(with: .opacity))
+                    } else {
+                        Text(String(habit.title.prefix(1)).uppercased())
+                            .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.8))
+                    }
+                }
+                .frame(width: 48, height: 48)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Check in: \(habit.title)")
+            .accessibilityValue(complete ? "Done" : "Not done")
+            .disabled(habit.graduatedAt != nil)
+            .overlay(alignment: .topTrailing) {
+                let streak = habitStreak(for: habit)
+                if streak > 0 {
+                    HStack(spacing: 1) {
+                        Image("KoiFlame").resizable().renderingMode(.template).scaledToFit().frame(height: 9)
+                        Text("\(streak)").font(.system(size: 12, weight: .medium)).contentTransition(.numericText())
+                    }
+                    .foregroundStyle(KoiTheme.onBase)
+                    .offset(x: 8, y: -4)
+                }
+            }
+            Text(habit.title)
+                .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase)
+                .lineLimit(2).multilineTextAlignment(.center)
+                .frame(width: 62).opacity(complete ? 0.6 : 1)
+        }
+        .frame(width: 62)
+        .contentShape(Rectangle())
+        .onLongPressGesture { KoiHaptics.tap(); model.beginEditingHabit(habit) }
+    }
+
+    private func habitStreak(for habit: KoiHabit) -> Int {
+        let calendar = Calendar.autoupdatingCurrent
+        let completedDates = model.logs.filter { $0.habitID == habit.id && $0.completion > 0 }
+            .map { calendar.startOfDay(for: $0.date) }
+        var cursor = calendar.startOfDay(for: .now)
+        if !completedDates.contains(cursor) { cursor = calendar.date(byAdding: .day, value: -1, to: cursor) ?? cursor }
+        var count = 0
+        while completedDates.contains(cursor) {
+            count += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = previous
+        }
+        return count
     }
 
     private var habitCoachCard: some View {
@@ -130,9 +253,9 @@ struct TodoView: View {
             Text(coachMessage).font(KoiTheme.body)
             if let habit = model.coachHabit { Text(habit.title).font(KoiTheme.caption).opacity(0.72) }
             HStack(spacing: KoiTheme.space.s13) {
-                Button(coachButtonTitle) { model.reviewHabitCoach() }.font(KoiTheme.caption).buttonStyle(.plain)
+                Button(coachButtonTitle) { KoiHaptics.success(); model.reviewHabitCoach() }.font(KoiTheme.caption).buttonStyle(.plain)
                 Spacer()
-                Button("Not now") { model.dismissHabitCoach() }.font(KoiTheme.caption).buttonStyle(.plain).opacity(0.7)
+                Button("Not now") { KoiHaptics.tap(); model.dismissHabitCoach() }.font(KoiTheme.caption).buttonStyle(.plain).opacity(0.7)
             }
         }
         .padding(KoiTheme.space.s13)
@@ -154,42 +277,93 @@ struct TodoView: View {
 
     private var listContent: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
-            sectionLabel("TO-DOS")
             if model.pendingTasks.isEmpty {
-                Text("Nothing waiting. Leave room for the day.").font(KoiTheme.body).foregroundStyle(KoiTheme.onBase.opacity(0.75))
-            }
-            ForEach(TodoSection.allCases) { section in
-                let rows = model.tasks(in: section)
-                if !rows.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) { Text(section.title.uppercased()).tracking(1.3); Text("· \(rows.count)") }
-                            .font(KoiTheme.section).foregroundStyle(KoiTheme.onBase.opacity(0.72))
-                        ForEach(rows) { taskRow($0, compact: false) }
-                    }
+                if todayHabits.isEmpty {
+                    Text("Clear water. No tasks for today.")
+                        .font(KoiTheme.body).foregroundStyle(KoiTheme.onBase.opacity(0.75))
+                        .padding(.top, KoiTheme.space.s13)
+                }
+            } else {
+                taskViewToggle(title: dueTodayTasks.isEmpty ? "To-dos" : "Today's to-dos")
+                if !dueTodayTasks.isEmpty {
+                    taskSection(nil, tasks: dueTodayTasks, compact: false)
+                }
+                if !undatedTasks.isEmpty {
+                    taskSection("Undated", tasks: undatedTasks, compact: false)
+                }
+                if !upcomingTasks.isEmpty {
+                    taskSection("Upcoming", tasks: upcomingTasks, compact: false)
                 }
             }
             if !model.finishedTasks.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    sectionLabel("DONE TODAY")
-                    ForEach(model.finishedTasks) { taskRow($0, compact: true) }
+                    Button {
+                        KoiHaptics.tap()
+                        withAnimation(KoiTheme.morph) { showFinished.toggle() }
+                    } label: {
+                        HStack(spacing: KoiTheme.space.s8) {
+                            sectionLabel("DONE · \(model.finishedTasks.count)")
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 11, weight: .light))
+                                .rotationEffect(.degrees(showFinished ? 0 : -90))
+                            Spacer()
+                        }.contentShape(Rectangle()).foregroundStyle(KoiTheme.onBase)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(model.finishedTasks.count) done")
+                    if showFinished {
+                        VStack(spacing: 0) { ForEach(model.finishedTasks) { taskRow($0, compact: true) } }
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
             }
-            KoiPrimaryButton(title: "Add a to-do") { model.beginTask() }
+        }
+    }
+
+    private func taskViewToggle(title: String) -> some View {
+        HStack(spacing: KoiTheme.space.s8) {
+            sectionLabel(title)
+            Spacer()
+            ForEach(TodoMode.allCases) { mode in
+                Button {
+                    KoiHaptics.tap()
+                    startsInMatrix = mode == .matrix
+                    withAnimation(KoiTheme.morph) { model.setMode(mode) }
+                } label: {
+                    Image(systemName: mode == .matrix ? "square.grid.2x2" : "list.bullet")
+                        .font(.system(size: 15, weight: .light))
+                        .foregroundStyle(KoiTheme.onBase)
+                        .frame(width: 36, height: 32)
+                        .background(Capsule().fill(.white.opacity(model.mode == mode ? 0.22 : 0)))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(mode == .matrix ? "Grid view" : "List view")
+                .accessibilityAddTraits(model.mode == mode ? .isSelected : [])
+            }
+        }
+    }
+
+    private func taskSection(_ title: String?, tasks: [KoiTask], compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
+            if let title { sectionLabel(title) }
+            VStack(spacing: 0) { ForEach(tasks) { taskRow($0, compact: compact) } }
+                .background(.ultraThinMaterial.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
         }
     }
 
     private var matrixContent: some View {
         VStack(alignment: .leading, spacing: 13) {
-            sectionLabel("FOCUS MATRIX")
+            taskViewToggle(title: "To-dos")
             HStack(spacing: 0) {
-                Text("URGENT").font(KoiTheme.section).tracking(1.2).frame(maxWidth: .infinity)
-                Text("GIVE IT TIME").font(KoiTheme.section).tracking(1.2).frame(maxWidth: .infinity)
-            }.foregroundStyle(KoiTheme.onBase.opacity(0.72))
+                Text("URGENT").font(KoiTheme.section).tracking(1.5).frame(maxWidth: .infinity, alignment: .leading)
+                Text("NOT URGENT").font(KoiTheme.section).tracking(1.5).frame(maxWidth: .infinity, alignment: .trailing)
+            }.foregroundStyle(KoiTheme.onBase.opacity(0.8))
             HStack(alignment: .top, spacing: 8) {
                 matrixColumn([.urgentImportant, .urgentNotImportant])
                 matrixColumn([.notUrgentImportant, .someday])
             }
-            KoiPrimaryButton(title: "Add a to-do") { model.beginTask() }
+            if model.pendingTasks.isEmpty { Text("Clear").font(KoiTheme.body).foregroundStyle(KoiTheme.onBase.opacity(0.65)) }
         }
     }
 
@@ -221,22 +395,55 @@ struct TodoView: View {
     }
 
     private func taskRow(_ task: KoiTask, compact: Bool) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 13) {
-                Button {
-                    if !task.isComplete { analyticsProvider.signal("Task.completed") }
-                    KoiHaptics.check()
-                    model.toggleCompletion(task)
-                } label: { CheckCircle(isOn: task.isComplete) }
-                    .buttonStyle(.plain).accessibilityLabel(task.isComplete ? "Reopen \(task.title)" : "Complete \(task.title)")
-                Button { model.openTask(task) } label: {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(task.title).font(KoiTheme.body).strikethrough(task.isComplete).foregroundStyle(KoiTheme.onBase).lineLimit(2)
-                        if !compact, let due = model.dueLabel(for: task) { Text(due).font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.68)) }
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                }.buttonStyle(.plain)
-                if model.tasksMarkedUrgent.contains(task.id) { Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .light)).foregroundStyle(KoiTheme.onBase.opacity(0.72)) }
-            }.frame(minHeight: 44)
+        let toggle: () -> Void = {
+            if !task.isComplete { analyticsProvider.signal("Task.completed") }
+            if task.isComplete { KoiHaptics.tap() } else { KoiHaptics.check() }
+            model.toggleCompletion(task)
+        }
+        let delete: () -> Void = { KoiHaptics.tap(); model.deleteTask(task) }
+        return VStack(spacing: 0) {
+            TodoSwipeRow(isDone: task.isComplete, onComplete: toggle, onDelete: delete) {
+                HStack(spacing: 13) {
+                    Button(action: toggle) { CheckCircle(isOn: task.isComplete) }
+                        .buttonStyle(.plain).accessibilityLabel(task.isComplete ? "Reopen \(task.title)" : "Complete \(task.title)")
+                    Button {
+                        KoiHaptics.tap()
+                        withAnimation(KoiTheme.morph) { model.openTask(task) }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(task.title).font(KoiTheme.body).strikethrough(task.isComplete).foregroundStyle(KoiTheme.onBase).lineLimit(2)
+                            if !compact, let due = model.dueLabel(for: task) {
+                                HStack(spacing: 4) {
+                                    Text(due)
+                                    if task.hasTime && task.calendarEventID != nil { Image(systemName: "calendar").accessibilityLabel("On your calendar") }
+                                }
+                                .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.68))
+                            }
+                            if !compact, !task.isComplete, let dueAt = task.dueAt, Calendar.current.startOfDay(for: dueAt) < Calendar.current.startOfDay(for: .now) {
+                                Text("Overdue · \(dueAt.formatted(date: .abbreviated, time: .omitted))")
+                                    .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.68))
+                            }
+                            if !compact, model.tasksMarkedUrgent.contains(task.id) {
+                                HStack(spacing: KoiTheme.space.s8) {
+                                    Text("Due soon · marked urgent")
+                                    Button("Undo") { KoiHaptics.tap(); model.undoAutoUrgent(task) }.underline()
+                                }
+                                .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.7))
+                                .buttonStyle(.plain)
+                            }
+                            if !compact, model.currentSection(for: task) == .someday {
+                                let days = max(0, Calendar.current.dateComponents([.day], from: task.lastTouchedAt, to: .now).day ?? 0)
+                                if days > 0 { Text("Waiting \(days) days").font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.68)) }
+                            }
+                            if !compact, let note = task.notes.nilIfBlank {
+                                Text(note).font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.68)).lineLimit(1)
+                            }
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }.buttonStyle(.plain)
+                    if model.tasksMarkedUrgent.contains(task.id) { Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .light)).foregroundStyle(KoiTheme.onBase.opacity(0.72)) }
+                }
+                .frame(minHeight: 44)
+            }
             if model.selectedTaskID == task.id { taskDetail(task) }
             Rectangle().fill(KoiTheme.divider.opacity(0.6)).frame(height: 0.5)
         }
@@ -244,16 +451,13 @@ struct TodoView: View {
             ForEach(TodoSection.allCases) { section in Button("Move to \(section.title)") { model.move(task, to: section) } }
             Button("Delete", role: .destructive) { model.deleteTask(task) }
         }
-        .simultaneousGesture(DragGesture(minimumDistance: 28).onEnded { value in
-            if value.translation.width > 100 { model.toggleCompletion(task) }
-            else if value.translation.width < -100 { model.deleteTask(task) }
-        })
     }
 
     private func taskDetail(_ task: KoiTask) -> some View {
         VStack(alignment: .leading, spacing: 13) {
-            HStack(spacing: 8) { ForEach(TodoSection.allCases) { section in Button { model.move(task, to: section) } label: { GlassChip(title: section.title, isOn: model.currentSection(for: task) == section) }.buttonStyle(.plain) } }
+            HStack(spacing: 8) { ForEach(TodoSection.allCases) { section in Button { KoiHaptics.change(); withAnimation(KoiTheme.morph) { model.move(task, to: section) } } label: { GlassChip(title: section.title, isOn: model.currentSection(for: task) == section) }.buttonStyle(.plain) } }
             Button(task.dueAt == nil ? "Add a due date" : "Remove due date") {
+                KoiHaptics.tap()
                 if task.dueAt == nil { model.setDueDate(task, date: .now) } else { model.setDueDate(task, date: nil) }
             }.buttonStyle(QuietTextButtonStyle())
             if task.dueAt != nil {
@@ -263,9 +467,9 @@ struct TodoView: View {
             if let note = task.notes.nilIfBlank { Text(note).font(KoiTheme.body).foregroundStyle(KoiTheme.onBase.opacity(0.8)) }
             if task.urgentOverride == false && model.isUrgent(task) == false { Text("Marked not urgent").font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.7)) }
             HStack {
-                Button("Edit") { model.beginEditingTask(task) }.buttonStyle(QuietTextButtonStyle())
+                Button("Edit") { KoiHaptics.tap(); model.beginEditingTask(task) }.buttonStyle(QuietTextButtonStyle())
                 Spacer()
-                Button("Archive") { model.archiveTask(task) }.buttonStyle(QuietTextButtonStyle())
+                Button("Archive") { KoiHaptics.tap(); model.archiveTask(task) }.buttonStyle(QuietTextButtonStyle())
             }
         }.padding(.vertical, 13)
     }
@@ -278,34 +482,53 @@ struct TodoView: View {
             if !habit.minimumVersion.isEmpty { Button("Minimum · \(habit.minimumVersion)") { model.toggleHabit(habit, minimum: true) }.buttonStyle(QuietTextButtonStyle()) }
             if !habit.stackingCue.isEmpty { Text("After \(habit.stackingCue)").font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.75)) }
             HStack {
-                Button("Edit") { model.beginEditingHabit(habit) }.buttonStyle(QuietTextButtonStyle())
+                Button("Edit") { KoiHaptics.tap(); model.beginEditingHabit(habit) }.buttonStyle(QuietTextButtonStyle())
                 Spacer()
-                Button("Pause habit") { model.pauseHabit(habit) }.buttonStyle(QuietTextButtonStyle())
+                Button("Pause habit") { KoiHaptics.tap(); model.pauseHabit(habit) }.buttonStyle(QuietTextButtonStyle())
             }
         }.padding(.vertical, 8)
     }
 
     private var archiveContent: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
-            sectionLabel("FINISHED TO-DOS")
-            ForEach(model.archivedTasks) { task in archiveRow(task.title) { model.restoreTask(task) } }
-            ForEach(model.finishedTasks) { task in
-                if task.completedAt.map({ $0 < (Calendar.current.date(byAdding: .day, value: -1, to: .now) ?? .now) }) == true {
-                    archiveRow(task.title) { model.restoreTask(task) }
+            if model.archivedTasks.isEmpty && model.pausedHabits.isEmpty {
+                Text("Nothing archived yet.\nCompleted to-dos settle here after a day.")
+                    .font(KoiTheme.body).foregroundStyle(KoiTheme.onBase.opacity(0.75))
+                    .padding(.top, KoiTheme.space.s21)
+            }
+            if !model.pausedHabits.isEmpty {
+                sectionLabel("ARCHIVED HABITS")
+                ForEach(model.pausedHabits) { habit in
+                    archiveRow(habit.title, subtitle: scheduleLabel(habit), symbol: "repeat", restore: { model.restoreHabit(habit) }, delete: { model.deleteHabit(habit) })
                 }
             }
-            sectionLabel("PAUSED HABITS")
-            ForEach(model.pausedHabits) { habit in archiveRow(habit.title) { model.restoreHabit(habit) } }
-            if model.archivedTasks.isEmpty && model.pausedHabits.isEmpty && model.finishedTasks.isEmpty { Text("The archive is clear.").font(KoiTheme.body).foregroundStyle(KoiTheme.onBase.opacity(0.75)) }
+            if !model.archivedTasks.isEmpty {
+                sectionLabel("COMPLETED TO-DOS")
+                ForEach(model.archivedTasks) { task in
+                    archiveRow(task.title, subtitle: task.completedAt.map { "Completed \($0.formatted(date: .abbreviated, time: .omitted))" } ?? "Completed", symbol: "checkmark", restore: { model.restoreTask(task) }, delete: { model.deleteTask(task) })
+                }
+            }
         }
     }
 
-    private func archiveRow(_ title: String, restore: @escaping () -> Void) -> some View {
-        HStack { Text(title).font(KoiTheme.body).foregroundStyle(KoiTheme.onBase); Spacer(); Button("Restore", action: restore).buttonStyle(QuietTextButtonStyle()) }
-            .frame(minHeight: 44).overlay(alignment: .bottom) { Rectangle().fill(KoiTheme.divider).frame(height: 0.5) }
+    private func archiveRow(_ title: String, subtitle: String, symbol: String, restore: @escaping () -> Void, delete: @escaping () -> Void) -> some View {
+        HStack(spacing: KoiTheme.space.s8) {
+            Image(systemName: symbol).font(.system(size: 12)).foregroundStyle(KoiTheme.onBase.opacity(0.65)).frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(KoiTheme.body).foregroundStyle(KoiTheme.onBase)
+                Text(subtitle).font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.65))
+            }
+            Spacer()
+            Button(action: restore) { Image(systemName: "arrow.uturn.backward").font(.system(size: 14)).frame(width: 36, height: 36) }
+                .buttonStyle(.plain).accessibilityLabel("Restore \(title)")
+            Button(action: delete) { Image(systemName: "trash").font(.system(size: 14)).frame(width: 36, height: 36) }
+                .buttonStyle(.plain).accessibilityLabel("Delete \(title)")
+        }
+        .frame(minHeight: 44)
+        .overlay(alignment: .bottom) { Rectangle().fill(KoiTheme.divider).frame(height: 0.5) }
     }
 
-    private func sectionLabel(_ text: String) -> some View { Text(text).font(KoiTheme.section).tracking(2.4).foregroundStyle(KoiTheme.onBase.opacity(0.78)) }
+    private func sectionLabel(_ text: String) -> some View { Text(text.uppercased()).font(KoiTheme.section).tracking(2.4).foregroundStyle(KoiTheme.onBase.opacity(0.78)) }
     private func scheduleLabel(_ habit: KoiHabit) -> String {
         if habit.schedule == "weekly" { return "Weekly" }
         if habit.schedule == "monthly" { return "Monthly" }
@@ -324,6 +547,8 @@ struct TodoView: View {
 
 private struct NewTaskSheet: View {
     @Bindable var model: TodoViewModel
+    @Environment(\.analyticsProvider) private var analyticsProvider
+    var embedded = false
     @Environment(\.dismiss) private var dismiss
     @FocusState private var titleFocused: Bool
     private let prompts = ["What needs doing?", "On your mind?", "One thing…", "What's next?"]
@@ -369,14 +594,26 @@ private struct NewTaskSheet: View {
                     HStack { Text("+ Note").font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase); Spacer() }
                     TextField("A note, if it helps", text: Binding(get: { model.taskDraft.notes }, set: { model.taskDraft.notes = $0 }), axis: .vertical)
                         .font(KoiTheme.body).foregroundStyle(KoiTheme.onBase).lineLimit(2...5)
-                    KoiPrimaryButton(title: buttonTitle) { model.saveTask(); if !model.showingNewTask { dismiss() } }
+                    KoiPrimaryButton(title: buttonTitle) {
+                        let isNew = model.editingTaskID == nil
+                        if model.saveTask() {
+                            if isNew { analyticsProvider.signal("Task.placed") }
+                            KoiHaptics.success()
+                        }
+                        if !embedded && !model.showingNewTask { dismiss() }
+                    }
                         .disabled(!model.canSaveTask).opacity(model.canSaveTask ? 1 : 0.52)
                 }.padding(21)
             }
-            .background(KoiBackground().ignoresSafeArea())
-            .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { model.cancelNewTask(); dismiss() }.foregroundStyle(KoiTheme.onBase) } }
+            .background { if !embedded { KoiBackground().ignoresSafeArea() } }
+            .toolbar {
+                if !embedded {
+                    ToolbarItem(placement: .topBarLeading) { Button("Cancel") { model.cancelNewTask(); dismiss() }.foregroundStyle(KoiTheme.onBase) }
+                }
+            }
         }
-        .presentationDetents([.large]).preferredColorScheme(.dark)
+        .presentationDetents(embedded ? [] : [.large])
+        .preferredColorScheme(embedded ? nil : .dark)
         .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { titleFocused = true } }
     }
 
@@ -401,6 +638,7 @@ private struct NewTaskSheet: View {
 
 private struct NewHabitSheet: View {
     @Bindable var model: TodoViewModel
+    var embedded = false
     @Environment(\.dismiss) private var dismiss
     @FocusState private var titleFocused: Bool
     private let days: [(String, Int)] = [("M", 2), ("T", 3), ("W", 4), ("T", 5), ("F", 6), ("S", 7), ("S", 1)]
@@ -442,14 +680,22 @@ private struct NewHabitSheet: View {
                         .font(KoiTheme.body).foregroundStyle(KoiTheme.onBase)
                     TextField("Who you're becoming (optional)", text: Binding(get: { model.habitDraft.identity }, set: { model.habitDraft.identity = $0 }))
                         .font(KoiTheme.body).foregroundStyle(KoiTheme.onBase)
-                    KoiPrimaryButton(title: habitButtonTitle) { model.saveHabit(); if !model.showingNewHabit { dismiss() } }
+                    KoiPrimaryButton(title: habitButtonTitle) {
+                        if model.saveHabit() { KoiHaptics.success() }
+                        if !embedded && !model.showingNewHabit { dismiss() }
+                    }
                         .disabled(!model.canSaveHabit).opacity(model.canSaveHabit ? 1 : 0.52)
                 }.padding(21)
             }
-            .background(KoiBackground().ignoresSafeArea())
-            .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { model.cancelNewHabit(); dismiss() }.foregroundStyle(KoiTheme.onBase) } }
+            .background { if !embedded { KoiBackground().ignoresSafeArea() } }
+            .toolbar {
+                if !embedded {
+                    ToolbarItem(placement: .topBarLeading) { Button("Cancel") { model.cancelNewHabit(); dismiss() }.foregroundStyle(KoiTheme.onBase) }
+                }
+            }
         }
-        .presentationDetents([.large]).preferredColorScheme(.dark)
+        .presentationDetents(embedded ? [] : [.large])
+        .preferredColorScheme(embedded ? nil : .dark)
         .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { titleFocused = true } }
     }
 
@@ -468,6 +714,70 @@ private struct NewHabitSheet: View {
         }.buttonStyle(.plain)
     }
     private func timeChip(_ title: String, _ hour: Int?) -> some View { Button { model.setReminderTime(hour: hour, minute: 0) } label: { GlassChip(title: title, isOn: model.habitDraft.reminderHour == hour && !model.habitDraft.usesExactReminderTime) }.buttonStyle(.plain) }
+}
+
+private struct TodoSwipeRow<Content: View>: View {
+    let isDone: Bool
+    let onComplete: () -> Void
+    let onDelete: () -> Void
+    @ViewBuilder let content: Content
+    @State private var offset: CGFloat = 0
+    @State private var horizontal: Bool?
+    @State private var revealed = false
+
+    private let completeAt: CGFloat = 80
+    private let deleteWidth: CGFloat = 76
+
+    var body: some View {
+        ZStack {
+            HStack {
+                Image(systemName: isDone ? "arrow.uturn.backward" : "checkmark")
+                    .font(.system(size: 15, weight: .light))
+                    .opacity(offset > 20 ? min(1, offset / completeAt) : 0)
+                Spacer()
+                Button {
+                    KoiHaptics.tap()
+                    withAnimation(.snappy) { offset = 0; revealed = false }
+                    onDelete()
+                } label: {
+                    Text("Delete").font(KoiTheme.caption).frame(width: deleteWidth, height: 44)
+                }
+                .buttonStyle(.plain)
+                .opacity(offset < -20 ? 1 : 0)
+            }
+            .foregroundStyle(KoiTheme.onBase)
+            content.offset(x: offset)
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 16)
+                .onChanged { drag in
+                    if horizontal == nil {
+                        horizontal = abs(drag.translation.width) > abs(drag.translation.height) * 1.5
+                    }
+                    guard horizontal == true else { return }
+                    let base: CGFloat = revealed ? -deleteWidth : 0
+                    let next = base + drag.translation.width
+                    if offset < completeAt && next >= completeAt { KoiHaptics.tick() }
+                    offset = min(next, completeAt * 1.3)
+                }
+                .onEnded { _ in
+                    defer { horizontal = nil }
+                    guard horizontal == true else { return }
+                    if offset >= completeAt {
+                        if isDone { KoiHaptics.tap() } else { KoiHaptics.check() }
+                        onComplete()
+                        withAnimation(.snappy) { offset = 0; revealed = false }
+                    } else if offset < -deleteWidth / 2 {
+                        withAnimation(.snappy) { offset = -deleteWidth; revealed = true }
+                    } else {
+                        withAnimation(.snappy) { offset = 0; revealed = false }
+                    }
+                }
+        )
+        .accessibilityAction(named: isDone ? "Mark incomplete" : "Mark complete", onComplete)
+        .accessibilityAction(named: "Delete", onDelete)
+        .animation(.snappy, value: isDone)
+    }
 }
 
 private struct CheckCircle: View {
