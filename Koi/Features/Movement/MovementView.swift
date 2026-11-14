@@ -31,6 +31,12 @@ struct MovementView: View {
                 recovery = try? await healthProvider.recoveryData(for: .now, calendar: .autoupdatingCurrent)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .koiHealthMovementDidChange)) { _ in
+            Task {
+                await model.refreshHealth(using: healthProvider)
+                recovery = try? await healthProvider.recoveryData(for: .now, calendar: .autoupdatingCurrent)
+            }
+        }
         .sheet(isPresented: $showsGoals) { MovementGoalEditor(model: model).presentationDetents([.medium]) }
         .sheet(isPresented: $showsWorkoutJournal) { WorkoutJournalView(readiness: recovery?.reading).presentationDetents([.large]) }
         .alert("Movement", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.clearError() } })) {

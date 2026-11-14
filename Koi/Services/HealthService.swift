@@ -27,22 +27,29 @@ enum HealthServiceError: LocalizedError {
     }
 }
 
+extension Notification.Name {
+    static let koiHealthMovementDidChange = Notification.Name("KoiHealthMovementDidChange")
+}
+
 @MainActor
 protocol HealthProviding: Sendable {
     var isAvailable: Bool { get }
     func requestReadAccess() async throws
     func movementData(from start: Date, to end: Date, calendar: Calendar) async throws -> [HealthMovementSample]
     func recoveryData(for date: Date, calendar: Calendar) async throws -> HealthRecoverySnapshot?
+    func observeMovementChanges(_ onChange: @escaping @Sendable () -> Void)
 }
 
 extension HealthProviding {
     func recoveryData(for date: Date, calendar: Calendar) async throws -> HealthRecoverySnapshot? { nil }
+    func observeMovementChanges(_ onChange: @escaping @Sendable () -> Void) {}
 }
 
 @MainActor
 final class HealthService: HealthProviding {
     private let logger = Logger(subsystem: "com.alexandertarica.koi", category: "Health")
     private let store = HKHealthStore()
+    private var observerQueries: [HKObserverQuery] = []
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
@@ -65,6 +72,23 @@ final class HealthService: HealthProviding {
                 } else {
                     continuation.resume(throwing: HealthServiceError.queryFailed)
                 }
+            }
+        }
+    }
+
+    func observeMovementChanges(_ onChange: @escaping @Sendable () -> Void) {
+        guard isAvailable,
+              let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return }
+        for sampleType in [stepType, HKObjectType.workoutType()] as [HKSampleType] {
+            let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { _, completion, error in
+                defer { completion() }
+                guard error == nil else { return }
+                onChange()
+            }
+            observerQueries.append(query)
+            store.execute(query)
+            store.enableBackgroundDelivery(for: sampleType, frequency: .hourly) { success, error in
+                if !success || error != nil { self.logger.error("Health background refresh was unavailable.") }
             }
         }
     }

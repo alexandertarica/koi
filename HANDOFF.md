@@ -206,6 +206,12 @@ what's partial, known issues, and the next step.
   A clean serial iPhone 17 Pro simulator run passes all 60 tests. Earlier Xcode
   attempts stalled before XCTest launch; shutting down and booting the simulator
   cleared the runner state.
+- HealthKit pass: the service now observes step and workout changes and requests
+  hourly background delivery, then posts a refresh event so Movement and
+  readiness can reload current samples. This remains read-only. The simulator
+  app and widget build succeeds; the test runner again stalled before XCTest
+  launch, so this observer change has build verification only. Health sample
+  delivery and background scheduling need a device with Apple Health data.
 
 ## Partial / known issues
 

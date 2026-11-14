@@ -49,6 +49,7 @@ struct KoiRootView: View {
     @Environment(\.backupProvider) private var backupProvider
     @Environment(\.analyticsProvider) private var analyticsProvider
     @Environment(\.notificationProvider) private var notificationProvider
+    @Environment(\.healthProvider) private var healthProvider
     @State private var selectedTab: KoiTab = KoiTab.launchSelection
     @State private var isOnboardingPresented = false
     @State private var hasLoadedOnboarding = false
@@ -107,6 +108,9 @@ struct KoiRootView: View {
         }
         .task {
             analyticsProvider.signal("Screen.opened", parameters: ["screen": selectedTab.title])
+            healthProvider.observeMovementChanges {
+                NotificationCenter.default.post(name: .koiHealthMovementDidChange, object: nil)
+            }
             await notificationProvider.refreshPlan(using: modelContext)
             if ProcessInfo.processInfo.arguments.contains("-koiDemo") {
                 do { try KoiDemoSeeder.seedIfEmpty(modelContext) }
