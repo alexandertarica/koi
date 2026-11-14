@@ -32,7 +32,7 @@ struct KoiProgressView: View {
                 Spacer()
                 HStack(spacing: 4) {
                     ForEach(ProgressScope.allCases) { scope in
-                        Button(scope.rawValue) { model.setScope(scope) }
+                        Button(scope.rawValue) { KoiHaptics.change(); model.setScope(scope) }
                             .font(KoiTheme.caption)
                             .padding(.horizontal, 12).padding(.vertical, 8)
                             .background(model.scope == scope ? KoiTheme.onBase.opacity(0.18) : Color.clear, in: Capsule())
@@ -47,7 +47,7 @@ struct KoiProgressView: View {
                     .font(KoiTheme.caption).tracking(1.5).opacity(0.78)
                 Button { model.movePeriod(by: 1); KoiHaptics.change() } label: { Image(systemName: "chevron.right").frame(width: 36, height: 36) }.buttonStyle(.plain).accessibilityLabel("Next \(model.scope.rawValue.lowercased())")
                 if !model.isCurrentPeriod {
-                    Button("Today") { model.goToCurrentPeriod() }.font(KoiTheme.caption).buttonStyle(.plain)
+                    Button("Today") { KoiHaptics.tap(); model.goToCurrentPeriod() }.font(KoiTheme.caption).buttonStyle(.plain)
                 }
                 Spacer(minLength: 0)
             }

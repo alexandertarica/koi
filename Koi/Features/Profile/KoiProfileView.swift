@@ -23,7 +23,7 @@ struct KoiProfileView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
                     profileHeader
-                    Button { presentsTour = true } label: {
+                    Button { KoiHaptics.tap(); presentsTour = true } label: {
                         HStack(spacing: KoiTheme.space.s8) {
                             Image(systemName: "sparkle.magnifyingglass")
                             Text("Replay the tour")
@@ -39,7 +39,7 @@ struct KoiProfileView: View {
                     fold("Nutrition goals", summary: model.nutritionGoalSummary) {
                         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
                             Text("Every meal shapes your daily target.").font(KoiTheme.caption).opacity(0.75)
-                            Button("Open Intake") { onSelectTab(.intake) }.font(KoiTheme.caption).buttonStyle(.plain)
+                            Button("Open Intake") { KoiHaptics.tap(); onSelectTab(.intake) }.font(KoiTheme.caption).buttonStyle(.plain)
                         }
                     }
                     fold("Exercise goals", summary: model.exerciseGoalSummary) { exerciseSection }
@@ -122,7 +122,7 @@ struct KoiProfileView: View {
                     .font(KoiTheme.caption).opacity(0.72)
             }
             Spacer(minLength: 0)
-            Button("Save") { model.saveName() }.font(KoiTheme.caption).buttonStyle(.plain)
+                Button("Save") { model.saveName(); KoiHaptics.success() }.font(KoiTheme.caption).buttonStyle(.plain)
         }
         .padding(KoiTheme.space.s13)
         .background(.ultraThinMaterial.opacity(0.22), in: RoundedRectangle(cornerRadius: 18))
@@ -159,7 +159,7 @@ struct KoiProfileView: View {
     private var focusSection: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
             ForEach(BalanceFocus.allCases, id: \.self) { focus in
-                Button { model.setFocus(focus) } label: {
+                Button { KoiHaptics.change(); model.setFocus(focus) } label: {
                     HStack(alignment: .center, spacing: KoiTheme.space.s13) {
                         Image(systemName: model.focus == focus ? "largecircle.fill.circle" : "circle").font(.system(size: 17, weight: .light))
                         VStack(alignment: .leading, spacing: 4) {
@@ -175,9 +175,9 @@ struct KoiProfileView: View {
 
     private var exerciseSection: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
-            Stepper("\(model.movementGoal?.stepGoal ?? 8_000) steps", value: Binding(get: { model.movementGoal?.stepGoal ?? 8_000 }, set: { model.setMovementGoals(steps: $0) }), in: 1_000...30_000, step: 500)
+            Stepper("\(model.movementGoal?.stepGoal ?? 8_000) steps", value: Binding(get: { model.movementGoal?.stepGoal ?? 8_000 }, set: { KoiHaptics.change(); model.setMovementGoals(steps: $0) }), in: 1_000...30_000, step: 500)
                 .font(KoiTheme.body)
-            Stepper("\(model.movementGoal?.weeklyWorkoutGoal ?? 4) workouts a week", value: Binding(get: { model.movementGoal?.weeklyWorkoutGoal ?? 4 }, set: { model.setMovementGoals(weeklyWorkouts: $0) }), in: 1...14)
+            Stepper("\(model.movementGoal?.weeklyWorkoutGoal ?? 4) workouts a week", value: Binding(get: { model.movementGoal?.weeklyWorkoutGoal ?? 4 }, set: { KoiHaptics.change(); model.setMovementGoals(weeklyWorkouts: $0) }), in: 1...14)
                 .font(KoiTheme.body)
         }
     }
@@ -195,7 +195,7 @@ struct KoiProfileView: View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
             HStack(spacing: KoiTheme.space.s8) {
                 ForEach(KoiNotificationMode.allCases) { mode in
-                    Button { Task { await model.setNotifications(mode, hour: model.dailyCheckInHour, provider: notificationProvider) } } label: {
+                    Button { KoiHaptics.change(); Task { await model.setNotifications(mode, hour: model.dailyCheckInHour, provider: notificationProvider) } } label: {
                         GlassChip(title: mode.title, isOn: model.notificationMode == mode)
                     }.buttonStyle(.plain)
                 }
@@ -217,7 +217,7 @@ struct KoiProfileView: View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
             Text(model.healthConnected ? "Steps and workouts can appear in Movement." : "Connect Health to read steps and workouts.")
                 .font(KoiTheme.caption).opacity(0.72)
-            Button("Open Movement") { onSelectTab(.movement) }.font(KoiTheme.caption).buttonStyle(.plain)
+                Button("Open Movement") { KoiHaptics.tap(); onSelectTab(.movement) }.font(KoiTheme.caption).buttonStyle(.plain)
         }
     }
 
@@ -226,6 +226,7 @@ struct KoiProfileView: View {
             Text(model.calendarConnected ? "Timed to-dos can be added to your calendar." : "Allow Koi to create and update timed to-do events.")
                 .font(KoiTheme.caption).opacity(0.72)
             Button {
+                KoiHaptics.tap()
                 Task {
                     if model.calendarConnected { model.disconnectCalendar() }
                     else { await model.connectCalendar(using: calendarProvider) }
@@ -242,6 +243,7 @@ struct KoiProfileView: View {
             Text(model.remindersConnected ? "Timed to-dos are mirrored to Apple Reminders." : "Allow Koi to add and update timed to-dos in Apple Reminders.")
                 .font(KoiTheme.caption).opacity(0.72)
             Button {
+                KoiHaptics.tap()
                 Task { await model.setRemindersConnected(!model.remindersConnected, using: calendarProvider) }
             } label: {
                 Text(model.remindersConnected ? "Disconnect Reminders" : "Connect Reminders").font(KoiTheme.caption)
@@ -252,13 +254,13 @@ struct KoiProfileView: View {
 
     private var backupSection: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
-            Toggle("Automatic private backup", isOn: Binding(get: { model.backupEnabled }, set: { model.setBackupEnabled($0) }))
+            Toggle("Automatic private backup", isOn: Binding(get: { model.backupEnabled }, set: { KoiHaptics.change(); model.setBackupEnabled($0) }))
                 .font(KoiTheme.caption).tint(KoiTheme.onBase)
             Text(model.lastBackupAt.map { "Last backup · \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "Koi backs up when you leave the app.")
                 .font(KoiTheme.caption).opacity(0.68)
             HStack(spacing: KoiTheme.space.s21) {
-                Button("Back up now") { Task { await model.createBackup(using: backupProvider) } }.font(KoiTheme.caption).buttonStyle(.plain)
-                Button("Restore backup") { confirmsRestore = true }.font(KoiTheme.caption).buttonStyle(.plain)
+                Button("Back up now") { KoiHaptics.tap(); Task { await model.createBackup(using: backupProvider) } }.font(KoiTheme.caption).buttonStyle(.plain)
+                Button("Restore backup") { KoiHaptics.tap(); confirmsRestore = true }.font(KoiTheme.caption).buttonStyle(.plain)
             }
             if model.isBackingUp { ProgressView().tint(KoiTheme.onBase) }
             Text("Only Koi can access this backup in your private iCloud account.")

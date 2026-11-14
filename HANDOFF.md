@@ -283,6 +283,11 @@ what's partial, known issues, and the next step.
   provide tap, success or selection feedback; tour continuation and completion
   are also acknowledged. The first test launch exited before XCTest bootstrap;
   after rebooting the simulator, the retry passed all 63 tests.
+- Progress period/day selection and Profile focus, goals, notifications,
+  integrations, backup and navigation actions now acknowledge interactions.
+  Two XCTest launches exited before bootstrapping; after rebooting the test
+  simulator, the latest run passed all 63 tests. Nested profile panels still
+  need paired visual review through interactive simulator controls.
 
 ## Next step
 
