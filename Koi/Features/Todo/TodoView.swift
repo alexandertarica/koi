@@ -4,6 +4,8 @@ import KoiShared
 
 struct TodoView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.calendarProvider) private var calendarProvider
+    @Environment(\.notificationProvider) private var notificationProvider
     @State private var model = TodoViewModel()
 
     var body: some View {
@@ -22,7 +24,7 @@ struct TodoView: View {
             .padding(.bottom, KoiTheme.space.s34)
         }
         .scrollIndicators(.hidden)
-        .onAppear { model.load(modelContext) }
+        .onAppear { model.load(modelContext, calendarProvider: calendarProvider, notificationProvider: notificationProvider) }
         .sheet(isPresented: Binding(get: { model.showingNewTask }, set: { if !$0 { model.cancelNewTask() } })) { NewTaskSheet(model: model) }
         .sheet(isPresented: Binding(get: { model.showingNewHabit }, set: { if !$0 { model.cancelNewHabit() } })) { NewHabitSheet(model: model) }
         .alert("Keep this for later?", isPresented: Binding(get: { model.staleTaskID != nil }, set: { if !$0 { model.dismissStaleTask(keep: true) } })) {

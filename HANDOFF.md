@@ -87,6 +87,11 @@ what's partial, known issues, and the next step.
   preference, and optional email fields. Completion saves the profile, goals,
   habits, and onboarding state before showing a replayable 12-step tour. Forty-three
   simulator tests pass; the welcome screen was reviewed on iPhone 17 Pro.
+- Phase 10 (in progress): added injected local-notification and EventKit services.
+  Profile can request Calendar access and configure Smart, Once a day, or None;
+  onboarding saves the selected settings. To-Do changes refresh habit and timed
+  task reminders, and timed tasks create, update, or remove linked calendar
+  events. Forty-five simulator tests pass, including preference persistence.
 
 ## Partial / known issues
 
@@ -98,6 +103,9 @@ what's partial, known issues, and the next step.
   final polish phase after those screens exist. Calendar and notification
   authorization/settings are deferred to Phase 10; onboarding stores the chosen
   daily notification preference.
+- Phase 10 still needs private iCloud backup and restore. Calendar and notification
+  prompts have not yet been visually reviewed on the simulator; their flows are
+  covered by the current test suite.
 - To-Do reminder notifications and calendar free-time selection/sync are deferred
   to Phase 10. The `-koiDemo` full-week seed is part of Phase 13, so Phase 3 was
   visually checked with empty data and in-session task entry.
@@ -106,4 +114,4 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Phase 10: add notifications, calendar sync, and iCloud backup.
+Phase 10: add private iCloud backup and restore, then review integration flows.

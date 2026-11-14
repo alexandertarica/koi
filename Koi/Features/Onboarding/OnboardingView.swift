@@ -6,6 +6,8 @@ struct OnboardingView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(\.healthProvider) private var healthProvider
+    @Environment(\.calendarProvider) private var calendarProvider
+    @Environment(\.notificationProvider) private var notificationProvider
     @State private var model = OnboardingViewModel()
     @State private var startsTour = false
     @State private var isConnectingHealth = false
@@ -48,7 +50,10 @@ struct OnboardingView: View {
             KoiTourView(onFinish: { startsTour = false })
         }
         .onChange(of: model.isCompleted) { _, complete in
-            if complete && !model.shouldShowTour { dismiss() }
+            guard complete else { return }
+            let integrations = TodoViewModel()
+            integrations.load(context, calendarProvider: calendarProvider, notificationProvider: notificationProvider)
+            if !model.shouldShowTour { dismiss() }
         }
         .alert("Setup", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.clearError() } })) {
             Button("OK", role: .cancel) { model.clearError() }
@@ -205,14 +210,20 @@ struct OnboardingView: View {
                     isConnectingHealth = false
                 }
             }
-            HStack(spacing: KoiTheme.space.s13) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Apple Calendar").font(KoiTheme.body)
-                    Text("Timed to-dos and open time · Connect in Profile").font(KoiTheme.caption).opacity(0.68)
+            connectionRow(title: "Apple Calendar", detail: model.wantsCalendar ? "Connected" : "Timed to-dos and open time", isOn: $model.wantsCalendar) {
+                guard !model.wantsCalendar else { connectionMessage = "Calendar access is ready."; return }
+                isConnectingHealth = true
+                Task {
+                    do {
+                        try await calendarProvider.requestAccess()
+                        model.wantsCalendar = true
+                        connectionMessage = "Apple Calendar is connected."
+                    } catch {
+                        connectionMessage = (error as? LocalizedError)?.errorDescription ?? "Couldn't connect Apple Calendar. You can try again in Profile."
+                    }
+                    isConnectingHealth = false
                 }
-                Spacer()
-                Image(systemName: "calendar").font(.system(size: 18, weight: .light)).opacity(0.8)
-            }.padding(.vertical, KoiTheme.space.s13)
+            }
             VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
                 Text("DAILY CHECK-IN").font(KoiTheme.section).tracking(1.5).opacity(0.72)
                 Picker("Notifications", selection: $model.notificationMode) {
@@ -226,7 +237,7 @@ struct OnboardingView: View {
                     }.pickerStyle(.wheel).frame(height: 100).clipped()
                 }
             }
-            Text("Calendar and reminder permissions can be changed later in Profile.").font(KoiTheme.caption).opacity(0.68)
+            Text("You can change these choices later in Profile.").font(KoiTheme.caption).opacity(0.68)
         }
     }
 
@@ -246,7 +257,7 @@ struct OnboardingView: View {
                 Text(model.step == .habits ? "Choose at least three rituals to continue." : "Complete this step to continue.")
                     .font(KoiTheme.caption).opacity(0.68)
             }
-            KoiPrimaryButton(title: model.step == .ready ? "Begin" : "Continue") { model.advance() }
+            KoiPrimaryButton(title: model.step == .ready ? "Begin" : "Continue") { continueTapped() }
                 .disabled(!model.canContinue || isConnectingHealth)
                 .opacity(model.canContinue ? 1 : 0.55)
                 .padding(.horizontal, KoiTheme.space.s21)
@@ -294,6 +305,31 @@ struct OnboardingView: View {
         components.hour = hour
         components.minute = 0
         return Calendar.current.date(from: components)?.formatted(date: .omitted, time: .shortened) ?? "\(hour):00"
+    }
+
+    private func continueTapped() {
+        guard model.canContinue else { return }
+        guard model.step == .connect, model.notificationMode != "none" else {
+            model.advance()
+            return
+        }
+        Task {
+            do {
+                let status = await notificationProvider.authorizationStatus()
+                if status == .notDetermined {
+                    guard try await notificationProvider.requestAuthorization() else {
+                        connectionMessage = "Allow Koi to send reminders in Settings."
+                        return
+                    }
+                } else if status != .authorized && status != .provisional {
+                    connectionMessage = "Allow Koi to send reminders in Settings."
+                    return
+                }
+                model.advance()
+            } catch {
+                connectionMessage = "Couldn't set up reminders. You can try again in Profile."
+            }
+        }
     }
 
     private func focusTitle(_ focus: BalanceFocus) -> String {

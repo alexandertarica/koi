@@ -4,6 +4,7 @@ import OSLog
 import SwiftUI
 import SwiftData
 import KoiShared
+import OSLog
 
 enum TodoMode: String, CaseIterable, Identifiable {
     case list = "List"
@@ -67,6 +68,11 @@ final class TodoViewModel {
     private let logger = Logger(subsystem: "com.alexandertarica.koi", category: "ToDo")
     private let calendar: Calendar
     private var context: ModelContext?
+    private var calendarProvider: (any CalendarProviding)?
+    private var notificationProvider: (any NotificationProviding)?
+    private var calendarConnected = false
+    private var notificationMode: KoiNotificationMode = .smart
+    private var dailyCheckInHour = 9
     private(set) var tasks: [KoiTask] = []
     private(set) var habits: [KoiHabit] = []
     private(set) var logs: [KoiHabitLog] = []
@@ -103,18 +109,26 @@ final class TodoViewModel {
     }
     var autoUrgentMessage: String? { toast }
 
-    func load(_ context: ModelContext) {
+    func load(_ context: ModelContext, calendarProvider: (any CalendarProviding)? = nil, notificationProvider: (any NotificationProviding)? = nil) {
         self.context = context
+        if let calendarProvider { self.calendarProvider = calendarProvider }
+        if let notificationProvider { self.notificationProvider = notificationProvider }
         do {
             tasks = try context.fetch(FetchDescriptor<KoiTask>(sortBy: [SortDescriptor(\.createdAt)]))
             habits = try context.fetch(FetchDescriptor<KoiHabit>(sortBy: [SortDescriptor(\.createdAt)]))
             logs = try context.fetch(FetchDescriptor<KoiHabitLog>())
+            let settings = try context.fetch(FetchDescriptor<KoiOnboardingState>()).first
+            calendarConnected = settings?.calendarConnected ?? false
+            notificationMode = KoiNotificationMode(rawValue: settings?.notificationMode ?? "smart") ?? .smart
+            dailyCheckInHour = settings?.dailyCheckInHour ?? 9
             var changed = false
             for task in tasks where !task.isComplete && !isArchived(task) {
                 if applyAutoUrgency(for: task) { changed = true }
             }
             if changed { try context.save() }
             checkSomedayTasks()
+            Task { await synchronizeCalendarEvents() }
+            Task { await synchronizeNotifications() }
         } catch { logger.error("Unable to load To-Do data.") }
     }
 
@@ -126,7 +140,7 @@ final class TodoViewModel {
     func beginEditingTask(_ task: KoiTask) {
         editingTaskID = task.id
         let taskTime = task.dueAt.map { calendar.dateComponents([.hour, .minute], from: $0) }
-        let hasTime = taskTime.map { ($0.hour ?? 0) != 0 || ($0.minute ?? 0) != 0 } ?? false
+        let hasTime = task.hasTime || (taskTime.map { ($0.hour ?? 0) != 0 || ($0.minute ?? 0) != 0 } ?? false)
         taskDraft = TodoDraft(title: task.title, notes: task.notes, dueAt: task.dueAt, hasTime: hasTime, ignoredParsedDate: false, quadrant: currentSection(for: task), hasChosenQuadrant: true)
         parsedTitleDate = nil
         showingNewTask = true
@@ -220,6 +234,7 @@ final class TodoViewModel {
             task.quadrant = taskDraft.quadrant.quadrant
             task.important = taskDraft.important
             task.lastTouchedAt = .now
+            task.hasTime = taskDraft.hasTime
             _ = applyAutoUrgency(for: task)
             persist()
             showingNewTask = false
@@ -227,7 +242,7 @@ final class TodoViewModel {
             taskDraft = TodoDraft()
             return
         }
-        let task = KoiTask(title: title, notes: taskDraft.notes.trimmingCharacters(in: .whitespacesAndNewlines), dueAt: taskDraft.dueAt, quadrant: taskDraft.quadrant.quadrant, important: taskDraft.important)
+        let task = KoiTask(title: title, notes: taskDraft.notes.trimmingCharacters(in: .whitespacesAndNewlines), dueAt: taskDraft.dueAt, quadrant: taskDraft.quadrant.quadrant, important: taskDraft.important, hasTime: taskDraft.hasTime)
         task.lastTouchedAt = .now
         context.insert(task)
         do {
@@ -282,6 +297,7 @@ final class TodoViewModel {
         task.completedAt = task.isComplete ? .now : nil
         task.lastTouchedAt = .now
         persist()
+        Task { await synchronizeCalendarEvents() }
     }
 
     func toggleHabit(_ habit: KoiHabit, minimum: Bool = false) {
@@ -299,6 +315,9 @@ final class TodoViewModel {
 
     func deleteTask(_ task: KoiTask) {
         guard let context else { return }
+        if let eventID = task.calendarEventID, let calendarProvider {
+            Task { try? await calendarProvider.deleteTaskEvent(identifier: eventID) }
+        }
         withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) { context.delete(task); tasks.removeAll { $0.id == task.id } }
         persist()
     }
@@ -377,6 +396,55 @@ final class TodoViewModel {
         guard let context else { return }
         do { try context.save(); load(context) }
         catch { logger.error("Unable to save To-Do changes."); errorMessage = "Couldn't save that change. Try again." }
+    }
+
+    private func synchronizeCalendarEvents() async {
+        guard calendarConnected, let calendarProvider else { return }
+        for task in tasks {
+            if task.isComplete || task.archivedAt != nil || !task.hasTime || task.dueAt == nil {
+                guard let identifier = task.calendarEventID else { continue }
+                do {
+                    try await calendarProvider.deleteTaskEvent(identifier: identifier)
+                    task.calendarEventID = nil
+                    try context?.save()
+                } catch { logger.error("Unable to remove a calendar event.") }
+                continue
+            }
+            guard let start = task.dueAt else { continue }
+            let value = CalendarTaskValue(id: task.id, title: task.title, notes: task.notes, start: start, durationMinutes: task.timeMinutes, eventIdentifier: task.calendarEventID)
+            do {
+                task.calendarEventID = try await calendarProvider.saveTaskEvent(value)
+                try context?.save()
+            } catch { logger.error("Unable to sync a timed to-do with Calendar.") }
+        }
+    }
+
+    private func synchronizeNotifications() async {
+        guard let notificationProvider else { return }
+        var reminders: [NotificationReminder] = []
+        if notificationMode == .smart {
+            for habit in habits where habit.isActive && habit.pausedAt == nil {
+                guard let time = habit.reminderTime else { continue }
+                if habit.schedule == "daily" {
+                    reminders.append(NotificationReminder(id: "habit-\(habit.id.uuidString)", title: "Time for \(habit.title).", date: time, repeatsWeekday: nil, repeatsDaily: true))
+                } else {
+                    let weekdays = habit.schedule == "someDays" ? habit.weekdays : [calendar.component(.weekday, from: habit.createdAt)]
+                    for weekday in weekdays {
+                        reminders.append(NotificationReminder(id: "habit-\(habit.id.uuidString)-\(weekday)", title: "Time for \(habit.title).", date: time, repeatsWeekday: weekday, repeatsDaily: false))
+                    }
+                }
+            }
+            for task in tasks where !task.isComplete && task.archivedAt == nil && task.hasTime && task.timeMinutes > 0 {
+                guard let dueAt = task.dueAt else { continue }
+                let reminderAt = dueAt.addingTimeInterval(-10 * 60)
+                if reminderAt > .now {
+                    reminders.append(NotificationReminder(id: "task-\(task.id.uuidString)", title: task.title, date: reminderAt, repeatsWeekday: nil, repeatsDaily: false))
+                }
+            }
+        }
+        do {
+            try await notificationProvider.replaceScheduledReminders(Array(reminders.prefix(60)), dailyCheckInHour: notificationMode == .none ? nil : dailyCheckInHour)
+        } catch { logger.error("Unable to refresh local reminders.") }
     }
 
     private func isArchived(_ task: KoiTask) -> Bool {

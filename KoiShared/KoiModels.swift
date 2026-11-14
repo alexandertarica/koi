@@ -153,8 +153,10 @@ public final class KoiTask {
     public var archivedAt: Date? = nil
     public var lastTouchedAt: Date = Date.now
     public var timeMinutes: Int = 30
+    public var calendarEventID: String?
+    public var hasTime: Bool = false
 
-    public init(title: String, notes: String = "", dueAt: Date? = nil, quadrant: Int = 1, isComplete: Bool = false, createdAt: Date = .now, important: Bool? = nil, urgentOverride: Bool? = nil, timeMinutes: Int = 30) {
+    public init(title: String, notes: String = "", dueAt: Date? = nil, quadrant: Int = 1, isComplete: Bool = false, createdAt: Date = .now, important: Bool? = nil, urgentOverride: Bool? = nil, timeMinutes: Int = 30, hasTime: Bool = false) {
         self.id = UUID()
         self.title = title
         self.notes = notes
@@ -168,6 +170,7 @@ public final class KoiTask {
         self.archivedAt = nil
         self.lastTouchedAt = createdAt
         self.timeMinutes = max(timeMinutes, 0)
+        self.hasTime = hasTime
     }
 }
 

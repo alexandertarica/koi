@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 private struct FoodEstimatingKey: EnvironmentKey {
     static let defaultValue: any FoodEstimating = EstimateClient()
@@ -10,6 +11,14 @@ private struct HealthProvidingKey: EnvironmentKey {
 
 private struct RunTrackingKey: EnvironmentKey {
     static let defaultValue: (any RunTrackingProviding)? = nil
+}
+
+private struct NotificationProvidingKey: EnvironmentKey {
+    static let defaultValue: (any NotificationProviding)? = nil
+}
+
+private struct CalendarProvidingKey: EnvironmentKey {
+    static let defaultValue: (any CalendarProviding)? = nil
 }
 
 extension EnvironmentValues {
@@ -26,5 +35,15 @@ extension EnvironmentValues {
     var runTracker: (any RunTrackingProviding)? {
         get { self[RunTrackingKey.self] }
         set { self[RunTrackingKey.self] = newValue }
+    }
+
+    @MainActor var notificationProvider: any NotificationProviding {
+        get { self[NotificationProvidingKey.self] ?? NotificationService() }
+        set { self[NotificationProvidingKey.self] = newValue }
+    }
+
+    @MainActor var calendarProvider: any CalendarProviding {
+        get { self[CalendarProvidingKey.self] ?? CalendarService() }
+        set { self[CalendarProvidingKey.self] = newValue }
     }
 }

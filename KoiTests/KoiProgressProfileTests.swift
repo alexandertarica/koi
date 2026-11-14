@@ -1,6 +1,7 @@
 import XCTest
 import SwiftData
 import KoiShared
+import UserNotifications
 @testable import Koi
 
 @MainActor
@@ -67,4 +68,56 @@ final class KoiProgressProfileTests: XCTestCase {
         XCTAssertTrue(model.greeting.contains("Sam"))
         XCTAssertEqual(model.balance.score, 0.525, accuracy: 0.01)
     }
+
+    func testNotificationPreferencesPersistAndScheduleDailyCheckIn() async throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let model = ProfileViewModel()
+        model.load(context)
+        let provider = FakeNotificationProvider()
+
+        await model.setNotifications(.onceDaily, hour: 7, provider: provider)
+
+        let state = try XCTUnwrap(context.fetch(FetchDescriptor<KoiOnboardingState>()).first)
+        XCTAssertEqual(state.notificationMode, KoiNotificationMode.onceDaily.rawValue)
+        XCTAssertEqual(state.dailyCheckInHour, 7)
+        XCTAssertEqual(provider.lastCheckInHour, 7)
+        XCTAssertTrue(provider.lastReminders.isEmpty)
+
+        await model.setNotifications(.none, hour: 7, provider: provider)
+        XCTAssertNil(provider.lastCheckInHour)
+    }
+
+    func testCalendarConnectionPreferencePersistsAfterAuthorization() async throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let model = ProfileViewModel()
+        model.load(context)
+        await model.connectCalendar(using: FakeCalendarProvider())
+
+        XCTAssertTrue(model.calendarConnected)
+        XCTAssertTrue(try XCTUnwrap(context.fetch(FetchDescriptor<KoiOnboardingState>()).first).calendarConnected)
+    }
+}
+
+@MainActor
+private final class FakeNotificationProvider: NotificationProviding {
+    var status: UNAuthorizationStatus = .authorized
+    var lastCheckInHour: Int?
+    var lastReminders: [NotificationReminder] = []
+    func authorizationStatus() async -> UNAuthorizationStatus { status }
+    func requestAuthorization() async throws -> Bool { status = .authorized; return true }
+    func replaceScheduledReminders(_ reminders: [NotificationReminder], dailyCheckInHour: Int?) async throws {
+        lastReminders = reminders
+        lastCheckInHour = dailyCheckInHour
+    }
+    func removeReminder(id: String) {}
+}
+
+@MainActor
+private final class FakeCalendarProvider: CalendarProviding {
+    var isAvailable = true
+    func requestAccess() async throws {}
+    func saveTaskEvent(_ task: CalendarTaskValue) async throws -> String { "event-\(task.id.uuidString)" }
+    func deleteTaskEvent(identifier: String) async throws {}
 }

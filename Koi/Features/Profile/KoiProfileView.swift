@@ -7,6 +7,8 @@ import KoiShared
 struct KoiProfileView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.notificationProvider) private var notificationProvider
+    @Environment(\.calendarProvider) private var calendarProvider
     @State private var model = ProfileViewModel()
     @State private var openSection: String? = "Body weight"
     @State private var photoItem: PhotosPickerItem?
@@ -38,6 +40,15 @@ struct KoiProfileView: View {
                         }
                     }
                     fold("Exercise goals", summary: model.exerciseGoalSummary) { exerciseSection }
+                    fold("Notifications", summary: model.notificationMode.title) { notificationSection }
+                    fold("Apple Health", summary: model.healthConnected ? "Connected" : "Not connected") { healthSection }
+                    fold("Apple Calendar", summary: model.calendarConnected ? "Connected" : "Not connected") { calendarSection }
+                    fold("Smart notes", summary: "Write freely from the tab bar") {
+                        Text("Smart notes will be available in a later update.").font(KoiTheme.caption).opacity(0.72)
+                    }
+                    fold("iCloud backup", summary: "Private backup settings") {
+                        Text("Backup controls are being prepared.").font(KoiTheme.caption).opacity(0.72)
+                    }
                     fold("Tips & gestures", summary: "A few quiet shortcuts") { tipsSection }
                 }
                 .padding(.horizontal, KoiTheme.space.s21)
@@ -157,6 +168,58 @@ struct KoiProfileView: View {
             tip("Swipe a task right to finish it, or left to let it go.")
             tip("In a workout, tap a set chip to edit it. Hold a rest timer for 15 seconds.")
         }
+    }
+
+    private var notificationSection: some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+            HStack(spacing: KoiTheme.space.s8) {
+                ForEach(KoiNotificationMode.allCases) { mode in
+                    Button { Task { await model.setNotifications(mode, hour: model.dailyCheckInHour, provider: notificationProvider) } } label: {
+                        GlassChip(title: mode.title, isOn: model.notificationMode == mode)
+                    }.buttonStyle(.plain)
+                }
+            }
+            if model.notificationMode == .onceDaily {
+                Picker("Check-in time", selection: Binding(get: { model.dailyCheckInHour }, set: { hour in
+                    Task { await model.setNotifications(model.notificationMode, hour: hour, provider: notificationProvider) }
+                })) {
+                    ForEach(6..<23, id: \.self) { hour in Text(timeLabel(hour)).tag(hour) }
+                }.pickerStyle(.wheel).frame(height: 100).clipped()
+            }
+            Text("Smart reminders follow habit times and timed to-dos. Each reminder clears when you update your plan.")
+                .font(KoiTheme.caption).opacity(0.68)
+            if model.isUpdatingIntegrations { ProgressView().tint(KoiTheme.onBase) }
+        }
+    }
+
+    private var healthSection: some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+            Text(model.healthConnected ? "Steps and workouts can appear in Movement." : "Connect Health to read steps and workouts.")
+                .font(KoiTheme.caption).opacity(0.72)
+            Button("Open Movement") { dismiss(); onSelectTab(.movement) }.font(KoiTheme.caption).buttonStyle(.plain)
+        }
+    }
+
+    private var calendarSection: some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+            Text(model.calendarConnected ? "Timed to-dos can be added to your calendar." : "Allow Koi to create and update timed to-do events.")
+                .font(KoiTheme.caption).opacity(0.72)
+            Button {
+                Task {
+                    if model.calendarConnected { model.disconnectCalendar() }
+                    else { await model.connectCalendar(using: calendarProvider) }
+                }
+            } label: {
+                Text(model.calendarConnected ? "Disconnect Calendar" : "Connect Calendar").font(KoiTheme.caption)
+            }.buttonStyle(.plain)
+            if model.isUpdatingIntegrations { ProgressView().tint(KoiTheme.onBase) }
+        }
+    }
+
+    private func timeLabel(_ hour: Int) -> String {
+        var parts = DateComponents()
+        parts.hour = hour
+        return Calendar.current.date(from: parts)?.formatted(date: .omitted, time: .shortened) ?? "\(hour):00"
     }
 
     private func fold<Content: View>(_ title: String, summary: String, @ViewBuilder content: () -> Content) -> some View {
