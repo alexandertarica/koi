@@ -16,6 +16,9 @@ struct IntakeView: View {
     @State private var showsSupplementComposer = false
     @State private var supplementName = ""
     @State private var showsEntrySheet = false
+    @State private var selectedNutrient: String?
+    @State private var composerActive = false
+    @State private var foodRingLit = false
 
     init(presentsMealComposer: Binding<Bool> = .constant(false), startsCamera: Binding<Bool> = .constant(false)) {
         _presentsMealComposer = presentsMealComposer
@@ -26,10 +29,15 @@ struct IntakeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
                 header.modifier(KoiIntroReveal(order: 0))
-                calorieCard.modifier(KoiIntroReveal(order: 1))
-                nutrientsSection.modifier(KoiIntroReveal(order: 2))
-                supplementsSection.modifier(KoiIntroReveal(order: 3))
-                mealSection.modifier(KoiIntroReveal(order: 4))
+                if composerActive {
+                    MealComposer(model: model, estimator: foodEstimator, startsCamera: $startsCamera, onClose: closeComposer)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                } else {
+                    calorieCard.modifier(KoiIntroReveal(order: 1))
+                    nutrientsSection.modifier(KoiIntroReveal(order: 2))
+                    supplementsSection.modifier(KoiIntroReveal(order: 3))
+                    mealSection.modifier(KoiIntroReveal(order: 4))
+                }
             }
             .padding(.horizontal, KoiTheme.space.s21)
             .padding(.top, KoiTheme.space.s21)
@@ -37,11 +45,14 @@ struct IntakeView: View {
         }
         .background(KoiBackground().ignoresSafeArea())
         .foregroundStyle(KoiTheme.onBase)
-        .onAppear { model.load(modelContext) }
-        .sheet(isPresented: $presentsMealComposer) {
-            MealComposer(model: model, estimator: foodEstimator, startsCamera: $startsCamera)
-                .presentationDetents([.large])
+        .onAppear {
+            model.load(modelContext)
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-koiShowMealComposer") { openComposer() }
+            #endif
         }
+        .onChange(of: presentsMealComposer) { _, presented in if presented { openComposer() } }
+        .onChange(of: startsCamera) { _, starts in if starts { openComposer() } }
         .sheet(item: $selectedMeal) { meal in
             MealDetailSheet(meal: meal, model: model, estimator: foodEstimator)
                 .presentationDetents([.large])
@@ -65,46 +76,55 @@ struct IntakeView: View {
     private var header: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: KoiTheme.space.s5) {
-                Text("INTAKE").font(KoiTheme.section).tracking(2.4)
-                Text("Eat with ease.").font(KoiTheme.title)
+                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()).uppercased()).font(KoiTheme.section).tracking(1.6).opacity(0.72)
+                Text(composerActive ? "Meal" : "Intake").font(KoiTheme.title)
             }
             Spacer()
-            Button { KoiHaptics.tap(); showsNutrients = true } label: {
-                Image(systemName: "slider.horizontal.3").font(.system(size: 18, weight: .light))
+            Button { KoiHaptics.tap(); if composerActive { closeComposer() } else { showsNutrients = true } } label: {
+                Image(systemName: composerActive ? "xmark" : "slider.horizontal.3").font(.system(size: 18, weight: .light))
                     .frame(width: 44, height: 44).background(.ultraThinMaterial.opacity(0.45), in: Circle())
                     .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.26), lineWidth: 1))
-            }.buttonStyle(.plain).accessibilityLabel("Edit nutrition goals")
+            }.buttonStyle(.plain).accessibilityLabel(composerActive ? "Close meal entry" : "Edit nutrition goals")
         }
     }
 
     private var calorieCard: some View {
         VStack(spacing: KoiTheme.space.s13) {
-            ZStack {
-                IntakeCalorieDial(progress: 1)
-                    .stroke(KoiTheme.onBase.opacity(0.24), style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                    .overlay {
-                        IntakeCalorieDial(progress: min(model.calories / max(model.calorieGoal, 1), 1))
-                            .stroke(KoiTheme.onBase.opacity(0.83), style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                    }
+            ZStack(alignment: .topLeading) {
+                IntakeDialCanvas(calories: model.calories, goal: model.calorieGoal, nutrients: model.nutrientRows)
+                    .padding(.horizontal, -KoiTheme.space.s21)
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text(Int(model.calories.rounded()).formatted()).font(.system(size: 63, weight: .regular, design: .rounded)).contentTransition(.numericText())
+                    Text("CALORIES").font(KoiTheme.section).tracking(1.5).opacity(0.78)
+                    Text("of \(Int(model.calorieGoal).formatted()) kcal").font(KoiTheme.caption).opacity(0.78)
+                }.frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 8).padding(.top, 6)
+                VStack(alignment: .leading, spacing: 5) {
+                }.position(x: 95, y: 157)
                 VStack(spacing: KoiTheme.space.s5) {
-                    Text(Int(model.calories.rounded()).formatted()).font(KoiTheme.hero)
-                    Text("OF \(Int(model.calorieGoal).formatted()) KCAL").font(KoiTheme.caption).tracking(1.6).opacity(0.78)
-                }.offset(y: 14)
-            }
-            .frame(height: 176)
-            Text("A steady guide, not a rulebook.").font(KoiTheme.caption).opacity(0.8)
+                    IntakeFoodRing(isOn: foodRingLit) {
+                        KoiHaptics.ringFill(duration: 0.5, beats: 12)
+                        withAnimation(.easeOut(duration: 0.25)) { foodRingLit = true }
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(400))
+                            openComposer()
+                            withAnimation(.easeOut(duration: 0.2)) { foodRingLit = false }
+                        }
+                    }
+                    Text(model.mealCount == 0 ? "FOOD" : "\(model.mealCount) LOGGED").font(KoiTheme.section).tracking(1.3)
+                }
+                .foregroundStyle(KoiTheme.onBase)
+                .padding(.trailing, KoiTheme.space.s21)
+                .padding(.bottom, 64)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            }.frame(height: 380).padding(.top, 8)
             HStack(spacing: KoiTheme.space.s8) {
-                KoiPrimaryButton(title: "Add food") { KoiHaptics.tap(); presentsMealComposer = true }
+                KoiPrimaryButton(title: "Add food") { KoiHaptics.tap(); openComposer() }
                 Button { KoiHaptics.tap(); showsEntrySheet = true } label: {
-                    Image(systemName: "plus").font(.system(size: 17, weight: .regular))
-                        .frame(width: 50, height: 50).background(.ultraThinMaterial.opacity(0.45), in: Circle())
-                        .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.3), lineWidth: 1))
+                    Image(systemName: "plus").font(.system(size: 17, weight: .regular)).frame(width: 50, height: 50).background(.ultraThinMaterial.opacity(0.45), in: Circle()).overlay(Circle().stroke(KoiTheme.onBase.opacity(0.3), lineWidth: 1))
                 }.buttonStyle(.plain).accessibilityLabel("Adjust nutrition")
-            }
+            }.padding(.horizontal, 8)
         }
-        .frame(maxWidth: .infinity).padding(.vertical, KoiTheme.space.s21)
-        .background(.ultraThinMaterial.opacity(0.27), in: RoundedRectangle(cornerRadius: 25))
-        .overlay(RoundedRectangle(cornerRadius: 25).stroke(KoiTheme.onBase.opacity(0.22), lineWidth: 1))
+        .frame(maxWidth: .infinity).padding(.vertical, KoiTheme.space.s13)
     }
 
     private var nutrientsSection: some View {
@@ -112,7 +132,7 @@ struct IntakeView: View {
             sectionHeading("NUTRIENTS", action: "Edit") { showsNutrients = true }
             VStack(spacing: 0) {
                 ForEach(model.nutrientRows) { nutrient in
-                    NutrientRow(nutrient: nutrient, decrement: { model.changeNutrient(nutrient.key, by: -nutrient.step) }, increment: { model.changeNutrient(nutrient.key, by: nutrient.step) })
+                    NutrientRow(nutrient: nutrient, expanded: selectedNutrient == nutrient.key, decrement: { model.changeNutrient(nutrient.key, by: -nutrient.step) }, increment: { model.changeNutrient(nutrient.key, by: nutrient.step) }, toggle: { withAnimation(KoiTheme.morph) { selectedNutrient = selectedNutrient == nutrient.key ? nil : nutrient.key } }, preset: { amount in model.changeNutrient(nutrient.key, by: amount) })
                     if nutrient.id != model.nutrientRows.last?.id { Divider().overlay(KoiTheme.onBase.opacity(0.16)).padding(.leading, KoiTheme.space.s13) }
                 }
             }
@@ -178,33 +198,130 @@ struct IntakeView: View {
             if let action { Button(action, action: perform).font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.8)).buttonStyle(.plain) }
         }.padding(.horizontal, KoiTheme.space.s13)
     }
+
+    private func openComposer() { withAnimation(KoiTheme.morph) { composerActive = true }; presentsMealComposer = false }
+    private func closeComposer() { withAnimation(KoiTheme.morph) { composerActive = false }; startsCamera = false; model.clearEstimate() }
 }
 
-private struct IntakeCalorieDial: Shape {
-    var progress: Double
-    func path(in rect: CGRect) -> Path {
-        let radius = min(rect.width, rect.height) / 2 - 9
-        let center = CGPoint(x: rect.midX, y: rect.midY + 5)
-        var path = Path()
-        path.addArc(center: center, radius: radius, startAngle: .degrees(205), endAngle: .degrees(335), clockwise: false)
-        return path.trimmedPath(from: 0, to: progress)
+private struct IntakeFoodRing: View {
+    let isOn: Bool
+    let action: () -> Void
+    private let count = 48
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                ForEach(0..<count, id: \.self) { index in
+                    Capsule().fill(KoiTheme.onBase.opacity(isOn ? 0.92 : 0.5))
+                        .frame(width: 1, height: isOn ? 20 : 6)
+                        .offset(y: -31)
+                        .rotationEffect(.degrees(Double(index) * 360 / Double(count)))
+                        .animation(.timingCurve(0.16, 1, 0.3, 1, duration: 0.5).delay(Double(index) * 0.01), value: isOn)
+                }
+                Text("LOG").font(KoiTheme.section).tracking(2)
+            }
+            .frame(width: 96, height: 96)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Log food")
+    }
+}
+
+private struct IntakeDialCanvas: View {
+    let calories: Double
+    let goal: Double
+    let nutrients: [IntakeNutrient]
+
+    var body: some View {
+        GeometryReader { proxy in
+            let radius = proxy.size.height / 2 - 14
+            let center = CGPoint(x: proxy.size.width * 0.14, y: proxy.size.height / 2)
+            let progress = min(max(calories / max(goal, 1), 0), 1)
+            ZStack(alignment: .topLeading) {
+                Canvas { context, _ in
+                    func point(_ t: Double, _ r: CGFloat) -> CGPoint {
+                        let angle = -Double.pi / 2 + Double.pi * t
+                        return CGPoint(x: center.x + r * cos(angle), y: center.y + r * sin(angle))
+                    }
+                    let dialRadius = radius
+                    for tick in 0...72 {
+                        let t = Double(tick) / 72
+                        let angle = -Double.pi / 2 + Double.pi * t
+                        let length: CGFloat = tick.isMultiple(of: 5) ? 13 : 7
+                        var mark = Path(); mark.move(to: point(t, dialRadius + 17)); mark.addLine(to: CGPoint(x: center.x + cos(angle) * (dialRadius + 17 + length), y: center.y + sin(angle) * (dialRadius + 17 + length)))
+                        context.stroke(mark, with: .color(.white.opacity(t <= progress ? 0.86 : 0.45)), style: StrokeStyle(lineWidth: tick.isMultiple(of: 5) ? 1.7 : 1, lineCap: .round))
+                    }
+                    for i in 0..<90 {
+                        let a = Double(i) / 90, b = Double(i + 1) / 90
+                        var arc = Path(); arc.addArc(center: center, radius: dialRadius, startAngle: .degrees(-90 + a * 180), endAngle: .degrees(-90 + b * 180), clockwise: false)
+                        let edge = max(0.3, min(a / 0.28, (1 - a) / 0.22, 1))
+                        context.stroke(arc, with: .color(.white.opacity((b <= progress ? 0.88 : 0.55) * edge)), lineWidth: b <= progress ? 1.5 : 1.1)
+                    }
+                    let visible = nutrients.filter { $0.key != "calories" && $0.goal > 0 }
+                    for (index, nutrient) in visible.enumerated() {
+                        let start = Double(index) / Double(max(visible.count, 1))
+                        let span = 1 / Double(max(visible.count, 1))
+                        let fill = min(max(nutrient.value / nutrient.goal, 0), 1)
+                        var track = Path(); track.addArc(center: center, radius: dialRadius - 25, startAngle: .degrees(-90 + start * 180), endAngle: .degrees(-90 + (start + span) * 180), clockwise: false)
+                        context.stroke(track, with: .color(.white.opacity(0.35)), style: StrokeStyle(lineWidth: 4, lineCap: .butt))
+                        if fill > 0 {
+                            var bar = Path(); bar.addArc(center: center, radius: dialRadius - 25, startAngle: .degrees(-90 + start * 180), endAngle: .degrees(-90 + (start + span * fill) * 180), clockwise: false)
+                            context.stroke(bar, with: .color(.white.opacity(0.72)), style: StrokeStyle(lineWidth: 4, lineCap: .butt))
+                        }
+                    }
+                    if progress > 0 {
+                        let bead = point(max(progress, 0.06), dialRadius)
+                        context.fill(Path(ellipseIn: CGRect(x: bead.x - 9, y: bead.y - 9, width: 18, height: 18)), with: .radialGradient(Gradient(colors: [.white.opacity(0.38), .white.opacity(0.12), .white.opacity(0.2)]), center: CGPoint(x: bead.x - 3, y: bead.y - 4), startRadius: 0, endRadius: 12))
+                        context.stroke(Path(ellipseIn: CGRect(x: bead.x - 9, y: bead.y - 9, width: 18, height: 18)), with: .color(.white.opacity(0.75)), lineWidth: 1)
+                    }
+                }
+                let visible = nutrients.filter { $0.key != "calories" && $0.goal > 0 }
+                ForEach(Array(visible.enumerated()), id: \.element.id) { index, nutrient in
+                    let t = (Double(index) + 0.5) / Double(max(visible.count, 1))
+                    let angle = -Double.pi / 2 + Double.pi * t
+                    let r = radius - 24
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("\(Int(nutrient.value.rounded())) \(nutrient.unit)").font(.custom("RobotoMono-Light", size: 13))
+                        Text(nutrient.name.uppercased()).font(KoiTheme.section).tracking(0.7).lineLimit(1)
+                    }.foregroundStyle(KoiTheme.onBase.opacity(0.92)).position(x: center.x + CGFloat(cos(angle)) * r - 56, y: CGFloat(center.y) + CGFloat(sin(angle)) * r)
+                }
+            }
+        }
     }
 }
 
 private struct NutrientRow: View {
     let nutrient: IntakeNutrient
+    let expanded: Bool
     let decrement: () -> Void
     let increment: () -> Void
+    let toggle: () -> Void
+    let preset: (Double) -> Void
     var body: some View {
-        HStack(spacing: KoiTheme.space.s8) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(nutrient.name).font(KoiTheme.body)
-                Text(goalCaption).font(KoiTheme.caption).opacity(0.7)
+        VStack(spacing: 0) {
+            HStack(spacing: KoiTheme.space.s8) {
+                Button(action: toggle) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(nutrient.name).font(KoiTheme.body)
+                        Text(goalCaption).font(KoiTheme.caption).opacity(0.7)
+                    }.contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                Spacer(minLength: 4)
+                Button(action: decrement) { Image(systemName: "minus").frame(width: 30, height: 36) }.accessibilityLabel("Decrease \(nutrient.name)")
+                Button(action: toggle) { Text("\(Int(nutrient.value.rounded())) \(nutrient.unit)").font(KoiTheme.body).monospacedDigit().frame(minWidth: 76, alignment: .trailing) }.buttonStyle(.plain).accessibilityLabel("Set \(nutrient.name) amount")
+                Button(action: increment) { Image(systemName: "plus").frame(width: 30, height: 36) }.accessibilityLabel("Increase \(nutrient.name)")
             }
-            Spacer(minLength: 4)
-            Button(action: decrement) { Image(systemName: "minus").frame(width: 30, height: 36) }.accessibilityLabel("Decrease \(nutrient.name)")
-            Text("\(Int(nutrient.value.rounded())) \(nutrient.unit)").font(KoiTheme.caption).monospacedDigit().frame(minWidth: 66, alignment: .trailing)
-            Button(action: increment) { Image(systemName: "plus").frame(width: 30, height: 36) }.accessibilityLabel("Increase \(nutrient.name)")
+            if expanded {
+                HStack(spacing: KoiTheme.space.s8) {
+                    ForEach(presets, id: \.0) { item in
+                        Button("\(item.0) +\(Int(item.1))") { preset(item.1); KoiHaptics.change() }
+                            .font(KoiTheme.caption).padding(.horizontal, 10).padding(.vertical, 7)
+                            .background(.ultraThinMaterial.opacity(0.35), in: Capsule()).buttonStyle(.plain)
+                    }
+                    Spacer(minLength: 0)
+                }.padding(.top, KoiTheme.space.s5).transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .foregroundStyle(KoiTheme.onBase).buttonStyle(.plain).padding(.vertical, KoiTheme.space.s5)
         .overlay(alignment: .bottomLeading) {
@@ -219,6 +336,15 @@ private struct NutrientRow: View {
             .frame(height: 2)
             .offset(y: 1)
             .allowsHitTesting(false)
+        }
+    }
+    private var presets: [(String, Double)] {
+        switch nutrient.key {
+        case "calories": [("Snack", 200), ("Meal", 600)]
+        case "water": [("Glass", 8), ("Mug", 12), ("Bottle", 16)]
+        case "protein": [("Snack", 10), ("Meal", 30)]
+        case "fiber": [("Fruit", 4), ("Meal", 8)]
+        default: [("Add", nutrient.step * 5), ("More", nutrient.step * 10)]
         }
     }
     private var goalCaption: String {
@@ -302,16 +428,17 @@ private struct MealComposer: View {
     @State private var isManual = false
     let model: IntakeViewModel
     let estimator: any FoodEstimating
+    let onClose: () -> Void
 
-    init(model: IntakeViewModel, estimator: any FoodEstimating, startsCamera: Binding<Bool>) {
+    init(model: IntakeViewModel, estimator: any FoodEstimating, startsCamera: Binding<Bool>, onClose: @escaping () -> Void) {
         self.model = model
         self.estimator = estimator
         _startsCamera = startsCamera
+        self.onClose = onClose
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
+        ScrollView {
                 VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
                     Text("Add a meal or snack.").font(KoiTheme.title)
                     TextField("What did you have?", text: $description, axis: .vertical)
@@ -334,7 +461,7 @@ private struct MealComposer: View {
                         if estimate.confidence < 0.55 { Text("This is a rough estimate. You can adjust the numbers before saving.").font(KoiTheme.caption).opacity(0.8) }
                     }
                     if isManual || model.estimate != nil { nutritionFields }
-                    KoiPrimaryButton(title: model.isEstimating ? "Estimating" : (model.estimate == nil && !isManual ? "Estimate meal" : "Save meal")) {
+                    KoiPrimaryButton(title: model.isEstimating ? "Reading your plate…" : (model.estimate == nil && !isManual ? "Estimate meal" : "Log meal")) {
                         if model.estimate == nil && !isManual {
                             Task {
                                 await model.estimateMeal(text: description, jpegData: photoData, using: estimator)
@@ -344,9 +471,10 @@ private struct MealComposer: View {
                         } else {
                             let cleanDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
                             let finalValue = FoodEstimateValue(description: cleanDescription.isEmpty ? value.description : cleanDescription, calories: value.calories, proteinGrams: value.proteinGrams, carbohydrateGrams: value.carbohydrateGrams, fatGrams: value.fatGrams, fiberGrams: value.fiberGrams, addedSugarGrams: value.addedSugarGrams, sodiumMilligrams: value.sodiumMilligrams, confidence: value.confidence)
+                            let wasAI = model.estimate != nil
                             model.addMeal(finalValue, note: cleanDescription, jpegData: photoData)
-                            if model.estimate != nil { analyticsProvider.signal("Food.loggedWithAI") }
-                            dismiss()
+                            if wasAI { analyticsProvider.signal("Food.loggedWithAI") }
+                            onClose()
                         }
                     }.disabled(model.isEstimating || description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     if model.estimate == nil && !isManual {
@@ -360,9 +488,6 @@ private struct MealComposer: View {
             .sheet(isPresented: $showsCameraPicker) {
                 IntakeCameraPicker { image in photoData = image.jpegData(compressionQuality: 0.76) }
             }
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Close") { dismiss() }.font(KoiTheme.caption) } }
-        }
-        .preferredColorScheme(.dark)
         .onAppear {
             guard startsCamera else { return }
             startsCamera = false

@@ -76,6 +76,13 @@ what's partial, known issues, and the next step.
   archive rows include restore and delete actions. Added swipe-to-complete and
   swipe-to-reveal-delete behavior, plus placement analytics and completion
   feedback. All 55 simulator tests pass, and the seeded To-Do screen was captured.
+- Intake visual pass: changed the calorie indicator to a full-height left-edge
+  semicircle with a calorie hero and segmented nutrient tracks and labels inside
+  the curve. Added single-row nutrient expansion with preset additions, moved
+  meal logging into the screen with an animated food ring and composer, and
+  corrected AI meal logging analytics to capture estimate state before the save
+  clears it. The seeded Intake screen and composer were captured; all 55
+  simulator tests pass.
 - Phase 4: added editable nutrient goals and types, calorie/nutrient scoring,
   manual daily adjustments, meal estimate and manual-entry flows, camera/library
   image selection, saved meal editing and deletion, supplement tracking, and
@@ -199,10 +206,13 @@ what's partial, known issues, and the next step.
   dismissed from the command line.
 - The haptic engine and intro reveal are wired into primary tab interactions;
   the remaining screen-specific interaction audit is still in progress.
+- Intake's second-device paired visual review remains unavailable because that
+  simulator still opens first-run setup. The seeded screen and composer were
+  reviewed on the primary iPhone 17 Pro simulator.
 
 ## Next step
 
-Continue the visual and interaction pass in order with Intake, Movement,
+Continue the visual and interaction pass in order with Movement,
 Progress/Profile, onboarding, and system integrations. Physical-device
 verification remains for HealthKit, CloudKit, GPS accuracy, notification
 delivery, widgets, Control Center actions, and configured-network workout
