@@ -32,6 +32,7 @@ struct KoiRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.backupProvider) private var backupProvider
+    @Environment(\.analyticsProvider) private var analyticsProvider
     @State private var selectedTab: KoiTab = .hub
     @State private var isOnboardingPresented = false
     @State private var hasLoadedOnboarding = false
@@ -73,6 +74,11 @@ struct KoiRootView: View {
                 .presentationDragIndicator(.visible)
         }
         .task {
+            analyticsProvider.signal("Screen.opened", parameters: ["screen": "Hub"])
+            if ProcessInfo.processInfo.arguments.contains("-koiDemo") {
+                do { try KoiDemoSeeder.seedIfEmpty(modelContext) }
+                catch { Logger(subsystem: "com.alexandertarica.koi", category: "Demo").error("Unable to seed demo data.") }
+            }
             guard !hasLoadedOnboarding else { return }
             hasLoadedOnboarding = true
             do {
@@ -100,6 +106,7 @@ struct KoiRootView: View {
             default: selectedTab = .hub
             }
         }
+        .onChange(of: selectedTab) { _, tab in analyticsProvider.signal("Screen.opened", parameters: ["screen": tab.title]) }
         .alert("A Koi backup is available", isPresented: $isRestoreOfferPresented) {
             Button("Restore backup") { Task { await restoreStartupBackup() } }
             Button("Set up as new", role: .cancel) { isOnboardingPresented = true }
@@ -206,6 +213,7 @@ private struct KoiTabBar: View {
 private struct SmartNoteSheet: View {
     @Environment(\.modelContext) private var context
     @Environment(\.foodEstimator) private var estimator
+    @Environment(\.analyticsProvider) private var analyticsProvider
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
     @State private var isSaving = false
@@ -300,6 +308,7 @@ private struct SmartNoteSheet: View {
                 confirmation = "Added to today’s plan."
             }
             try context.save()
+            analyticsProvider.signal("Note.saved")
             dismiss()
         } catch let error as LocalizedError {
             self.error = error.errorDescription ?? "Couldn't save that note. Try again."
@@ -315,5 +324,97 @@ private struct SmartNoteSheet: View {
         case .workout(let name, let weight, let reps, let sets): "Log \(name) · \(weight.formatted()) × \(reps) × \(sets)"
         case .planLift(let value): "Plan \(value) for today"
         }
+    }
+}
+
+@MainActor
+enum KoiDemoSeeder {
+    static func seedIfEmpty(_ context: ModelContext, calendar: Calendar = .autoupdatingCurrent) throws {
+        let isEmpty = try [
+            context.fetch(FetchDescriptor<KoiProfile>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiOnboardingState>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiBodyWeightEntry>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiDay>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiHabit>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiHabitLog>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiTask>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiFoodEntry>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiNutrientGoal>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiNutrientEntry>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiSupplement>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiSupplementLog>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiMovementGoal>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiMovementDay>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiWorkoutRoutine>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiRoutineLift>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiWorkoutSession>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiWorkoutLift>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiWorkoutSet>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiCardioSession>()).isEmpty
+        ].allSatisfy { $0 }
+        guard isEmpty else { return }
+        let today = calendar.startOfDay(for: .now)
+        let created = calendar.date(byAdding: .day, value: -120, to: today) ?? today
+        context.insert(KoiProfile(name: "Taylor", joinedAt: calendar.date(byAdding: .day, value: -28, to: today) ?? today))
+        context.insert(KoiOnboardingState(isComplete: true, hasSeenTour: true, notificationMode: "none", backupEnabled: false))
+        context.insert(KoiMovementGoal(stepGoal: 8_500, weeklyWorkoutGoal: 4))
+        for goal in [
+            KoiNutrientGoal(key: "calories", name: "Calories", unit: "kcal", goal: 2_200, step: 50, goalType: "around"),
+            KoiNutrientGoal(key: "protein", name: "Protein", unit: "g", goal: 140, step: 5),
+            KoiNutrientGoal(key: "fiber", name: "Fiber", unit: "g", goal: 30, step: 1),
+            KoiNutrientGoal(key: "water", name: "Water", unit: "oz", goal: 100, step: 8)
+        ] { context.insert(goal) }
+
+        let titles = ["Make the bed", "Read a little", "Take a walk"]
+        let habits = titles.enumerated().map { index, title in
+            KoiHabit(title: title, createdAt: created, schedule: "daily", minimumVersion: ["Straighten the pillow", "One page", "Step outside"][index])
+        }
+        habits.forEach { context.insert($0) }
+        let balanceSamples = [0.78, 0.69, 0.84, 0.62, 0.91, 0.73, 0.86]
+        let foods = ["Salmon rice bowl", "Yogurt and fruit", "Chicken wrap", "Eggs and toast", "Tofu noodle bowl", "Turkey sandwich", "Oatmeal and berries"]
+        for offset in 0..<7 {
+            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
+            for (index, habit) in habits.enumerated() {
+                let completion = offset == 2 && index == 1 ? 0 : (offset == 4 && index == 2 ? 1 : 2)
+                context.insert(KoiHabitLog(habitID: habit.id, date: date, completion: completion))
+            }
+            context.insert(KoiFoodEntry(name: foods[offset], loggedAt: date.addingTimeInterval(12 * 3_600), calories: [1_950.0, 2_280, 2_060, 2_390, 2_120, 1_880, 2_160][offset], proteinGrams: 120 + Double(offset * 4), carbohydrateGrams: 210, fatGrams: 66, fiberGrams: 24 + Double(offset % 5), confidence: 0.84))
+            context.insert(KoiNutrientEntry(date: date, nutrientKey: "water", value: [78.0, 96, 110, 84, 102, 72, 94][offset]))
+            let trained = [1, 3, 5].contains(offset)
+            context.insert(KoiMovementDay(date: date, healthSteps: 6_400 + offset * 615, healthWorkoutCount: trained ? 1 : 0))
+            context.insert(KoiDay(date: date, balance: balanceSamples[offset], habitsScore: balanceSamples[offset], nutritionScore: 0.72, exerciseScore: trained ? 0.86 : 0.53))
+        }
+
+        let tasks = [
+            KoiTask(title: "Plan the week", dueAt: today, quadrant: 1),
+            KoiTask(title: "Pick up groceries", dueAt: calendar.date(byAdding: .day, value: 1, to: today), quadrant: 0),
+            KoiTask(title: "Send the note", dueAt: calendar.date(byAdding: .day, value: -1, to: today), quadrant: 1, isComplete: true)
+        ]
+        tasks[2].completedAt = calendar.date(byAdding: .hour, value: -4, to: .now)
+        tasks.forEach { context.insert($0) }
+
+        for offset in [1, 3, 5] {
+            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
+            let legDay = offset == 3
+            let session = KoiWorkoutSession(name: legDay ? "Lower strength" : "Upper strength", muscleGroup: legDay ? "legs" : "push", startedAt: date.addingTimeInterval(17 * 3_600))
+            session.endedAt = session.startedAt.addingTimeInterval(2_700)
+            session.isComplete = true
+            context.insert(session)
+            let lift = KoiWorkoutLift(sessionID: session.id, name: legDay ? "Goblet squat" : "Bench press", muscleGroup: legDay ? "legs" : "push", targetSets: 3, targetReps: 8)
+            context.insert(lift)
+            for setIndex in 0..<3 {
+                context.insert(KoiWorkoutSet(sessionID: session.id, liftID: lift.id, loggedAt: session.startedAt.addingTimeInterval(TimeInterval(setIndex * 180)), weightLB: legDay ? 55 : 95, reps: setIndex == 2 ? 7 : 8))
+            }
+        }
+        let runDate = calendar.date(byAdding: .day, value: -4, to: today) ?? today
+        let run = KoiCardioSession(activity: "Run", detail: "Outdoor", startedAt: runDate.addingTimeInterval(7 * 3_600), durationSeconds: 1_920, distanceMeters: 4_800)
+        run.endedAt = run.startedAt.addingTimeInterval(1_920)
+        run.isComplete = true
+        context.insert(run)
+        for offset in stride(from: 28, through: 0, by: -7) {
+            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
+            context.insert(KoiBodyWeightEntry(date: date, weightLB: 158.2 - Double((28 - offset) / 7) * 0.35))
+        }
+        try context.save()
     }
 }

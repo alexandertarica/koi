@@ -8,6 +8,7 @@ private struct TourStop: Identifiable {
 }
 
 struct KoiTourView: View {
+    @Environment(\.analyticsProvider) private var analyticsProvider
     let onFinish: () -> Void
     @State private var stopIndex = 0
 
@@ -34,7 +35,7 @@ struct KoiTourView: View {
                 HStack {
                     Text("A QUICK LOOK").font(KoiTheme.section).tracking(2).opacity(0.74)
                     Spacer()
-                    Button("Skip") { onFinish() }.font(KoiTheme.caption).buttonStyle(.plain)
+                    Button("Skip") { finish(at: "skip") }.font(KoiTheme.caption).buttonStyle(.plain)
                 }
                 Spacer()
                 Image(systemName: stops[stopIndex].symbol)
@@ -55,7 +56,7 @@ struct KoiTourView: View {
                     }
                 }
                 KoiPrimaryButton(title: stopIndex == stops.count - 1 ? "Finish" : "Continue") {
-                    if stopIndex == stops.count - 1 { onFinish() }
+                    if stopIndex == stops.count - 1 { finish(at: "finish") }
                     else { withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) { stopIndex += 1 } }
                 }
             }
@@ -65,5 +66,10 @@ struct KoiTourView: View {
             .foregroundStyle(KoiTheme.onBase)
         }
         .preferredColorScheme(.dark)
+    }
+
+    private func finish(at point: String) {
+        analyticsProvider.signal("Tour.ended", parameters: ["at": point])
+        onFinish()
     }
 }

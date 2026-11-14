@@ -6,6 +6,7 @@ import UIKit
 
 struct WorkoutJournalView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.analyticsProvider) private var analyticsProvider
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var model = WorkoutViewModel()
@@ -142,26 +143,33 @@ struct WorkoutJournalView: View {
     private var startTiles: some View {
         HStack(spacing: KoiTheme.space.s8) {
             journalTile("Just go", hint: "Start empty", symbol: "figure.strengthtraining.traditional") {
+                analyticsProvider.signal("Workout.started", parameters: ["kind": "free"])
                 model.startEmptyWorkout(); showsWorkoutMode = true
             }
             journalTile("Build", hint: "Make a plan", symbol: "square.and.pencil") {
                 editingRoutine = nil; showsRoutineBuilder = true
             }
             Menu {
-                Button("Push day") { model.startPreset("push"); showsWorkoutMode = true }
-                Button("Pull day") { model.startPreset("pull"); showsWorkoutMode = true }
-                Button("Leg day") { model.startPreset("legs"); showsWorkoutMode = true }
-                Button("Core day") { model.startPreset("core"); showsWorkoutMode = true }
+                Button("Push day") { startPreset("push") }
+                Button("Pull day") { startPreset("pull") }
+                Button("Leg day") { startPreset("legs") }
+                Button("Core day") { startPreset("core") }
             } label: { journalTileLabel("Koi presets", hint: "A starting point", symbol: "water.waves") }
             .buttonStyle(.plain)
         }
+    }
+
+    private func startPreset(_ group: String) {
+        analyticsProvider.signal("Workout.started", parameters: ["kind": "preset"])
+        model.startPreset(group)
+        showsWorkoutMode = true
     }
 
     private var plannedSection: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
             Text("PLANNED").font(KoiTheme.section).tracking(2)
             ForEach(model.plannedRoutines) { routine in
-                Button { model.startRoutine(routine); showsWorkoutMode = true } label: {
+                Button { analyticsProvider.signal("Workout.started", parameters: ["kind": "routine"]); model.startRoutine(routine); showsWorkoutMode = true } label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(routine.name).font(KoiTheme.body)
@@ -181,7 +189,7 @@ struct WorkoutJournalView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: KoiTheme.space.s8) {
                     ForEach(model.routinesByName) { routine in
-                        Button { model.startRoutine(routine); showsWorkoutMode = true } label: {
+                        Button { analyticsProvider.signal("Workout.started", parameters: ["kind": "routine"]); model.startRoutine(routine); showsWorkoutMode = true } label: {
                             GlassChip(title: routine.name, symbol: "play.fill")
                         }.buttonStyle(.plain)
                             .contextMenu {
@@ -434,6 +442,7 @@ private struct WorkoutRoutineBuilder: View {
 
 private struct WorkoutModeView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.analyticsProvider) private var analyticsProvider
     @AppStorage("koi.workout.barWeightLB") private var gymBarWeight = 45.0
     @State private var nextLift = ""
     let model: WorkoutViewModel
@@ -556,10 +565,10 @@ private struct WorkoutModeView: View {
                     }.buttonStyle(.plain).onLongPressGesture { model.addRestSeconds(15) }.accessibilityLabel("Rest \(timeString(remaining)). Tap to skip. Hold to add 15 seconds.")
                 }
             } else {
-                KoiPrimaryButton(title: model.isEditingSet ? "Save set" : "Log set") { model.logSet() }
+                KoiPrimaryButton(title: model.isEditingSet ? "Save set" : "Log set") { model.logSet(); analyticsProvider.signal("Workout.setLogged") }
             }
             HStack {
-                Button("Warm-up set") { model.logSet(isWarmUp: true) }.font(KoiTheme.caption).buttonStyle(.plain)
+                Button("Warm-up set") { model.logSet(isWarmUp: true); analyticsProvider.signal("Workout.setLogged") }.font(KoiTheme.caption).buttonStyle(.plain)
                 Spacer()
                 if let lift = model.currentLift {
                     Menu("Rest · \(lift.restSeconds / 60):\(String(format: "%02d", lift.restSeconds % 60))") {
@@ -602,7 +611,9 @@ private struct WorkoutModeView: View {
 
     private var finishButton: some View {
         Button {
-            onFinish(model.endSession())
+            let result = model.endSession()
+            if result != nil { analyticsProvider.signal("Workout.finished") }
+            onFinish(result)
         } label: {
             Text("Finish workout").font(KoiTheme.caption).tracking(1.2).frame(maxWidth: .infinity).padding(.vertical, KoiTheme.space.s13)
                 .overlay(Capsule().stroke(KoiTheme.onBase.opacity(0.32), lineWidth: 1))

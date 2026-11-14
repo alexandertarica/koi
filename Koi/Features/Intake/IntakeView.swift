@@ -8,6 +8,7 @@ struct IntakeView: View {
     @Binding private var presentsMealComposer: Bool
     @Binding private var startsCamera: Bool
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.analyticsProvider) private var analyticsProvider
     @Environment(\.foodEstimator) private var foodEstimator
     @State private var model = IntakeViewModel()
     @State private var selectedMeal: KoiFoodEntry?
@@ -289,6 +290,7 @@ private struct FlowLayout: Layout {
 
 @MainActor
 private struct MealComposer: View {
+    @Environment(\.analyticsProvider) private var analyticsProvider
     @Environment(\.dismiss) private var dismiss
     @State private var description = ""
     @State private var photoItem: PhotosPickerItem?
@@ -334,11 +336,16 @@ private struct MealComposer: View {
                     if isManual || model.estimate != nil { nutritionFields }
                     KoiPrimaryButton(title: model.isEstimating ? "Estimating" : (model.estimate == nil && !isManual ? "Estimate meal" : "Save meal")) {
                         if model.estimate == nil && !isManual {
-                            Task { await model.estimateMeal(text: description, jpegData: photoData, using: estimator); if let estimated = model.estimate { value = estimated } }
+                            Task {
+                                await model.estimateMeal(text: description, jpegData: photoData, using: estimator)
+                                if let estimated = model.estimate { value = estimated }
+                                else { analyticsProvider.signal("Food.aiFailed") }
+                            }
                         } else {
                             let cleanDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
                             let finalValue = FoodEstimateValue(description: cleanDescription.isEmpty ? value.description : cleanDescription, calories: value.calories, proteinGrams: value.proteinGrams, carbohydrateGrams: value.carbohydrateGrams, fatGrams: value.fatGrams, fiberGrams: value.fiberGrams, addedSugarGrams: value.addedSugarGrams, sodiumMilligrams: value.sodiumMilligrams, confidence: value.confidence)
                             model.addMeal(finalValue, note: cleanDescription, jpegData: photoData)
+                            if model.estimate != nil { analyticsProvider.signal("Food.loggedWithAI") }
                             dismiss()
                         }
                     }.disabled(model.isEstimating || description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

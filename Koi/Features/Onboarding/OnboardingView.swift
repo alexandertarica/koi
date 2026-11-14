@@ -8,6 +8,7 @@ struct OnboardingView: View {
     @Environment(\.healthProvider) private var healthProvider
     @Environment(\.calendarProvider) private var calendarProvider
     @Environment(\.notificationProvider) private var notificationProvider
+    @Environment(\.analyticsProvider) private var analyticsProvider
     @State private var model = OnboardingViewModel()
     @State private var startsTour = false
     @State private var isConnectingHealth = false
@@ -75,7 +76,7 @@ struct OnboardingView: View {
             Spacer()
                     if model.step != .welcome {
                         Text("\(model.step.rawValue + 1) OF 7").font(KoiTheme.caption).tracking(1.1).opacity(0.7)
-                        Button("Skip") { model.skipToDefaults() }.font(KoiTheme.caption).buttonStyle(.plain).padding(.leading, KoiTheme.space.s8)
+                        Button("Skip") { model.skipToDefaults(); analyticsProvider.signal("Onboarding.completed") }.font(KoiTheme.caption).buttonStyle(.plain).padding(.leading, KoiTheme.space.s8)
                     }
         }
         .padding(.horizontal, KoiTheme.space.s21)
@@ -310,7 +311,7 @@ struct OnboardingView: View {
     private func continueTapped() {
         guard model.canContinue else { return }
         guard model.step == .connect, model.notificationMode != "none" else {
-            model.advance()
+            advanceWithAnalytics()
             return
         }
         Task {
@@ -325,11 +326,18 @@ struct OnboardingView: View {
                     connectionMessage = "Allow Koi to send reminders in Settings."
                     return
                 }
-                model.advance()
+                advanceWithAnalytics()
             } catch {
                 connectionMessage = "Couldn't set up reminders. You can try again in Profile."
             }
         }
+    }
+
+    private func advanceWithAnalytics() {
+        let currentStep = model.step
+        model.advance()
+        analyticsProvider.signal("Onboarding.step", parameters: ["step": currentStep.title])
+        if model.isCompleted { analyticsProvider.signal("Onboarding.completed") }
     }
 
     private func focusTitle(_ focus: BalanceFocus) -> String {

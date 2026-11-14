@@ -1,5 +1,27 @@
 import SwiftUI
 import UserNotifications
+import TelemetryDeck
+
+protocol AnalyticsProviding: Sendable {
+    func signal(_ name: String)
+    func signal(_ name: String, parameters: [String: String])
+}
+
+struct TelemetryAnalytics: AnalyticsProviding {
+    func signal(_ name: String) {
+        signal(name, parameters: [:])
+    }
+
+    func signal(_ name: String, parameters: [String: String] = [:]) {
+        #if !DEBUG
+        TelemetryDeck.signal(name, parameters: parameters)
+        #endif
+    }
+}
+
+private struct AnalyticsProvidingKey: EnvironmentKey {
+    static let defaultValue: any AnalyticsProviding = TelemetryAnalytics()
+}
 
 private struct FoodEstimatingKey: EnvironmentKey {
     static let defaultValue: any FoodEstimating = EstimateClient()
@@ -30,6 +52,11 @@ private struct BackupProvidingKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
+    var analyticsProvider: any AnalyticsProviding {
+        get { self[AnalyticsProvidingKey.self] }
+        set { self[AnalyticsProvidingKey.self] = newValue }
+    }
+
     var foodEstimator: any FoodEstimating {
         get { self[FoodEstimatingKey.self] }
         set { self[FoodEstimatingKey.self] = newValue }

@@ -20,7 +20,7 @@ what's partial, known issues, and the next step.
 | 10 | Notifications + calendar sync + iCloud backup | ✅ |
 | 11 | Widgets, Live Activity (log set from lock screen), Log-a-meal control | ✅ |
 | 12 | Smart note, readiness, habit coach, trends, supersets, plate drawing, workout import | ✅ |
-| 13 | Analytics, polish pass on every screen, empty states, demo data | ☐ |
+| 13 | Analytics, polish pass on every screen, empty states, demo data | ✅ |
 
 ## Done
 
@@ -119,21 +119,33 @@ what's partial, known issues, and the next step.
   the pair and per-side plate drawings for barbell lifts, including bar-weight
   selection and nearest-load guidance. Tests cover readiness bands, plate
   selection, coach thresholds, note parsing, imported routine persistence,
-  superset alternation and graduation backup. Fifty-two simulator tests passed
-  before the final classifier and load-hold edits; the latest app and test
-  targets compile successfully. iPhone 17 Pro review covered Smart Note,
+  superset alternation and graduation backup. The latest combined suite now
+  passes all 54 simulator tests. iPhone 17 Pro review covered Smart Note,
   Movement, workout import, To-Do and Profile.
+- Phase 13: added release-only TelemetryDeck initialization and an injected
+  analytics provider. Events cover screen visits, onboarding and tour completion,
+  notes, food estimation, habit and task completion, and workout starts, sets and
+  completion. Signals contain event names and non-sensitive categories only.
+  Added an opt-in `-koiDemo` launch argument that seeds a fresh store with a full
+  week of fictional habits, meals, water, movement, Balance, tasks, workouts,
+  a run and body-weight history; it leaves any store with existing profile,
+  habit, food or workout data untouched. An in-memory test verifies the seven-day
+  seed and fresh-store guard. Fixed the project configuration list so Xcode
+  exposes the target Release settings; verified Release resolves without `DEBUG`
+  and compiles. Debug app, widget, and test targets compile, and all 54 simulator
+  tests pass. On a clean iPhone 17 Pro simulator, the `-koiDemo`
+  launch and Hub, To-Do, Movement, Intake, Workout Journal, and Smart Note were
+  reviewed with seeded data. A repeat test command after the project-file fix
+  stalled before test execution; the 54-test pass preceded that project-only fix.
 
 ## Partial / known issues
 
-- Replay tour and service settings in Profile are deferred to their later
-  phases. GPS authorization and route math are covered through the injected
-  run-tracker test double; physical-device GPS accuracy still needs a device run.
+- GPS authorization and route math are covered through the injected run-tracker
+  test double; physical-device GPS accuracy still needs a device run.
 - The guided tour is currently a sequence of app explanations; target cutouts,
-  tab changes during the tour, and its hands-on Smart Note step remain for the
-  final polish phase after those screens exist. Calendar and notification
-  authorization/settings are deferred to Phase 10; onboarding stores the chosen
-  daily notification preference.
+  tab changes during the tour, and its hands-on Smart Note step remain deferred.
+  Calendar and notification authorization/settings are implemented; physical
+  notification delivery still needs device verification.
 - CloudKit account availability and a live restore need verification on a device
   signed into an iCloud account. Calendar authorization and notification delivery
   also need device testing; simulator review covered their settings screens.
@@ -143,16 +155,19 @@ what's partial, known issues, and the next step.
   iOS presenting the registered control.
 - Health readiness needs enough HealthKit sleep and recovery samples; the
   simulator has none. The workout-import endpoint and photo flow still need a
-  configured-network device check. The latest simulator test launch stalled
-  after CoreSimulatorService stopped responding; `build-for-testing` succeeded,
-  and the last complete suite run passed all 52 tests.
-- To-Do reminder notifications and calendar free-time selection/sync are deferred
-  to Phase 10. The `-koiDemo` full-week seed is part of Phase 13, so Phase 3 was
-  visually checked with empty data and in-session task entry.
+  configured-network device check. CloudKit restore, GPS accuracy, physical
+  notification delivery, widgets and Control Center actions also require device
+  verification.
+- The `-koiDemo` full-week seed is part of Phase 13, so Phase 3 was visually
+  checked with empty data and in-session task entry.
 - Simulator target is iOS 26.5. The widget and shared schema framework retain an
   iOS 18 deployment target.
+- The final visual review covered seeded data in the app's dark water theme.
+  Empty-state review was completed in earlier phases; this pass did not repeat
+  every screen in both appearances. The app currently requests dark appearance.
 
 ## Next step
 
-Phase 13: add release-only analytics, finish the tour and interaction polish,
-and seed representative demo data for the full-week review.
+All planned phases are implemented. Physical-device verification remains for
+HealthKit, CloudKit, GPS accuracy, notification delivery, widgets, Control
+Center actions, and configured-network workout imports.

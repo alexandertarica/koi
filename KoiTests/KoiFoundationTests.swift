@@ -1,7 +1,9 @@
 import XCTest
 import SwiftData
 import KoiShared
+@testable import Koi
 
+@MainActor
 final class KoiFoundationTests: XCTestCase {
     func testInMemoryContainerCanPersistCoreModels() throws {
         let container = try KoiSchema.makeContainer(inMemory: true)
@@ -41,5 +43,33 @@ final class KoiFoundationTests: XCTestCase {
         XCTAssertEqual(decoded.habitItems, [habit])
         XCTAssertEqual(decoded.habitsCompleted, 1)
         XCTAssertEqual(decoded.habitsTotal, 1)
+    }
+
+    func testDemoSeedBuildsAFullWeekAndLeavesExistingDataAlone() throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        try KoiDemoSeeder.seedIfEmpty(context)
+
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiProfile>()).first?.name, "Taylor")
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiHabit>()).count, 3)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiHabitLog>()).count, 21)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiFoodEntry>()).count, 7)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiDay>()).count, 7)
+
+        try KoiDemoSeeder.seedIfEmpty(context)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiFoodEntry>()).count, 7)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiWorkoutSession>()).count, 3)
+    }
+
+    func testDemoSeedDoesNotRunWhenAnySavedModelExists() throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        context.insert(KoiTask(title: "Keep this task"))
+        try context.save()
+
+        try KoiDemoSeeder.seedIfEmpty(context)
+
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiTask>()).map(\.title), ["Keep this task"])
+        XCTAssertTrue(try context.fetch(FetchDescriptor<KoiProfile>()).isEmpty)
     }
 }

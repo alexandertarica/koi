@@ -6,6 +6,7 @@ struct TodoView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.calendarProvider) private var calendarProvider
     @Environment(\.notificationProvider) private var notificationProvider
+    @Environment(\.analyticsProvider) private var analyticsProvider
     @State private var model = TodoViewModel()
 
     var body: some View {
@@ -99,7 +100,10 @@ struct TodoView: View {
                 ForEach(model.activeHabits) { habit in
                     VStack(spacing: 0) {
                         HStack(spacing: 13) {
-                            Button { model.toggleHabit(habit) } label: { CheckCircle(isOn: model.todayCompletion(for: habit) > 0) }
+                            Button {
+                                if model.todayCompletion(for: habit) == 0 { analyticsProvider.signal("Habit.completed") }
+                                model.toggleHabit(habit)
+                            } label: { CheckCircle(isOn: model.todayCompletion(for: habit) > 0) }
                                 .buttonStyle(.plain).accessibilityLabel("Check in: \(habit.title)")
                                 .disabled(habit.graduatedAt != nil)
                             Button { model.openHabit(habit) } label: {
@@ -218,7 +222,10 @@ struct TodoView: View {
     private func taskRow(_ task: KoiTask, compact: Bool) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 13) {
-                Button { model.toggleCompletion(task) } label: { CheckCircle(isOn: task.isComplete) }
+                Button {
+                    if !task.isComplete { analyticsProvider.signal("Task.completed") }
+                    model.toggleCompletion(task)
+                } label: { CheckCircle(isOn: task.isComplete) }
                     .buttonStyle(.plain).accessibilityLabel(task.isComplete ? "Reopen \(task.title)" : "Complete \(task.title)")
                 Button { model.openTask(task) } label: {
                     VStack(alignment: .leading, spacing: 3) {

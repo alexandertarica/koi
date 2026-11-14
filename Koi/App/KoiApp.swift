@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import KoiShared
+import TelemetryDeck
 
 @main
 struct KoiApp: App {
@@ -9,6 +10,9 @@ struct KoiApp: App {
 
     init() {
         runTracker = RunTracker()
+        #if !DEBUG
+        TelemetryDeck.initialize(config: .init(appID: "57EF3910-7D36-44AF-AA9B-E63F815F5ECA"))
+        #endif
         do {
             modelContainer = try KoiSchema.makeContainer()
         } catch {
