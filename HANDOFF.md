@@ -103,6 +103,11 @@ what's partial, known issues, and the next step.
   Movement score and survived an app relaunch. Thirty-four simulator tests pass;
   the empty journal, session logging, rest, summary and saved history were
   reviewed on iPhone 17 Pro.
+- Movement visual pass: replaced the compact centered step meter with a
+  left-edge semicircle, step hero and weekly workout segments inside the curve.
+  Added an animated workout log ring whose selected state follows today's
+  training record; retained Apple Health refresh and goal/journal entry points.
+  The seeded Movement screen was captured and all 55 simulator tests pass.
 - Phase 7: added outdoor run tracking with an injected Core Location service,
   route and mile split persistence, pace, resume/discard, and route detail maps.
   Treadmill sessions track time, distance and pace; class and other activities
@@ -209,11 +214,14 @@ what's partial, known issues, and the next step.
 - Intake's second-device paired visual review remains unavailable because that
   simulator still opens first-run setup. The seeded screen and composer were
   reviewed on the primary iPhone 17 Pro simulator.
+- Movement's second-device paired visual review remains unavailable for the
+  same first-run setup behavior. Its seeded screen was reviewed on the primary
+  iPhone 17 Pro simulator.
 
 ## Next step
 
-Continue the visual and interaction pass in order with Movement,
-Progress/Profile, onboarding, and system integrations. Physical-device
+Continue the visual and interaction pass in order with Progress/Profile,
+onboarding, and system integrations. Physical-device
 verification remains for HealthKit, CloudKit, GPS accuracy, notification
 delivery, widgets, Control Center actions, and configured-network workout
 imports.

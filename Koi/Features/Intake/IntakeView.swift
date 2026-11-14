@@ -101,7 +101,7 @@ struct IntakeView: View {
                 VStack(alignment: .leading, spacing: 5) {
                 }.position(x: 95, y: 157)
                 VStack(spacing: KoiTheme.space.s5) {
-                    IntakeFoodRing(isOn: foodRingLit) {
+                    KoiTickRing(isOn: foodRingLit) {
                         KoiHaptics.ringFill(duration: 0.5, beats: 12)
                         withAnimation(.easeOut(duration: 0.25)) { foodRingLit = true }
                         Task { @MainActor in
@@ -203,9 +203,11 @@ struct IntakeView: View {
     private func closeComposer() { withAnimation(KoiTheme.morph) { composerActive = false }; startsCamera = false; model.clearEstimate() }
 }
 
-private struct IntakeFoodRing: View {
+struct KoiTickRing: View {
     let isOn: Bool
     let action: () -> Void
+    var label = "LOG"
+    var what = "food"
     private let count = 48
 
     var body: some View {
@@ -218,13 +220,13 @@ private struct IntakeFoodRing: View {
                         .rotationEffect(.degrees(Double(index) * 360 / Double(count)))
                         .animation(.timingCurve(0.16, 1, 0.3, 1, duration: 0.5).delay(Double(index) * 0.01), value: isOn)
                 }
-                Text("LOG").font(KoiTheme.section).tracking(2)
+                Text(label).font(KoiTheme.section).tracking(2)
             }
             .frame(width: 96, height: 96)
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Log food")
+        .accessibilityLabel(isOn ? "\(what.capitalized) logged" : "Log \(what)")
     }
 }
 
