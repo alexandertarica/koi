@@ -25,11 +25,11 @@ struct IntakeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
-                header
-                calorieCard
-                nutrientsSection
-                supplementsSection
-                mealSection
+                header.modifier(KoiIntroReveal(order: 0))
+                calorieCard.modifier(KoiIntroReveal(order: 1))
+                nutrientsSection.modifier(KoiIntroReveal(order: 2))
+                supplementsSection.modifier(KoiIntroReveal(order: 3))
+                mealSection.modifier(KoiIntroReveal(order: 4))
             }
             .padding(.horizontal, KoiTheme.space.s21)
             .padding(.top, KoiTheme.space.s21)
@@ -69,7 +69,7 @@ struct IntakeView: View {
                 Text("Eat with ease.").font(KoiTheme.title)
             }
             Spacer()
-            Button { showsNutrients = true } label: {
+            Button { KoiHaptics.tap(); showsNutrients = true } label: {
                 Image(systemName: "slider.horizontal.3").font(.system(size: 18, weight: .light))
                     .frame(width: 44, height: 44).background(.ultraThinMaterial.opacity(0.45), in: Circle())
                     .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.26), lineWidth: 1))
@@ -94,8 +94,8 @@ struct IntakeView: View {
             .frame(height: 176)
             Text("A steady guide, not a rulebook.").font(KoiTheme.caption).opacity(0.8)
             HStack(spacing: KoiTheme.space.s8) {
-                KoiPrimaryButton(title: "Add food") { presentsMealComposer = true }
-                Button { showsEntrySheet = true } label: {
+                KoiPrimaryButton(title: "Add food") { KoiHaptics.tap(); presentsMealComposer = true }
+                Button { KoiHaptics.tap(); showsEntrySheet = true } label: {
                     Image(systemName: "plus").font(.system(size: 17, weight: .regular))
                         .frame(width: 50, height: 50).background(.ultraThinMaterial.opacity(0.45), in: Circle())
                         .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.3), lineWidth: 1))

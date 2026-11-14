@@ -8,6 +8,7 @@ struct KoiDial: View {
     let onScoreTap: () -> Void
     let onPillarTap: (HubPillar) -> Void
     let weights: BalanceWeights
+    @AppStorage("koiDialRevealDay") private var revealDay = ""
     @State private var revealProgress = 0.0
 
     private let ivory = KoiTheme.onBase
@@ -30,7 +31,13 @@ struct KoiDial: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .onAppear { withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 1.65)) { revealProgress = 1 } }
+        .onAppear {
+            let today = Date.now.formatted(.iso8601.year().month().day())
+            guard revealDay != today else { revealProgress = 1; return }
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 1.65)) { revealProgress = 1 }
+            revealDay = today
+            KoiHaptics.dialSweep(score: score, duration: 1.65)
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Balance dial")
     }
@@ -117,11 +124,13 @@ struct KoiDial: View {
 
         let pillars: [(Double, Double)] = [(habits, weights.habits), (nutrition, weights.nutrition), (exercise, weights.exercise)]
         var accumulated = 0.0
-        for (value, weight) in pillars {
+        for (index, (value, weight)) in pillars.enumerated() {
             let inset = 5.0 / 180
             let begin = accumulated + inset
             let finish = accumulated + weight - inset
-            let fillEnd = begin + max(0, finish - begin) * min(max(value * revealProgress, 0), 1)
+            let delay = Double(index) * 0.08 / 1.65
+            let fillProgress = min(max((revealProgress - delay) / (1 - delay), 0), 1)
+            let fillEnd = begin + max(0, finish - begin) * min(max(value * fillProgress, 0), 1)
             strokeBar(&context, from: begin, to: finish, radius: barRadius, center: center, scale: scale, opacity: 0.45)
             strokeBar(&context, from: begin, to: fillEnd, radius: barRadius, center: center, scale: scale, opacity: 0.62)
             accumulated += weight

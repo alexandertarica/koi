@@ -12,12 +12,12 @@ struct HubView: View {
         ZStack {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
-                    header
+                    header.modifier(KoiIntroReveal(order: 0))
                     if model.isProfileOpen { KoiProfileView(onSelectTab: onSelectTab).transition(.opacity) }
                     else if model.isProgressOpen { KoiProgressView().transition(.opacity) }
                     else {
-                        hero
-                        todaySection
+                        hero.modifier(KoiIntroReveal(order: 2))
+                        todaySection.modifier(KoiIntroReveal(order: 5))
                     }
                 }
                 .padding(.horizontal, KoiTheme.space.s21)
@@ -43,39 +43,46 @@ struct HubView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
                 Image("KoiWordmark")
                     .resizable()
                     .renderingMode(.template)
                     .scaledToFit()
-                    .frame(width: 76, height: 30)
+                    .frame(width: 240, height: 28)
                     .foregroundStyle(KoiTheme.onBase)
                     .accessibilityLabel("Koi")
-                    .onTapGesture { withAnimation(KoiTheme.morph) { model.closeInPlace() } }
+                    .onTapGesture {
+                        KoiHaptics.tap()
+                        withAnimation(KoiTheme.morph) { model.closeInPlace() }
+                    }
                 Spacer()
                 Button {
+                    KoiHaptics.tap()
                     withAnimation(KoiTheme.morph) { model.toggleProfile() }
                 } label: {
                     Image(systemName: model.isProfileOpen || model.isProgressOpen ? "xmark" : "person")
                         .font(.system(size: 21, weight: .light))
                         .foregroundStyle(KoiTheme.onBase)
                         .frame(width: 44, height: 44)
+                        .padding(.vertical, -8)
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(model.isProfileOpen || model.isProgressOpen ? "Close" : "Profile")
             }
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(model.dateLabel.uppercased())
                     .font(KoiTheme.section)
                     .tracking(2.7)
                     .foregroundStyle(KoiTheme.onBase.opacity(0.8))
+                    .padding(.top, 7)
                 Text(model.isProfileOpen ? "Profile" : (model.isProgressOpen ? "Progress" : model.greeting))
                     .id(model.isProfileOpen ? "Profile" : (model.isProgressOpen ? "Progress" : model.greeting))
                     .font(KoiTheme.title)
                     .foregroundStyle(KoiTheme.onBase)
                     .transition(.opacity.combined(with: .blurReplace))
+                    .padding(.top, 3)
             }
         }
     }
@@ -89,8 +96,12 @@ struct HubView: View {
                     habits: model.balance.habits,
                     nutrition: model.balance.nutrition,
                     exercise: model.balance.exercise,
-                    onScoreTap: { withAnimation(KoiTheme.morph) { model.toggleProgress() } },
+                    onScoreTap: {
+                        KoiHaptics.tap()
+                        withAnimation(KoiTheme.morph) { model.toggleProgress() }
+                    },
                     onPillarTap: { pillar in
+                        KoiHaptics.tap()
                         if model.selectedPillar == pillar { onSelectTab(pillar.tab) }
                         else { withAnimation(KoiTheme.morph) { model.selectPillar(pillar) } }
                     },
@@ -121,7 +132,10 @@ struct HubView: View {
             .padding(.top, -22)
             .padding(.bottom, -4)
             VStack(alignment: .trailing, spacing: 8) {
-                Button { withAnimation(KoiTheme.morph) { model.toggleProgress() } } label: {
+                Button {
+                    KoiHaptics.tap()
+                    withAnimation(KoiTheme.morph) { model.toggleProgress() }
+                } label: {
                     HStack(spacing: 6) {
                         if model.hasWeekOfHistory { Image(systemName: model.trendIsPositive ? "arrow.up.right" : "arrow.down.right").font(.system(size: 10)) }
                         Text(model.trendText).font(KoiTheme.caption).lineLimit(1)
@@ -177,7 +191,10 @@ struct HubView: View {
                     .tracking(2.7)
                     .foregroundStyle(KoiTheme.onBase.opacity(0.92))
                 if model.hiddenItemCount > 0 {
-                    Button { withAnimation(KoiTheme.morph) { model.toggleExpandedItems() } } label: {
+                    Button {
+                        KoiHaptics.tap()
+                        withAnimation(KoiTheme.morph) { model.toggleExpandedItems() }
+                    } label: {
                         HStack(spacing: 4) { Text(model.expandedItems ? "Less" : "+\(model.hiddenItemCount) more"); Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).rotationEffect(.degrees(model.expandedItems ? 180 : 0)) }
                             .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase).frame(minHeight: 30)
                     }.buttonStyle(.plain)
@@ -209,7 +226,10 @@ struct HubView: View {
     private func todayRow(_ item: HubTodayItem) -> some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
             HStack(spacing: KoiTheme.space.s13) {
-                Button { model.toggle(item) } label: {
+                Button {
+                    KoiHaptics.check()
+                    model.toggle(item)
+                } label: {
                     ZStack {
                         Circle()
                             .strokeBorder(KoiTheme.onBase.opacity(item.isComplete ? 0.9 : 0.62), lineWidth: 1)
@@ -225,7 +245,10 @@ struct HubView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(item.isComplete ? "Mark \(item.title) open" : "Complete \(item.title)")
 
-                Button { model.selectItem(item.id) } label: {
+                Button {
+                    KoiHaptics.tap()
+                    model.selectItem(item.id)
+                } label: {
                     HStack(spacing: 8) {
                         Text(item.title)
                             .font(.custom("RobotoMono-Light", size: 15))

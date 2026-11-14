@@ -53,6 +53,15 @@ what's partial, known issues, and the next step.
   Captured the Hub on the iPhone 17 Pro simulator. A second simulator starts
   the comparison app process but continues to display SpringBoard, so the
   paired visual review remains incomplete.
+- Design foundation pass: added the tonal background wash, tiled film grain,
+  device-motion tilt with Reduce Motion support, halo shadow, stronger glass
+  treatment, shared splash sequence, staggered intro reveal, and the haptic
+  vocabulary for taps, selection, checks, success, dial sweep, and ring fill.
+  Matched the Hub header and shared tab bar proportions, and wired the initial
+  reveal cascade and interaction feedback through Hub, To-Do, Intake, and
+  Movement. The app builds and all 55 simulator tests pass. Captured the Hub
+  after launch; the paired simulator currently opens setup even when launched
+  with demo mode, so paired review of feature screens remains incomplete.
 - Phase 3: added persistent habit schedules/check-ins and to-dos with title date
   parsing, required matrix placement, optional due times, notes, edit/detail
   folds, list and draggable matrix views, pause/archive/restore, delayed task
@@ -172,16 +181,20 @@ what's partial, known issues, and the next step.
   checked with empty data and in-session task entry.
 - Simulator target is iOS 26.5. The widget and shared schema framework retain an
   iOS 18 deployment target.
-- The final visual review covered seeded data in the app's dark water theme.
-  Empty-state review was completed in earlier phases; this pass did not repeat
-  every screen in both appearances. The app currently requests dark appearance.
-- Simulator screenshot comparison is limited by the second simulator staying
-  on SpringBoard after its app process starts. Resolve the simulator display
-  session before the next paired screen review.
+- The final visual review covered seeded data in the app's water theme. Empty
+  state review was completed in earlier phases; this pass did not repeat every
+  screen in both appearances. The root currently requests light system
+  appearance for the intended glass and status-bar treatment.
+- The second simulator opens setup rather than the seeded dashboard when
+  launched with demo mode, so paired screenshots of feature screens remain
+  unavailable. Direct screenshot capture works on both simulators.
+- The haptic engine and intro reveal are wired into primary tab interactions;
+  the remaining screen-specific interaction audit is still in progress.
 
 ## Next step
 
-Continue with the design foundation polish pass, then proceed through the app
-screens and system integrations in order. Physical-device verification remains
-for HealthKit, CloudKit, GPS accuracy, notification delivery, widgets, Control
-Center actions, and configured-network workout imports.
+Continue the visual and interaction pass in order with To-Do, then Intake,
+Movement, Progress/Profile, onboarding, and system integrations. Physical-device
+verification remains for HealthKit, CloudKit, GPS accuracy, notification
+delivery, widgets, Control Center actions, and configured-network workout
+imports.

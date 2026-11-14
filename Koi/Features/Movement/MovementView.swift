@@ -12,11 +12,11 @@ struct MovementView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: KoiTheme.space.s34) {
-                header
-                if let recovery { readinessCard(recovery) }
-                hero
-                stepsSection
-                statsSection
+                header.modifier(KoiIntroReveal(order: 0))
+                if let recovery { readinessCard(recovery).modifier(KoiIntroReveal(order: 1)) }
+                hero.modifier(KoiIntroReveal(order: 2))
+                stepsSection.modifier(KoiIntroReveal(order: 3))
+                statsSection.modifier(KoiIntroReveal(order: 4))
             }
             .padding(.horizontal, KoiTheme.space.s21)
             .padding(.top, KoiTheme.space.s21)
@@ -64,12 +64,12 @@ struct MovementView: View {
             }
             Spacer()
             HStack(spacing: KoiTheme.space.s8) {
-                Button { showsWorkoutJournal = true } label: {
+                Button { KoiHaptics.tap(); showsWorkoutJournal = true } label: {
                     Image(systemName: "dumbbell").font(.system(size: 18, weight: .light))
                         .frame(width: 42, height: 42).background(.ultraThinMaterial.opacity(0.4), in: Circle())
                         .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.24), lineWidth: 1))
                 }.buttonStyle(.plain).accessibilityLabel("Workout journal")
-                Button { showsGoals = true } label: {
+                Button { KoiHaptics.tap(); showsGoals = true } label: {
                     Image(systemName: "slider.horizontal.3").font(.system(size: 18, weight: .light))
                         .frame(width: 42, height: 42).background(.ultraThinMaterial.opacity(0.45), in: Circle())
                         .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.26), lineWidth: 1))

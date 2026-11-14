@@ -12,13 +12,13 @@ struct TodoView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: KoiTheme.space.s34) {
-                header
-                if !model.showingArchive { modePicker }
-                if model.showingArchive { archiveContent }
+                header.modifier(KoiIntroReveal(order: 0))
+                if !model.showingArchive { modePicker.modifier(KoiIntroReveal(order: 1)) }
+                if model.showingArchive { archiveContent.modifier(KoiIntroReveal(order: 2)) }
                 else {
-                    if model.shouldShowCoach { habitCoachCard }
-                    habitsSection
-                    if model.mode == .list { listContent } else { matrixContent }
+                    if model.shouldShowCoach { habitCoachCard.modifier(KoiIntroReveal(order: 2)) }
+                    habitsSection.modifier(KoiIntroReveal(order: 3))
+                    if model.mode == .list { listContent.modifier(KoiIntroReveal(order: 4)) } else { matrixContent.modifier(KoiIntroReveal(order: 4)) }
                 }
             }
             .padding(.horizontal, KoiTheme.space.s21)
@@ -64,7 +64,7 @@ struct TodoView: View {
                     .font(KoiTheme.title).foregroundStyle(KoiTheme.onBase)
             }
             Spacer(minLength: 2)
-            Button { model.toggleArchive() } label: {
+            Button { KoiHaptics.tap(); withAnimation(KoiTheme.morph) { model.toggleArchive() } } label: {
                 Image(systemName: model.showingArchive ? "arrow.uturn.backward" : "archivebox")
                     .font(.system(size: 18, weight: .light)).foregroundStyle(KoiTheme.onBase)
                     .frame(width: 42, height: 42).contentShape(Circle())
@@ -76,7 +76,7 @@ struct TodoView: View {
     private var modePicker: some View {
         HStack(spacing: 8) {
             ForEach(TodoMode.allCases) { mode in
-                Button { withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) { model.setMode(mode) } } label: {
+                Button { KoiHaptics.change(); withAnimation(KoiTheme.morph) { model.setMode(mode) } } label: {
                     GlassChip(title: mode.rawValue, symbol: mode == .list ? "list.bullet" : "square.grid.2x2", isOn: model.mode == mode)
                 }.buttonStyle(.plain)
             }
@@ -102,6 +102,7 @@ struct TodoView: View {
                         HStack(spacing: 13) {
                             Button {
                                 if model.todayCompletion(for: habit) == 0 { analyticsProvider.signal("Habit.completed") }
+                                KoiHaptics.check()
                                 model.toggleHabit(habit)
                             } label: { CheckCircle(isOn: model.todayCompletion(for: habit) > 0) }
                                 .buttonStyle(.plain).accessibilityLabel("Check in: \(habit.title)")
@@ -213,7 +214,7 @@ struct TodoView: View {
                 .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(KoiTheme.onBase.opacity(0.22)))
                 .dropDestination(for: String.self) { values, _ in
                     guard let id = values.first.flatMap(UUID.init(uuidString:)), let task = model.tasks.first(where: { $0.id == id }) else { return false }
-                    model.move(task, to: section); return true
+                            KoiHaptics.land(); model.move(task, to: section); return true
                 }
             }
         }
@@ -224,6 +225,7 @@ struct TodoView: View {
             HStack(spacing: 13) {
                 Button {
                     if !task.isComplete { analyticsProvider.signal("Task.completed") }
+                    KoiHaptics.check()
                     model.toggleCompletion(task)
                 } label: { CheckCircle(isOn: task.isComplete) }
                     .buttonStyle(.plain).accessibilityLabel(task.isComplete ? "Reopen \(task.title)" : "Complete \(task.title)")

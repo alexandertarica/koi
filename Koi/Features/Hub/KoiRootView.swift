@@ -42,8 +42,10 @@ struct KoiRootView: View {
     @State private var presentsMealComposer = false
     @State private var startsMealCamera = false
     @State private var presentsSmartNote = false
+    @State private var launchVisible = true
 
     var body: some View {
+        ZStack {
         TabView(selection: $selectedTab) {
             HubView(onSelectTab: { selectedTab = $0 })
                 .tag(KoiTab.hub)
@@ -62,9 +64,12 @@ struct KoiRootView: View {
                 .padding(.top, KoiTheme.space.s8)
                 .padding(.bottom, KoiTheme.space.s8)
         }
+        .compositingGroup()
+        .shadow(color: KoiTheme.legibilityShadow, radius: 7)
         .background(KoiBackground().ignoresSafeArea())
         .tint(KoiTheme.onBase)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
+        .environment(\.koiIntroRevealed, !launchVisible)
         .fullScreenCover(isPresented: $isOnboardingPresented) {
             OnboardingView()
         }
@@ -116,6 +121,12 @@ struct KoiRootView: View {
         .alert("iCloud backup", isPresented: Binding(get: { backupError != nil }, set: { if !$0 { backupError = nil } })) {
             Button("Set up as new", role: .cancel) { backupError = nil; isOnboardingPresented = true }
         } message: { Text(backupError ?? "") }
+        if launchVisible {
+            KoiSplashScreen { withAnimation(.easeOut(duration: 0.25)) { launchVisible = false } }
+                .transition(.opacity)
+                .zIndex(10)
+        }
+        }
     }
 
     @MainActor
@@ -157,7 +168,8 @@ private struct KoiTabBar: View {
             HStack(spacing: 3) {
             ForEach(KoiTab.allCases) { tab in
                 Button {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.84)) {
+                    KoiHaptics.tap()
+                    withAnimation(KoiTheme.morph) {
                         selection = tab
                     }
                 } label: {
@@ -168,7 +180,7 @@ private struct KoiTabBar: View {
                         Text(tab.title)
                             .font(KoiTheme.caption)
                     }
-                    .foregroundStyle(KoiTheme.onBase)
+                    .foregroundStyle(KoiTheme.glassInk)
                     .frame(maxWidth: .infinity, minHeight: 58)
                     .background {
                         if selection == tab {
@@ -184,19 +196,24 @@ private struct KoiTabBar: View {
             }
         }
         .padding(6)
-        .background(.ultraThinMaterial.opacity(0.68), in: Capsule())
+        .background {
+            if #available(iOS 26.0, *) {
+                Capsule().glassEffect(.regular, in: Capsule())
+            } else {
+                Capsule().fill(.ultraThinMaterial.opacity(0.68))
+            }
+        }
         .overlay(Capsule().strokeBorder(KoiTheme.onBase.opacity(0.28), lineWidth: 1))
         .shadow(color: KoiTheme.glassInk.opacity(0.32), radius: 14, y: 4)
     }
 
     private var smartNoteHandle: some View {
         Capsule()
-            .fill(KoiTheme.onBase.opacity(0.52))
-            .frame(width: 38, height: 4)
-            .frame(maxWidth: .infinity)
-            .frame(height: 12)
+            .fill(KoiTheme.glassInk.opacity(0.52))
+            .frame(width: 36, height: 4.5)
+            .frame(width: 160, height: 44)
             .contentShape(Rectangle())
-            .onTapGesture { onSmartNote() }
+            .onTapGesture { KoiHaptics.tap(); onSmartNote() }
             .gesture(DragGesture(minimumDistance: 8).onEnded(openWhenSwipedUp))
             .accessibilityElement()
             .accessibilityLabel("Write a smart note")
@@ -207,6 +224,39 @@ private struct KoiTabBar: View {
     private func openWhenSwipedUp(_ value: DragGesture.Value) {
         guard value.translation.height < -12 else { return }
         onSmartNote()
+    }
+}
+
+private struct KoiSplashScreen: View {
+    let onFinish: () -> Void
+    @State private var wordmarkVisible = false
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .topLeading) {
+                KoiBackground()
+                Image("KoiWordmark")
+                    .resizable()
+                    .renderingMode(.template)
+                    .scaledToFit()
+                    .frame(width: 240, height: 28)
+                    .foregroundStyle(KoiTheme.onBase.opacity(0.8))
+                    .opacity(wordmarkVisible ? 1 : 0)
+                    .blur(radius: wordmarkVisible ? 0 : 10)
+                    .padding(.top, geometry.safeAreaInsets.top + 13)
+                    .padding(.horizontal, KoiTheme.space.s21)
+                    .shadow(color: KoiTheme.legibilityShadow, radius: 7)
+            }
+            .ignoresSafeArea()
+        }
+        .task {
+            try? await Task.sleep(for: .milliseconds(50))
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.85)) { wordmarkVisible = true }
+            try? await Task.sleep(for: .milliseconds(560))
+            onFinish()
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Koi")
     }
 }
 

@@ -21,11 +21,18 @@ struct KoiGlass<Content: View>: View {
                 case .strong:
                     Capsule().fill(.regularMaterial.opacity(0.9))
                         .overlay(Capsule().fill(.white.opacity(0.26)))
-                        .shadow(color: .white.opacity(0.18), radius: 14)
+                        .shadow(color: .white.opacity(0.3), radius: 14)
                 }
             }
             .overlay {
-                Capsule().strokeBorder(strength == .quiet ? KoiTheme.onBase.opacity(0.3) : KoiTheme.onBase.opacity(0.35), lineWidth: 1)
+                if strength == .strong {
+                    Capsule().strokeBorder(
+                        LinearGradient(colors: [.white.opacity(0.9), .white.opacity(0.35)], startPoint: .top, endPoint: .bottom),
+                        lineWidth: 1.2
+                    )
+                } else {
+                    Capsule().strokeBorder(strength == .quiet ? .white.opacity(0.3) : .white.opacity(0.35), lineWidth: 1)
+                }
             }
             .foregroundStyle(strength == .strong ? KoiTheme.glassInk : KoiTheme.onBase)
     }
