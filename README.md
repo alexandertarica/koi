@@ -16,8 +16,7 @@ single daily Balance, on a calm, watery iPhone app.
 ## Built at the CPVC AI Hackathon (Nov 13–15, 2026)
 
 All code in this repository was written during the hackathon, starting Friday
-evening. The idea, design direction and brand assets were prepared beforehand,
-as the rules allow.
+evening. The idea was brought in beforehand.
 
 ## Credits
 
