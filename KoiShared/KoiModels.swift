@@ -371,3 +371,35 @@ public final class KoiWorkoutSet {
         self.isBodyweight = isBodyweight
     }
 }
+
+@Model
+public final class KoiCardioSession {
+    @Attribute(.unique) public var id: UUID
+    public var activity: String
+    public var detail: String
+    public var startedAt: Date
+    public var endedAt: Date? = nil
+    public var durationSeconds: Int
+    public var distanceMeters: Double
+    public var routeData: Data? = nil
+    public var mileSplitsData: Data? = nil
+    public var isComplete: Bool = false
+
+    public init(activity: String, detail: String = "", startedAt: Date = .now, durationSeconds: Int = 0, distanceMeters: Double = 0) {
+        self.id = UUID()
+        self.activity = activity
+        self.detail = detail
+        self.startedAt = startedAt
+        self.durationSeconds = max(durationSeconds, 0)
+        self.distanceMeters = distanceMeters.isFinite ? max(distanceMeters, 0) : 0
+        self.endedAt = nil
+        self.routeData = nil
+        self.mileSplitsData = nil
+        self.isComplete = false
+    }
+
+    public var paceSecondsPerMile: Double? {
+        guard distanceMeters > 0, durationSeconds > 0 else { return nil }
+        return Double(durationSeconds) / (distanceMeters / 1_609.344)
+    }
+}

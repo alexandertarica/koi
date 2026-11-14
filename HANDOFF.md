@@ -14,7 +14,7 @@ what's partial, known issues, and the next step.
 | 4 | Intake: dial, quiet rows, food log with AI, meals, supplements, edit mode | ✅ |
 | 5 | Movement: dial, steps, Health sync | ✅ |
 | 6 | Workout journal + workout mode + rest + summary + routines + Koi's pick | ✅ |
-| 7 | Cardio: GPS run, treadmill, class, stats | ☐ |
+| 7 | Cardio: GPS run, treadmill, class, stats | ✅ |
 | 8 | Progress + Profile (fold rows, body weight) | ☐ |
 | 9 | Onboarding + tour | ☐ |
 | 10 | Notifications + calendar sync + iCloud backup | ☐ |
@@ -70,11 +70,20 @@ what's partial, known issues, and the next step.
   Movement score and survived an app relaunch. Thirty-four simulator tests pass;
   the empty journal, session logging, rest, summary and saved history were
   reviewed on iPhone 17 Pro.
+- Phase 7: added outdoor run tracking with an injected Core Location service,
+  route and mile split persistence, pace, resume/discard, and route detail maps.
+  Treadmill sessions track time, distance and pace; class and other activities
+  can be logged and repeated. Cardio totals, eight-week mileage, bests, activity
+  counts and recent sessions feed Movement training credit. Thirty-seven
+  simulator tests pass; Cardio empty state, treadmill start/discard, class entry
+  and saved activity detail were reviewed on iPhone 17 Pro.
 
 ## Partial / known issues
 
-- Cardio remains planned for Phase 7. The Hub's Profile and Progress sheets
-  are previews; Phase 8 replaces them with full views.
+- The Hub's Profile and Progress sheets are previews; Phase 8 replaces them
+  with full views. The GPS authorization and route math are covered through the
+  injected run-tracker test double; physical-device GPS accuracy still needs a
+  device run.
 - To-Do reminder notifications and calendar free-time selection/sync are deferred
   to Phase 10. The `-koiDemo` full-week seed is part of Phase 13, so Phase 3 was
   visually checked with empty data and in-session task entry.
@@ -83,4 +92,4 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Phase 7: build cardio sessions, GPS tracking, and movement stats.
+Phase 8: build Progress and Profile with body-weight tracking.

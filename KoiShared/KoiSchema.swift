@@ -19,7 +19,8 @@ public enum KoiSchema {
         KoiRoutineLift.self,
         KoiWorkoutSession.self,
         KoiWorkoutLift.self,
-        KoiWorkoutSet.self
+        KoiWorkoutSet.self,
+        KoiCardioSession.self
     ]
 
     public static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {

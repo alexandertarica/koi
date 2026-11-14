@@ -5,8 +5,10 @@ import KoiShared
 @main
 struct KoiApp: App {
     private let modelContainer: ModelContainer
+    private let runTracker: RunTracker
 
     init() {
+        runTracker = RunTracker()
         do {
             modelContainer = try KoiSchema.makeContainer()
         } catch {
@@ -16,7 +18,7 @@ struct KoiApp: App {
 
     var body: some Scene {
         WindowGroup {
-            KoiRootView()
+            KoiRootView().environment(\.runTracker, runTracker)
         }
         .modelContainer(modelContainer)
     }

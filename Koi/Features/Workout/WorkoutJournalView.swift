@@ -227,12 +227,7 @@ struct WorkoutJournalView: View {
         }
     }
 
-    private var cardioPreview: some View {
-        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
-            Text("A steady pace, your way.").font(KoiTheme.title)
-            Text("Run, class, and distance sessions will live here.").font(KoiTheme.caption).opacity(0.78)
-        }.padding(.top, KoiTheme.space.s34)
-    }
+    private var cardioPreview: some View { CardioJournalView() }
 
     private func journalTabButton(_ title: String) -> some View {
         Button { journalTab = title } label: {
