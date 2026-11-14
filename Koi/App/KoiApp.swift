@@ -3,14 +3,18 @@ import SwiftData
 import KoiShared
 import TelemetryDeck
 import AppIntents
+import UserNotifications
 
 @main
 struct KoiApp: App {
     private let modelContainer: ModelContainer
     private let runTracker: RunTracker
+    private let notificationRouter: KoiNotificationRouter
 
     init() {
         runTracker = RunTracker()
+        notificationRouter = KoiNotificationRouter()
+        UNUserNotificationCenter.current().delegate = notificationRouter
         #if !DEBUG
         TelemetryDeck.initialize(config: .init(appID: "57EF3910-7D36-44AF-AA9B-E63F815F5ECA"))
         #endif

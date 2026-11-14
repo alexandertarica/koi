@@ -196,6 +196,16 @@ what's partial, known issues, and the next step.
   backed-up record before applying its detected action. A native share sheet
   sends saved notes to Apple Notes, and Profile lists the saved note history.
   The system build succeeds and all 58 simulator tests pass.
+- Notifications pass: check-ins are planned as dated requests for the coming
+  week, with Sunday week-review copy and a configurable 8am–8pm window. Habit
+  reminders are one-shot, ten minutes ahead, and suppressed after a same-day
+  check-in; timed to-do reminders route to To-Do. Notification taps select the
+  related feature tab, and foreground alerts are suppressed. Onboarding and
+  Profile enforce quiet hours. Added deterministic coverage for weekly copy,
+  Sunday selection, time bounds, reminder timing and completion suppression.
+  A clean serial iPhone 17 Pro simulator run passes all 60 tests. Earlier Xcode
+  attempts stalled before XCTest launch; shutting down and booting the simulator
+  cleared the runner state.
 
 ## Partial / known issues
 
@@ -249,10 +259,7 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Onboarding now records skip/completion analytics, uses a target spotlight and
-feature tabs during the tour, and offers a hands-on Smart Note transition.
-Continue through system integrations: analytics coverage, App Intents and Siri,
-Smart Note handoff, notification rules, HealthKit, Calendar/Reminders, and
-signup submission. Physical-device verification remains for HealthKit, CloudKit,
-GPS accuracy, notification delivery, widgets, Control Center actions, and
-configured-network workout imports.
+Continue through system integrations: HealthKit writes, Calendar/Reminders,
+analytics event audit, and signup configuration. Physical-device verification
+remains for HealthKit, CloudKit, GPS accuracy, notification delivery, widgets,
+Control Center actions, and configured-network workout imports.

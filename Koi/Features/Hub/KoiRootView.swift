@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import KoiShared
 import OSLog
+import UserNotifications
 
 enum KoiTab: Int, CaseIterable, Identifiable {
     case hub
@@ -47,6 +48,7 @@ struct KoiRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.backupProvider) private var backupProvider
     @Environment(\.analyticsProvider) private var analyticsProvider
+    @Environment(\.notificationProvider) private var notificationProvider
     @State private var selectedTab: KoiTab = KoiTab.launchSelection
     @State private var isOnboardingPresented = false
     @State private var hasLoadedOnboarding = false
@@ -105,6 +107,7 @@ struct KoiRootView: View {
         }
         .task {
             analyticsProvider.signal("Screen.opened", parameters: ["screen": selectedTab.title])
+            await notificationProvider.refreshPlan(using: modelContext)
             if ProcessInfo.processInfo.arguments.contains("-koiDemo") {
                 do { try KoiDemoSeeder.seedIfEmpty(modelContext) }
                 catch { Logger(subsystem: "com.alexandertarica.koi", category: "Demo").error("Unable to seed demo data.") }
@@ -122,8 +125,8 @@ struct KoiRootView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .background else { return }
-            Task { await createAutomaticBackup() }
+            if phase == .active { Task { await notificationProvider.refreshPlan(using: modelContext) } }
+            if phase == .background { Task { await createAutomaticBackup() } }
         }
         .onOpenURL { url in
             guard url.scheme == "koi" else { return }
@@ -133,6 +136,15 @@ struct KoiRootView: View {
                 if url.path == "/log" || url.path == "/camera" { presentsMealComposer = true }
                 if url.path == "/camera" { startsMealCamera = true }
             case "todo": selectedTab = .toDo
+            default: selectedTab = .hub
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: KoiNotificationRouter.didOpen)) { notification in
+            let tab = notification.userInfo?["tab"] as? Int ?? 0
+            switch tab {
+            case 1: selectedTab = .toDo
+            case 2: selectedTab = .movement
+            case 3: selectedTab = .intake
             default: selectedTab = .hub
             }
         }

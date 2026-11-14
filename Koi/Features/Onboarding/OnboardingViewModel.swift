@@ -59,7 +59,7 @@ final class OnboardingViewModel {
     var stepGoal = 8_000
     var weeklyWorkoutGoal = 4
     var notificationMode = "smart"
-    var dailyCheckInHour = 9
+        var dailyCheckInHour = 9
     var betaEmail = ""
     var launchEmail = ""
     var sendsBetaEmail = false
@@ -173,7 +173,7 @@ final class OnboardingViewModel {
             storedState.healthConnected = wantsHealth
             storedState.calendarConnected = wantsCalendar
             storedState.notificationMode = notificationMode
-            storedState.dailyCheckInHour = dailyCheckInHour
+            storedState.dailyCheckInHour = min(max(dailyCheckInHour, 8), 20)
             storedState.betaEmail = sendsBetaEmail ? betaEmail.trimmingCharacters(in: .whitespacesAndNewlines) : ""
             storedState.launchEmail = sendsLaunchEmail ? launchEmail.trimmingCharacters(in: .whitespacesAndNewlines) : ""
             try context.save()

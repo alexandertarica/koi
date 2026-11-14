@@ -203,7 +203,7 @@ struct KoiProfileView: View {
                 Picker("Check-in time", selection: Binding(get: { model.dailyCheckInHour }, set: { hour in
                     Task { await model.setNotifications(model.notificationMode, hour: hour, provider: notificationProvider) }
                 })) {
-                    ForEach(6..<23, id: \.self) { hour in Text(timeLabel(hour)).tag(hour) }
+                    ForEach(8..<21, id: \.self) { hour in Text(timeLabel(hour)).tag(hour) }
                 }.pickerStyle(.wheel).frame(height: 100).clipped()
             }
             Text("Smart reminders follow habit times and timed to-dos. Each reminder clears when you update your plan.")

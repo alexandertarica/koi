@@ -241,7 +241,7 @@ struct OnboardingView: View {
                 }.pickerStyle(.segmented)
                 if model.notificationMode == "onceDaily" {
                     Picker("Time", selection: $model.dailyCheckInHour) {
-                        ForEach(6..<23, id: \.self) { hour in Text(timeLabel(hour)).tag(hour) }
+                        ForEach(8..<21, id: \.self) { hour in Text(timeLabel(hour)).tag(hour) }
                     }.pickerStyle(.wheel).frame(height: 100).clipped()
                 }
             }

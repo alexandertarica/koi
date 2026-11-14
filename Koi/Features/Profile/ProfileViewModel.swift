@@ -178,13 +178,14 @@ final class ProfileViewModel {
         }
         let state = ensureOnboardingState(in: context)
         state.notificationMode = mode.rawValue
-        state.dailyCheckInHour = min(max(hour, 0), 23)
+        state.dailyCheckInHour = min(max(hour, 8), 20)
         do {
             try context.save()
             notificationMode = mode
             dailyCheckInHour = state.dailyCheckInHour
             let reminders = try makeReminders(mode: mode, context: context)
-            try await provider.replaceScheduledReminders(reminders, dailyCheckInHour: mode == .none ? nil : state.dailyCheckInHour)
+            let checkIns = mode == .none ? [] : NotificationPlanner.checkIns(hour: state.dailyCheckInHour, now: .now, calendar: calendar)
+            try await provider.replaceScheduledReminders(Array((reminders + checkIns).prefix(60)), dailyCheckInHour: nil)
         } catch {
             logger.error("Unable to update notification settings.")
             errorMessage = "Couldn't update reminders. Try again."
@@ -287,23 +288,14 @@ final class ProfileViewModel {
         guard mode == .smart else { return [] }
         var reminders: [NotificationReminder] = []
         let habits = try context.fetch(FetchDescriptor<KoiHabit>()).filter { $0.isActive && $0.pausedAt == nil && $0.reminderTime != nil }
-        for habit in habits {
-            guard let time = habit.reminderTime else { continue }
-            if habit.schedule == "daily" {
-                reminders.append(NotificationReminder(id: "habit-\(habit.id.uuidString)", title: "Time for \(habit.title).", date: time, repeatsWeekday: nil, repeatsDaily: true))
-            } else {
-                let weekdays = habit.schedule == "someDays" ? habit.weekdays : [calendar.component(.weekday, from: habit.createdAt)]
-                for weekday in weekdays {
-                    reminders.append(NotificationReminder(id: "habit-\(habit.id.uuidString)-\(weekday)", title: "Time for \(habit.title).", date: time, repeatsWeekday: weekday, repeatsDaily: false))
-                }
-            }
-        }
-        let tasks = try context.fetch(FetchDescriptor<KoiTask>()).filter { !$0.isComplete && $0.archivedAt == nil && $0.dueAt != nil && $0.timeMinutes > 0 }
+        let logs = try context.fetch(FetchDescriptor<KoiHabitLog>())
+        reminders += NotificationPlanner.habitReminders(habits: habits, logs: logs, now: .now, calendar: calendar)
+        let tasks = try context.fetch(FetchDescriptor<KoiTask>()).filter { !$0.isComplete && $0.archivedAt == nil && $0.hasTime && $0.dueAt != nil && $0.timeMinutes > 0 }
         for task in tasks {
             guard let dueAt = task.dueAt else { continue }
             let reminderAt = dueAt.addingTimeInterval(-10 * 60)
             if reminderAt > .now {
-                reminders.append(NotificationReminder(id: "task-\(task.id.uuidString)", title: task.title, date: reminderAt, repeatsWeekday: nil, repeatsDaily: false))
+                reminders.append(NotificationReminder(id: "task-\(task.id.uuidString)", title: "In 10 minutes, \(task.title).", date: reminderAt, repeatsWeekday: nil, repeatsDaily: false, notificationTitle: "Coming up", tab: 1))
             }
         }
         return Array(reminders.prefix(60))

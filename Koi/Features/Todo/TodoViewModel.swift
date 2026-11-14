@@ -73,6 +73,11 @@ final class TodoViewModel {
     private var calendarConnected = false
     private var notificationMode: KoiNotificationMode = .smart
     private var dailyCheckInHour = 9
+    private var movementDays: [KoiMovementDay] = []
+    private var movementGoal: KoiMovementGoal?
+    private var nutrientEntries: [KoiNutrientEntry] = []
+    private var foodEntries: [KoiFoodEntry] = []
+    private var nutrientGoals: [KoiNutrientGoal] = []
     private(set) var tasks: [KoiTask] = []
     private(set) var habits: [KoiHabit] = []
     private(set) var logs: [KoiHabitLog] = []
@@ -122,6 +127,11 @@ final class TodoViewModel {
             tasks = try context.fetch(FetchDescriptor<KoiTask>(sortBy: [SortDescriptor(\.createdAt)]))
             habits = try context.fetch(FetchDescriptor<KoiHabit>(sortBy: [SortDescriptor(\.createdAt)]))
             logs = try context.fetch(FetchDescriptor<KoiHabitLog>())
+            movementDays = try context.fetch(FetchDescriptor<KoiMovementDay>())
+            movementGoal = try context.fetch(FetchDescriptor<KoiMovementGoal>()).first
+            nutrientEntries = try context.fetch(FetchDescriptor<KoiNutrientEntry>())
+            foodEntries = try context.fetch(FetchDescriptor<KoiFoodEntry>())
+            nutrientGoals = try context.fetch(FetchDescriptor<KoiNutrientGoal>())
             let settings = try context.fetch(FetchDescriptor<KoiOnboardingState>()).first
             calendarConnected = settings?.calendarConnected ?? false
             notificationMode = KoiNotificationMode(rawValue: settings?.notificationMode ?? "smart") ?? .smart
@@ -517,28 +527,74 @@ final class TodoViewModel {
         guard let notificationProvider else { return }
         var reminders: [NotificationReminder] = []
         if notificationMode == .smart {
-            for habit in habits where habit.isActive && habit.pausedAt == nil && habit.graduatedAt == nil {
-                guard let time = habit.reminderTime else { continue }
-                if habit.schedule == "daily" {
-                    reminders.append(NotificationReminder(id: "habit-\(habit.id.uuidString)", title: "Time for \(habit.title).", date: time, repeatsWeekday: nil, repeatsDaily: true))
-                } else {
-                    let weekdays = habit.schedule == "someDays" ? habit.weekdays : [calendar.component(.weekday, from: habit.createdAt)]
-                    for weekday in weekdays {
-                        reminders.append(NotificationReminder(id: "habit-\(habit.id.uuidString)-\(weekday)", title: "Time for \(habit.title).", date: time, repeatsWeekday: weekday, repeatsDaily: false))
-                    }
-                }
-            }
+            reminders += NotificationPlanner.habitReminders(habits: habits, logs: logs, now: .now, calendar: calendar)
             for task in tasks where !task.isComplete && task.archivedAt == nil && task.hasTime && task.timeMinutes > 0 {
                 guard let dueAt = task.dueAt else { continue }
                 let reminderAt = dueAt.addingTimeInterval(-10 * 60)
                 if reminderAt > .now {
-                    reminders.append(NotificationReminder(id: "task-\(task.id.uuidString)", title: task.title, date: reminderAt, repeatsWeekday: nil, repeatsDaily: false))
+                    reminders.append(NotificationReminder(id: "task-\(task.id.uuidString)", title: "In 10 minutes, \(task.title).", date: reminderAt, repeatsWeekday: nil, repeatsDaily: false, notificationTitle: "Coming up", tab: 1))
                 }
             }
+            reminders += smartNudges(now: .now)
         }
         do {
             try await notificationProvider.replaceScheduledReminders(Array(reminders.prefix(60)), dailyCheckInHour: notificationMode == .none ? nil : dailyCheckInHour)
         } catch { logger.error("Unable to refresh local reminders.") }
+    }
+
+    private func smartNudges(now: Date) -> [NotificationReminder] {
+        let hour = calendar.component(.hour, from: now)
+        guard (8...20).contains(hour) else { return [] }
+        let today = calendar.startOfDay(for: now)
+        let movement = movementDays.first { calendar.isDate($0.date, inSameDayAs: today) }
+        let stepsGoal = max(movementGoal?.stepGoal ?? 8_000, 1)
+        let stepsLeft = max(stepsGoal - (movement?.steps ?? 0), 0)
+        let proteinGoal = nutrientGoals.first { $0.key == "protein" && $0.isActive }
+        let proteinLogged = foodEntries.filter { calendar.isDate($0.loggedAt, inSameDayAs: today) }.reduce(0) { $0 + $1.proteinGrams }
+            + nutrientEntries.filter { $0.dayID == todayID(today) && $0.nutrientKey == "protein" }.reduce(0) { $0 + $1.value }
+        let proteinLeft = max((proteinGoal?.goal ?? 0) - proteinLogged, 0)
+        let dayID = todayID(today)
+        let habitsToday = activeHabits.filter { habit in
+            if habit.schedule == "daily" { return true }
+            if habit.schedule == "someDays" { return habit.weekdays.contains(calendar.component(.weekday, from: today)) }
+            return calendar.isDate(habit.createdAt, inSameDayAs: today)
+        }.map { habit in
+            let completion = logs.first(where: { $0.habitID == habit.id && calendar.isDate($0.date, inSameDayAs: today) })?.completion ?? 0
+            return HabitDayInput(isScheduled: true, completion: completion == 2 ? .complete : completion == 1 ? .minimum : .missed)
+        }
+        let habitScore = HabitRules.dayScore(habitsToday)
+        let meals = foodEntries.filter { calendar.isDate($0.loggedAt, inSameDayAs: today) }.map { MealNutritionInput(calories: $0.calories, protein: $0.proteinGrams, carbs: $0.carbohydrateGrams, fat: $0.fatGrams, fiber: $0.fiberGrams, addedSugar: $0.addedSugarGrams, sodium: $0.sodiumMilligrams) }
+        let adjustments = nutrientEntries.filter { $0.dayID == dayID }.map { NutritionAdjustmentInput(key: $0.nutrientKey, value: $0.value) }
+        let values = NutritionEngine.totals(meals: meals, adjustments: adjustments)
+        let calorieGoal = nutrientGoals.first(where: { $0.key == "calories" })?.goal ?? 2_200
+        let nutrition = NutritionEngine.score(goals: nutrientGoals.filter(\.isActive).map { NutrientGoalInput(key: $0.key, goal: $0.goal, type: NutrientGoalType(rawValue: $0.goalType) ?? .track) }, values: values, calories: values["calories"] ?? 0, calorieGoal: calorieGoal, hasAnyIntake: NutritionEngine.hasAnyIntake(meals: meals, adjustments: adjustments)).score
+        let weekStart = calendar.date(byAdding: .day, value: -6, to: today) ?? today
+        let weekEnd = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+        let weekMovement = movementDays.filter { $0.date >= weekStart && $0.date < weekEnd }
+        let exercise = ExerciseEngine.score(ExerciseDayInput(steps: movement?.steps ?? 0, stepGoal: stepsGoal, isTrainingDay: movement?.isTrainingDay ?? false, workoutsInLastSevenDays: weekMovement.reduce(0) { $0 + $1.workoutCount }, weeklyWorkoutGoal: movementGoal?.weeklyWorkoutGoal ?? 4)).score
+        let score = BalanceEngine.score(pillars: BalancePillars(habits: habitScore, nutrition: nutrition, exercise: exercise)).score
+        guard score < 0.6 else { return [] }
+        var result: [NotificationReminder] = []
+        if hour < 15, let fire = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: now), fire > now,
+           let weakest = [("Habits", habitScore), ("Nutrition", nutrition), ("Exercise", exercise)].min(by: { $0.1 < $1.1 }), weakest.1 < 0.5 {
+            result.append(NotificationReminder(id: "nudge-catch-up", title: "A small step can lift today's \(weakest.0.lowercased()) balance.", date: fire, repeatsWeekday: nil, repeatsDaily: false, notificationTitle: "\(weakest.0) could use a moment", tab: tabFor(weakest.0), pillar: weakest.0))
+        }
+        if hour < 18, proteinLeft >= 15, let fire = calendar.date(bySettingHour: 18, minute: 30, second: 0, of: now), fire > now {
+            result.append(NotificationReminder(id: "nudge-protein", title: "\(Int(proteinLeft.rounded())) g left for today. Worth planning into dinner.", date: fire, repeatsWeekday: nil, repeatsDaily: false, notificationTitle: "Protein", tab: 3, pillar: "Nutrition"))
+        }
+        if hour < 19, stepsLeft > 0, stepsLeft <= 3_000, let fire = calendar.date(bySettingHour: 19, minute: 0, second: 0, of: now), fire > now {
+            result.append(NotificationReminder(id: "nudge-steps", title: "About \(stepsLeft.formatted()) steps from your goal. A short walk finishes it.", date: fire, repeatsWeekday: nil, repeatsDaily: false, notificationTitle: "Nearly there", tab: 2, pillar: "Exercise"))
+        }
+        return result
+    }
+
+    private func todayID(_ date: Date) -> String {
+        let p = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", p.year ?? 0, p.month ?? 0, p.day ?? 0)
+    }
+
+    private func tabFor(_ pillar: String) -> Int {
+        switch pillar { case "Habits": 1; case "Nutrition": 3; default: 2 }
     }
 
     private func isArchived(_ task: KoiTask) -> Bool {

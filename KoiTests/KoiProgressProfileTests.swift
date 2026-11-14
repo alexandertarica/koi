@@ -76,16 +76,50 @@ final class KoiProgressProfileTests: XCTestCase {
         model.load(context)
         let provider = FakeNotificationProvider()
 
-        await model.setNotifications(.onceDaily, hour: 7, provider: provider)
+        await model.setNotifications(.onceDaily, hour: 9, provider: provider)
 
         let state = try XCTUnwrap(context.fetch(FetchDescriptor<KoiOnboardingState>()).first)
         XCTAssertEqual(state.notificationMode, KoiNotificationMode.onceDaily.rawValue)
-        XCTAssertEqual(state.dailyCheckInHour, 7)
-        XCTAssertEqual(provider.lastCheckInHour, 7)
-        XCTAssertTrue(provider.lastReminders.isEmpty)
-
-        await model.setNotifications(.none, hour: 7, provider: provider)
+        XCTAssertEqual(state.dailyCheckInHour, 9)
         XCTAssertNil(provider.lastCheckInHour)
+        XCTAssertFalse(provider.lastReminders.isEmpty)
+        XCTAssertTrue(provider.lastReminders.allSatisfy { Calendar.current.component(.hour, from: $0.date) == 9 })
+
+        await model.setNotifications(.none, hour: 9, provider: provider)
+        XCTAssertNil(provider.lastCheckInHour)
+    }
+
+    func testNotificationPlannerUsesQuietHoursAndSundayRecap() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        let saturday = calendar.date(from: DateComponents(year: 2026, month: 11, day: 14, hour: 10)) ?? .now
+        let reminders = NotificationPlanner.checkIns(hour: 9, now: saturday, calendar: calendar)
+
+        XCTAssertEqual(reminders.count, 7)
+        XCTAssertEqual(reminders.first?.title, "A quiet moment to check in with your balance.")
+        XCTAssertEqual(reminders[1].notificationTitle, "Your week")
+        XCTAssertEqual(calendar.component(.weekday, from: reminders[1].date), 1)
+        XCTAssertTrue(NotificationPlanner.checkIns(hour: 7, now: saturday, calendar: calendar).isEmpty)
+        let morning = NotificationPlanner.morningContent(yesterdayScore: 0.735, suggestion: "A short walk could help.")
+        XCTAssertEqual(morning.body, "Yesterday 74%. A short walk could help.")
+        XCTAssertEqual(NotificationPlanner.recapContent(average: 0.68, bestDay: "Friday").body, "68% average, best day Friday. Tap to see it.")
+    }
+
+    func testHabitReminderIsOneShotAndSuppressedAfterCompletion() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        let now = calendar.date(from: DateComponents(year: 2026, month: 11, day: 14, hour: 9, minute: 0)) ?? .now
+        let reminderTime = calendar.date(from: DateComponents(year: 2001, month: 1, day: 1, hour: 10, minute: 0)) ?? .now
+        let habit = KoiHabit(title: "Read", createdAt: now, reminderTime: reminderTime)
+
+        let pending = NotificationPlanner.habitReminders(habits: [habit], logs: [], now: now, calendar: calendar)
+        XCTAssertEqual(pending.count, 1)
+        XCTAssertEqual(pending[0].date, calendar.date(bySettingHour: 9, minute: 50, second: 0, of: now))
+        XCTAssertFalse(pending[0].repeatsDaily)
+        XCTAssertEqual(pending[0].tab, 1)
+
+        let completed = KoiHabitLog(habitID: habit.id, date: now, completion: 1)
+        XCTAssertTrue(NotificationPlanner.habitReminders(habits: [habit], logs: [completed], now: now, calendar: calendar).isEmpty)
     }
 
     func testCalendarConnectionPreferencePersistsAfterAuthorization() async throws {
@@ -111,6 +145,7 @@ private final class FakeNotificationProvider: NotificationProviding {
         lastReminders = reminders
         lastCheckInHour = dailyCheckInHour
     }
+    func refreshPlan(using context: ModelContext) async {}
     func removeReminder(id: String) {}
 }
 
