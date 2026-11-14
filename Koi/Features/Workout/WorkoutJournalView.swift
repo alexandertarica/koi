@@ -282,6 +282,7 @@ struct WorkoutJournalView: View {
 private struct WorkoutRoutineBuilder: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.workoutImporter) private var importer
+    @Environment(\.analyticsProvider) private var analyticsProvider
     @State private var name: String
     @State private var lifts: [String]
     @State private var nextLift = ""
@@ -361,7 +362,10 @@ private struct WorkoutRoutineBuilder: View {
                         Text("WHEN").font(KoiTheme.section).tracking(1.7)
                         HStack(spacing: KoiTheme.space.s8) {
                             ForEach(["Any time", "Today", "Tomorrow", "Choose day"], id: \.self) { option in
-                                Button(option) { when = option; choosesDate = option == "Choose day" }
+                                Button(option) {
+                                    when = option
+                                    choosesDate = (option == "Choose day")
+                                }
                                     .font(KoiTheme.caption).padding(.horizontal, 10).padding(.vertical, 7)
                                     .background(when == option ? KoiTheme.onBase.opacity(0.18) : .clear, in: Capsule())
                                     .overlay(Capsule().stroke(KoiTheme.onBase.opacity(0.22), lineWidth: 1)).buttonStyle(.plain)
@@ -370,13 +374,23 @@ private struct WorkoutRoutineBuilder: View {
                         if choosesDate { DatePicker("Planned day", selection: $plannedDate, in: .now..., displayedComponents: .date).datePickerStyle(.compact).font(KoiTheme.caption).tint(KoiTheme.onBase) }
                     }
                     KoiPrimaryButton(title: "Start now") {
-                        if let selectedImportedRoutine, existing == nil { model.saveImportedRoutine(selectedImportedRoutine, plannedAt: selectedPlannedDate, startNow: true) }
-                        else { model.saveRoutine(existing: existing, name: name, liftNames: lifts, plannedAt: selectedPlannedDate, startNow: true, targetSets: Int(sets) ?? 3, targetReps: Int(reps) ?? 8) }
+                        if let selectedImportedRoutine, existing == nil {
+                            model.saveImportedRoutine(selectedImportedRoutine, plannedAt: selectedPlannedDate, startNow: true)
+                            analyticsProvider.signal("Workout.routineBuilt", parameters: ["source": "import", "started": "true"])
+                        } else {
+                            model.saveRoutine(existing: existing, name: name, liftNames: lifts, plannedAt: selectedPlannedDate, startNow: true, targetSets: Int(sets) ?? 3, targetReps: Int(reps) ?? 8)
+                            if existing == nil { analyticsProvider.signal("Workout.routineBuilt", parameters: ["source": "custom", "started": "true"]) }
+                        }
                         dismiss()
                     }
                     Button("Save for later") {
-                        if let selectedImportedRoutine, existing == nil { model.saveImportedRoutine(selectedImportedRoutine, plannedAt: selectedPlannedDate, startNow: false) }
-                        else { model.saveRoutine(existing: existing, name: name, liftNames: lifts, plannedAt: selectedPlannedDate, startNow: false, targetSets: Int(sets) ?? 3, targetReps: Int(reps) ?? 8) }
+                        if let selectedImportedRoutine, existing == nil {
+                            model.saveImportedRoutine(selectedImportedRoutine, plannedAt: selectedPlannedDate, startNow: false)
+                            analyticsProvider.signal("Workout.routineBuilt", parameters: ["source": "import", "started": "false"])
+                        } else {
+                            model.saveRoutine(existing: existing, name: name, liftNames: lifts, plannedAt: selectedPlannedDate, startNow: false, targetSets: Int(sets) ?? 3, targetReps: Int(reps) ?? 8)
+                            if existing == nil { analyticsProvider.signal("Workout.routineBuilt", parameters: ["source": "custom", "started": "false"]) }
+                        }
                         dismiss()
                     }.font(KoiTheme.caption).frame(maxWidth: .infinity).buttonStyle(.plain)
                 }.padding(KoiTheme.space.s21)

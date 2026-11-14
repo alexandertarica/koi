@@ -56,6 +56,7 @@ struct KoiRootView: View {
     @State private var presentsMealComposer = false
     @State private var startsMealCamera = false
     @State private var presentsSmartNote = false
+    @State private var opensSmartNoteAfterOnboarding = false
     @State private var launchVisible: Bool = {
         #if DEBUG
         !ProcessInfo.processInfo.arguments.contains("-koiDemo")
@@ -67,7 +68,7 @@ struct KoiRootView: View {
     var body: some View {
         ZStack {
         TabView(selection: $selectedTab) {
-            HubView(onSelectTab: { selectedTab = $0 })
+            HubView(onSelectTab: { selectedTab = $0 }, onPresentSmartNote: { presentsSmartNote = true })
                 .tag(KoiTab.hub)
             TodoView()
                 .tag(KoiTab.toDo)
@@ -90,8 +91,12 @@ struct KoiRootView: View {
         .tint(KoiTheme.onBase)
         .preferredColorScheme(.light)
         .environment(\.koiIntroRevealed, !launchVisible)
-        .fullScreenCover(isPresented: $isOnboardingPresented) {
-            OnboardingView()
+        .fullScreenCover(isPresented: $isOnboardingPresented, onDismiss: {
+            guard opensSmartNoteAfterOnboarding else { return }
+            opensSmartNoteAfterOnboarding = false
+            presentsSmartNote = true
+        }) {
+            OnboardingView(onSelectTab: { selectedTab = $0 }, onTrySmartNote: { opensSmartNoteAfterOnboarding = true })
         }
         .sheet(isPresented: $presentsSmartNote) {
             SmartNoteSheet()

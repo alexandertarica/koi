@@ -9,6 +9,8 @@ struct OnboardingView: View {
     @Environment(\.calendarProvider) private var calendarProvider
     @Environment(\.notificationProvider) private var notificationProvider
     @Environment(\.analyticsProvider) private var analyticsProvider
+    let onSelectTab: (KoiTab) -> Void
+    let onTrySmartNote: () -> Void
     @State private var model = OnboardingViewModel()
     @State private var startsTour = false
     @State private var isConnectingHealth = false
@@ -48,7 +50,7 @@ struct OnboardingView: View {
             model.markTourSeen()
             if model.isCompleted { dismiss() }
         }) {
-            KoiTourView(onFinish: { startsTour = false })
+            KoiTourView(onSelectTab: onSelectTab, onTrySmartNote: onTrySmartNote, onFinish: { startsTour = false })
         }
         .onChange(of: model.isCompleted) { _, complete in
             guard complete else { return }
@@ -76,7 +78,12 @@ struct OnboardingView: View {
             Spacer()
                     if model.step != .welcome {
                         Text("\(model.step.rawValue + 1) OF 7").font(KoiTheme.caption).tracking(1.1).opacity(0.7)
-                        Button("Skip") { model.skipToDefaults(); analyticsProvider.signal("Onboarding.completed") }.font(KoiTheme.caption).buttonStyle(.plain).padding(.leading, KoiTheme.space.s8)
+                        Button("Skip") {
+                            model.skipToDefaults()
+                            analyticsProvider.signal("Onboarding.skipped", parameters: ["step": model.step.title])
+                            analyticsProvider.signal("Onboarding.completed", parameters: ["method": "skip"])
+                            KoiHaptics.success()
+                        }.font(KoiTheme.caption).buttonStyle(.plain).padding(.leading, KoiTheme.space.s8)
                     }
         }
         .padding(.horizontal, KoiTheme.space.s21)

@@ -17,6 +17,7 @@ struct KoiProfileView: View {
     @State private var confirmsRestore = false
     @State private var showsWeightHistory = false
     let onSelectTab: (KoiTab) -> Void
+    let onPresentSmartNote: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
@@ -54,7 +55,7 @@ struct KoiProfileView: View {
         .foregroundStyle(KoiTheme.onBase)
         .task { model.load(context) }
         .fullScreenCover(isPresented: $presentsTour) {
-            KoiTourView(onFinish: { presentsTour = false })
+            KoiTourView(onSelectTab: onSelectTab, onTrySmartNote: onPresentSmartNote, onFinish: { presentsTour = false })
         }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }

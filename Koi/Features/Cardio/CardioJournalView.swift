@@ -7,6 +7,7 @@ import SwiftUI
 struct CardioJournalView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.runTracker) private var tracker
+    @Environment(\.analyticsProvider) private var analyticsProvider
     @State private var model = CardioViewModel()
     @State private var showsManualEntry = false
     @State private var selectedActivity = "Class"
@@ -70,14 +71,22 @@ struct CardioJournalView: View {
                 if model.liveRoute.count > 1 { RoutePreview(points: model.liveRoute).frame(height: 106) }
                 HStack(spacing: KoiTheme.space.s8) {
                     KoiPrimaryButton(title: model.isTrackingRun ? "Finish run" : "Resume run") {
-                        if model.isTrackingRun { model.finishActiveSession() }
+                        if model.isTrackingRun {
+                            model.finishActiveSession()
+                            analyticsProvider.signal("Cardio.logged", parameters: ["activity": "outdoor_run"])
+                        }
                         else { Task { await model.resumeOutdoorRun() } }
                     }
                     Button("Discard") { model.discardActiveSession() }.font(KoiTheme.caption).buttonStyle(.plain)
                 }
             } else {
                 Text("A quiet route, recorded as you move.").font(KoiTheme.caption).opacity(0.75)
-                KoiPrimaryButton(title: "Start run") { Task { await model.startOutdoorRun() } }
+                KoiPrimaryButton(title: "Start run") {
+                    Task {
+                        await model.startOutdoorRun()
+                        if model.activeSession != nil { analyticsProvider.signal("Cardio.runStarted", parameters: ["kind": "outdoor"]) }
+                    }
+                }
             }
         }
         .padding(KoiTheme.space.s21)
@@ -88,7 +97,7 @@ struct CardioJournalView: View {
     private var activityTiles: some View {
         HStack(spacing: KoiTheme.space.s8) {
             activityTile("Treadmill", hint: "Distance + time", symbol: "figure.run") {
-                if model.activeSession == nil { treadmillMiles = "0"; model.startTreadmill() }
+                if model.activeSession == nil { treadmillMiles = "0"; model.startTreadmill(); analyticsProvider.signal("Cardio.runStarted", parameters: ["kind": "treadmill"]) }
             }
             activityTile("Class", hint: "Minutes only", symbol: "figure.cooldown") { openManual("Class", defaultDetail: "Pilates") }
             Menu {
@@ -107,7 +116,7 @@ struct CardioJournalView: View {
                 TextField("Miles", text: $treadmillMiles).keyboardType(.decimalPad).font(KoiTheme.body).frame(width: 88)
                 Text("mi · \(paceFromMiles)").font(KoiTheme.caption).opacity(0.75)
                 Spacer()
-                Button("Finish") { model.finishActiveSession() }.font(KoiTheme.caption).buttonStyle(.plain)
+                Button("Finish") { model.finishActiveSession(); analyticsProvider.signal("Cardio.logged", parameters: ["activity": "treadmill"]) }.font(KoiTheme.caption).buttonStyle(.plain)
             }
             Button("Discard session", role: .destructive) { model.discardActiveSession() }.font(KoiTheme.caption).buttonStyle(.plain)
         }.padding(KoiTheme.space.s13).background(.ultraThinMaterial.opacity(0.22), in: RoundedRectangle(cornerRadius: 16))
@@ -211,6 +220,7 @@ struct CardioJournalView: View {
                 if selectedActivity != "Class" { Text("Pace · \(paceFromManual)").font(KoiTheme.caption).opacity(0.75) }
                 KoiPrimaryButton(title: "Save activity") {
                     model.logManualActivity(activity: selectedActivity, detail: detail, minutes: Int(minutes) ?? 0, miles: selectedActivity == "Class" ? 0 : Double(miles) ?? 0)
+                    analyticsProvider.signal("Cardio.logged", parameters: ["activity": selectedActivity.lowercased().replacingOccurrences(of: " ", with: "_")])
                     showsManualEntry = false
                 }
                 Spacer()

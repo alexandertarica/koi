@@ -597,7 +597,13 @@ private struct NewTaskSheet: View {
                     KoiPrimaryButton(title: buttonTitle) {
                         let isNew = model.editingTaskID == nil
                         if model.saveTask() {
-                            if isNew { analyticsProvider.signal("Task.placed") }
+                            if isNew {
+                                analyticsProvider.signal("Task.placed", parameters: [
+                                    "section": model.taskDraft.quadrant.title,
+                                    "has_date": model.taskDraft.dueAt == nil ? "false" : "true",
+                                    "has_time": model.taskDraft.hasTime ? "true" : "false"
+                                ])
+                            }
                             KoiHaptics.success()
                         }
                         if !embedded && !model.showingNewTask { dismiss() }

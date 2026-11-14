@@ -5,15 +5,17 @@ import KoiShared
 struct HubView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.analyticsProvider) private var analyticsProvider
     @State private var model = HubViewModel()
     let onSelectTab: (KoiTab) -> Void
+    let onPresentSmartNote: () -> Void
 
     var body: some View {
         ZStack {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
                     header.modifier(KoiIntroReveal(order: 0))
-                    if model.isProfileOpen { KoiProfileView(onSelectTab: onSelectTab).transition(.opacity) }
+                    if model.isProfileOpen { KoiProfileView(onSelectTab: onSelectTab, onPresentSmartNote: onPresentSmartNote).transition(.opacity) }
                     else if model.isProgressOpen { KoiProgressView().transition(.opacity) }
                     else {
                         hero.modifier(KoiIntroReveal(order: 2))
@@ -114,8 +116,13 @@ struct HubView: View {
                     },
                     onPillarTap: { pillar in
                         KoiHaptics.tap()
-                        if model.selectedPillar == pillar { onSelectTab(pillar.tab) }
-                        else { withAnimation(KoiTheme.morph) { model.selectPillar(pillar) } }
+                        if model.selectedPillar == pillar {
+                            analyticsProvider.signal("Hub.pillarOpened", parameters: ["pillar": pillar.rawValue.lowercased()])
+                            onSelectTab(pillar.tab)
+                        } else {
+                            analyticsProvider.signal("Hub.pillarOpened", parameters: ["pillar": pillar.rawValue.lowercased()])
+                            withAnimation(KoiTheme.morph) { model.selectPillar(pillar) }
+                        }
                     },
                     weights: model.focusWeights
                 )

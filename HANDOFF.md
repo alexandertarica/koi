@@ -169,9 +169,11 @@ what's partial, known issues, and the next step.
   passes all 54 simulator tests. iPhone 17 Pro review covered Smart Note,
   Movement, workout import, To-Do and Profile.
 - Phase 13: added release-only TelemetryDeck initialization and an injected
-  analytics provider. Events cover screen visits, onboarding and tour completion,
-  notes, food estimation, habit and task completion, and workout starts, sets and
-  completion. Signals contain event names and non-sensitive categories only.
+  analytics provider. Events cover screen visits, onboarding skip/completion and
+  tour completion, pillar opens, notes, food estimation, habit and task
+  completion/placement, workout routine creation, sets and completion, and
+  cardio starts/logs. Signals contain event names and non-sensitive categories
+  only.
   Added an opt-in `-koiDemo` launch argument that seeds a fresh store with a full
   week of fictional habits, meals, water, movement, Balance, tasks, workouts,
   a run and body-weight history; it leaves any store with existing profile,
@@ -181,17 +183,25 @@ what's partial, known issues, and the next step.
   and compiles. Debug app, widget, and test targets compile, and all 54 simulator
   tests pass. On a clean iPhone 17 Pro simulator, the `-koiDemo`
   launch and Hub, To-Do, Movement, Intake, Workout Journal, and Smart Note were
-  reviewed with seeded data. A repeat test command after the project-file fix
-  stalled before test execution; the 54-test pass preceded that project-only fix.
+  reviewed with seeded data. Onboarding now spotlights app regions, selects the
+  corresponding tab during the tour, and opens Smart Note after the hands-on
+  swipe step. Skip and completion have separate analytics signals. A serial
+  simulator run passes all 55 tests; one later parallel test-runner session
+  stalled while Xcode waited for its test worker to finish cleanup.
 
 ## Partial / known issues
 
 - GPS authorization and route math are covered through the injected run-tracker
   test double; physical-device GPS accuracy still needs a device run.
-- The guided tour is currently a sequence of app explanations; target cutouts,
-  tab changes during the tour, and its hands-on Smart Note step remain deferred.
-  Calendar and notification authorization/settings are implemented; physical
-  notification delivery still needs device verification.
+- The guided tour now spotlights app regions, changes the selected tab for each
+  feature stop, and ends by opening Smart Note after its swipe gesture. Its
+  target geometry has only compile-time verification so far; interactive
+  spotlight positioning still needs device review. Calendar and notification
+  authorization/settings are implemented; physical notification delivery still
+  needs device verification.
+- Optional beta and launch email addresses are validated and saved locally, but
+  the app has no Koi-owned signup endpoint configured to submit them. No email
+  address is sent; completing this feature needs a configured product endpoint.
 - CloudKit account availability and a live restore need verification on a device
   signed into an iCloud account. Calendar authorization and notification delivery
   also need device testing; simulator review covered their settings screens.
@@ -231,8 +241,10 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Continue the visual and interaction pass in order with onboarding and system
-integrations. Physical-device
-verification remains for HealthKit, CloudKit, GPS accuracy, notification
-delivery, widgets, Control Center actions, and configured-network workout
-imports.
+Onboarding now records skip/completion analytics, uses a target spotlight and
+feature tabs during the tour, and offers a hands-on Smart Note transition.
+Continue through system integrations: analytics coverage, App Intents and Siri,
+Smart Note handoff, notification rules, HealthKit, Calendar/Reminders, and
+signup submission. Physical-device verification remains for HealthKit, CloudKit,
+GPS accuracy, notification delivery, widgets, Control Center actions, and
+configured-network workout imports.
