@@ -72,16 +72,18 @@ struct CardioJournalView: View {
                 HStack(spacing: KoiTheme.space.s8) {
                     KoiPrimaryButton(title: model.isTrackingRun ? "Finish run" : "Resume run") {
                         if model.isTrackingRun {
+                            KoiHaptics.success()
                             model.finishActiveSession()
                             analyticsProvider.signal("Cardio.logged", parameters: ["activity": "outdoor_run"])
                         }
-                        else { Task { await model.resumeOutdoorRun() } }
+                        else { KoiHaptics.tap(); Task { await model.resumeOutdoorRun() } }
                     }
-                    Button("Discard") { model.discardActiveSession() }.font(KoiTheme.caption).buttonStyle(.plain)
+                    Button("Discard") { KoiHaptics.tap(); model.discardActiveSession() }.font(KoiTheme.caption).buttonStyle(.plain)
                 }
             } else {
                 Text("A quiet route, recorded as you move.").font(KoiTheme.caption).opacity(0.75)
                 KoiPrimaryButton(title: "Start run") {
+                    KoiHaptics.tap()
                     Task {
                         await model.startOutdoorRun()
                         if model.activeSession != nil { analyticsProvider.signal("Cardio.runStarted", parameters: ["kind": "outdoor"]) }
@@ -97,7 +99,7 @@ struct CardioJournalView: View {
     private var activityTiles: some View {
         HStack(spacing: KoiTheme.space.s8) {
             activityTile("Treadmill", hint: "Distance + time", symbol: "figure.run") {
-                if model.activeSession == nil { treadmillMiles = "0"; model.startTreadmill(); analyticsProvider.signal("Cardio.runStarted", parameters: ["kind": "treadmill"]) }
+                if model.activeSession == nil { KoiHaptics.tap(); treadmillMiles = "0"; model.startTreadmill(); analyticsProvider.signal("Cardio.runStarted", parameters: ["kind": "treadmill"]) }
             }
             activityTile("Class", hint: "Minutes only", symbol: "figure.cooldown") { openManual("Class", defaultDetail: "Pilates") }
             Menu {
@@ -116,9 +118,9 @@ struct CardioJournalView: View {
                 TextField("Miles", text: $treadmillMiles).keyboardType(.decimalPad).font(KoiTheme.body).frame(width: 88)
                 Text("mi · \(paceFromMiles)").font(KoiTheme.caption).opacity(0.75)
                 Spacer()
-                Button("Finish") { model.finishActiveSession(); analyticsProvider.signal("Cardio.logged", parameters: ["activity": "treadmill"]) }.font(KoiTheme.caption).buttonStyle(.plain)
+                Button("Finish") { KoiHaptics.success(); model.finishActiveSession(); analyticsProvider.signal("Cardio.logged", parameters: ["activity": "treadmill"]) }.font(KoiTheme.caption).buttonStyle(.plain)
             }
-            Button("Discard session", role: .destructive) { model.discardActiveSession() }.font(KoiTheme.caption).buttonStyle(.plain)
+            Button("Discard session", role: .destructive) { KoiHaptics.tap(); model.discardActiveSession() }.font(KoiTheme.caption).buttonStyle(.plain)
         }.padding(KoiTheme.space.s13).background(.ultraThinMaterial.opacity(0.22), in: RoundedRectangle(cornerRadius: 16))
     }
 

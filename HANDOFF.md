@@ -270,8 +270,11 @@ what's partial, known issues, and the next step.
   overlays for the captures. Each app has its own seed values, so the numerical
   scores and sample entries differ. Other screen pairs and paired empty-state
   captures are still outstanding.
-- The haptic engine and intro reveal are wired into primary tab interactions;
-  the remaining screen-specific interaction audit is still in progress.
+- The haptic engine and intro reveal are wired into primary tab interactions.
+  Workout start, lift selection, set logging, load/repetition changes and finish
+  now provide feedback; outdoor and treadmill run start, finish and discard
+  actions do as well. The screen-specific haptic and animation audit remains in
+  progress, and physical feedback cannot be judged in Simulator.
 - Progress and Profile were reviewed on the primary iPhone 17 Pro simulator;
   paired captures of their in-place panels remain outstanding because they
   require interactions that the available simulator command interface cannot

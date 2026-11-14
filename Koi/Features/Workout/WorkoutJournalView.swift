@@ -38,7 +38,7 @@ struct WorkoutJournalView: View {
             }
             .background(KoiBackground().ignoresSafeArea())
             .foregroundStyle(KoiTheme.onBase)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() }.font(KoiTheme.caption) } }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { KoiHaptics.tap(); dismiss() }.font(KoiTheme.caption) } }
         }
         .preferredColorScheme(.dark)
         .onAppear { model.load(modelContext); model.setReadiness(readiness) }
@@ -76,7 +76,7 @@ struct WorkoutJournalView: View {
                     Text("Move with intention.").font(KoiTheme.title)
                 }
                 Spacer()
-                Button { showsRoutineBuilder = true } label: {
+                Button { KoiHaptics.tap(); showsRoutineBuilder = true } label: {
                     Image(systemName: "plus").font(.system(size: 18, weight: .light))
                         .frame(width: 42, height: 42).background(.ultraThinMaterial.opacity(0.38), in: Circle())
                         .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.25), lineWidth: 1))
@@ -123,17 +123,18 @@ struct WorkoutJournalView: View {
                 }
                 HStack(spacing: KoiTheme.space.s8) {
                     KoiPrimaryButton(title: model.recommendation.suggestsRest ? "Go light" : "Start") {
+                        KoiHaptics.tap()
                         model.startRecommendedWorkout()
                         showsWorkoutMode = true
                     }
                     if let recent = model.pastWorkouts.first {
-                        Button("Go again") { model.repeatWorkout(recent); showsWorkoutMode = true }
+                        Button("Go again") { KoiHaptics.tap(); model.repeatWorkout(recent); showsWorkoutMode = true }
                             .font(KoiTheme.caption).padding(.horizontal, KoiTheme.space.s13).frame(minHeight: 54)
                             .overlay(Capsule().stroke(KoiTheme.onBase.opacity(0.3), lineWidth: 1)).buttonStyle(.plain)
                     }
                 }
                 if model.canLogAlreadyDid {
-                    Button("Already did it") { model.logAlreadyDid(); summary = model.completionSummary }
+                    Button("Already did it") { KoiHaptics.success(); model.logAlreadyDid(); summary = model.completionSummary }
                         .font(KoiTheme.caption).padding(.leading, KoiTheme.space.s13).buttonStyle(.plain)
                 }
             }
@@ -143,10 +144,12 @@ struct WorkoutJournalView: View {
     private var startTiles: some View {
         HStack(spacing: KoiTheme.space.s8) {
             journalTile("Just go", hint: "Start empty", symbol: "figure.strengthtraining.traditional") {
+                KoiHaptics.tap()
                 analyticsProvider.signal("Workout.started", parameters: ["kind": "free"])
                 model.startEmptyWorkout(); showsWorkoutMode = true
             }
             journalTile("Build", hint: "Make a plan", symbol: "square.and.pencil") {
+                KoiHaptics.tap()
                 editingRoutine = nil; showsRoutineBuilder = true
             }
             Menu {
@@ -160,6 +163,7 @@ struct WorkoutJournalView: View {
     }
 
     private func startPreset(_ group: String) {
+        KoiHaptics.tap()
         analyticsProvider.signal("Workout.started", parameters: ["kind": "preset"])
         model.startPreset(group)
         showsWorkoutMode = true
@@ -249,7 +253,7 @@ struct WorkoutJournalView: View {
     private var cardioPreview: some View { CardioJournalView() }
 
     private func journalTabButton(_ title: String) -> some View {
-        Button { journalTab = title } label: {
+        Button { KoiHaptics.change(); journalTab = title } label: {
             Text(title.uppercased()).font(KoiTheme.caption).tracking(1.5)
                 .padding(.horizontal, KoiTheme.space.s13).padding(.vertical, KoiTheme.space.s8)
                 .background(journalTab == title ? KoiTheme.onBase.opacity(0.17) : .clear, in: Capsule())
@@ -396,7 +400,7 @@ private struct WorkoutRoutineBuilder: View {
                 }.padding(KoiTheme.space.s21)
             }
             .background(KoiBackground().ignoresSafeArea()).foregroundStyle(KoiTheme.onBase)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Close") { dismiss() }.font(KoiTheme.caption) } }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Close") { KoiHaptics.tap(); dismiss() }.font(KoiTheme.caption) } }
         }.preferredColorScheme(.dark)
         .onChange(of: importPhotoItem) { _, item in
             guard let item else { return }
@@ -506,7 +510,7 @@ private struct WorkoutModeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: KoiTheme.space.s8) {
                     ForEach(model.activeLifts) { lift in
-                        Button { model.selectLift(lift.id) } label: {
+                        Button { KoiHaptics.change(); model.selectLift(lift.id) } label: {
                             GlassChip(title: lift.name, symbol: model.setCount(for: lift) >= lift.targetSets ? "checkmark" : nil, isOn: model.currentLift?.id == lift.id)
                         }.buttonStyle(.plain)
                             .contextMenu {
@@ -524,7 +528,7 @@ private struct WorkoutModeView: View {
             }
             HStack(spacing: KoiTheme.space.s8) {
                 TextField("Add a lift", text: $nextLift).font(KoiTheme.body).padding(.vertical, KoiTheme.space.s8)
-                Button { model.addLift(name: nextLift); nextLift = "" } label: { Image(systemName: "plus.circle").font(.system(size: 20, weight: .light)) }.buttonStyle(.plain).accessibilityLabel("Add lift")
+                Button { KoiHaptics.tap(); model.addLift(name: nextLift); nextLift = "" } label: { Image(systemName: "plus.circle").font(.system(size: 20, weight: .light)) }.buttonStyle(.plain).accessibilityLabel("Add lift")
                 Menu("Up next") { ForEach(model.suggestedNextLifts, id: \.self) { name in Button(name) { model.addLift(name: name) } } }.font(KoiTheme.caption).buttonStyle(.plain)
             }.overlay(alignment: .bottom) { Rectangle().fill(KoiTheme.divider).frame(height: 0.5) }
         }
@@ -579,10 +583,10 @@ private struct WorkoutModeView: View {
                     }.buttonStyle(.plain).onLongPressGesture { model.addRestSeconds(15) }.accessibilityLabel("Rest \(timeString(remaining)). Tap to skip. Hold to add 15 seconds.")
                 }
             } else {
-                KoiPrimaryButton(title: model.isEditingSet ? "Save set" : "Log set") { model.logSet(); analyticsProvider.signal("Workout.setLogged") }
+                KoiPrimaryButton(title: model.isEditingSet ? "Save set" : "Log set") { KoiHaptics.check(); model.logSet(); analyticsProvider.signal("Workout.setLogged") }
             }
             HStack {
-                Button("Warm-up set") { model.logSet(isWarmUp: true); analyticsProvider.signal("Workout.setLogged") }.font(KoiTheme.caption).buttonStyle(.plain)
+                Button("Warm-up set") { KoiHaptics.check(); model.logSet(isWarmUp: true); analyticsProvider.signal("Workout.setLogged") }.font(KoiTheme.caption).buttonStyle(.plain)
                 Spacer()
                 if let lift = model.currentLift {
                     Menu("Rest · \(lift.restSeconds / 60):\(String(format: "%02d", lift.restSeconds % 60))") {
@@ -626,7 +630,7 @@ private struct WorkoutModeView: View {
     private var finishButton: some View {
         Button {
             let result = model.endSession()
-            if result != nil { analyticsProvider.signal("Workout.finished") }
+            if result != nil { KoiHaptics.success(); analyticsProvider.signal("Workout.finished") }
             onFinish(result)
         } label: {
             Text("Finish workout").font(KoiTheme.caption).tracking(1.2).frame(maxWidth: .infinity).padding(.vertical, KoiTheme.space.s13)
@@ -640,8 +644,8 @@ private struct WorkoutModeView: View {
             content().foregroundStyle(KoiTheme.onBase)
             Text(unit).font(KoiTheme.caption).opacity(0.7)
             HStack(spacing: KoiTheme.space.s8) {
-                Button(action: minus) { Image(systemName: "minus").frame(width: 30, height: 30) }
-                Button(action: plus) { Image(systemName: "plus").frame(width: 30, height: 30) }
+                Button { KoiHaptics.change(); minus() } label: { Image(systemName: "minus").frame(width: 30, height: 30) }
+                Button { KoiHaptics.change(); plus() } label: { Image(systemName: "plus").frame(width: 30, height: 30) }
             }.buttonStyle(.plain)
         }.frame(maxWidth: .infinity).padding(.vertical, KoiTheme.space.s8)
     }
