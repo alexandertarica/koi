@@ -1,8 +1,13 @@
 import Foundation
+@preconcurrency import ActivityKit
 import Observation
 import OSLog
 import SwiftData
 import KoiShared
+
+private struct KoiSendableActivityContent: @unchecked Sendable {
+    let content: ActivityContent<KoiWorkoutActivityAttributes.ContentState>
+}
 
 struct WorkoutJournalStats: Equatable {
     let workouts: Int
@@ -149,12 +154,13 @@ final class WorkoutViewModel {
             workoutSets = try context.fetch(FetchDescriptor<KoiWorkoutSet>(sortBy: [SortDescriptor(\.loggedAt)]))
             movementDays = try context.fetch(FetchDescriptor<KoiMovementDay>())
             activeSession = sessions.first(where: { !$0.isComplete })
-            if let activeSession, let selectedLiftID, !activeLifts.contains(where: { $0.id == selectedLiftID }) {
+            if activeSession != nil, let selectedLiftID, !activeLifts.contains(where: { $0.id == selectedLiftID }) {
                 self.selectedLiftID = activeLifts.first?.id
             } else if selectedLiftID == nil {
                 selectedLiftID = activeLifts.first(where: { loggedSetCount(for: $0) < $0.targetSets })?.id ?? activeLifts.first?.id
             }
             if let lift = currentLift { hydrateSet(for: lift) }
+            syncLiveActivity()
         } catch {
             logger.error("Unable to load workout journal.")
             errorMessage = "Couldn't load your workouts. Try again."
@@ -288,6 +294,7 @@ final class WorkoutViewModel {
         selectedLiftID = id
         isNewBest = false
         if let lift = activeLifts.first(where: { $0.id == id }) { hydrateSet(for: lift) }
+        syncLiveActivity()
     }
 
     func changeMuscleGroup(of lift: KoiWorkoutLift, to group: String) {
@@ -302,8 +309,8 @@ final class WorkoutViewModel {
         currentReps = set.reps
     }
 
-    func setWeight(_ value: Double) { currentWeight = value.isFinite ? max(value, 0) : 0 }
-    func setReps(_ value: Int) { currentReps = min(max(value, 0), 1_000) }
+    func setWeight(_ value: Double) { currentWeight = value.isFinite ? max(value, 0) : 0; syncLiveActivity() }
+    func setReps(_ value: Int) { currentReps = min(max(value, 0), 1_000); syncLiveActivity() }
     func changeWeight(by delta: Double) { setWeight(currentWeight + delta) }
     func changeReps(by delta: Int) { setReps(currentReps + delta) }
 
@@ -374,6 +381,7 @@ final class WorkoutViewModel {
 
     func endSession() -> WorkoutCompletionSummary? {
         guard let context, let session = activeSession else { return nil }
+        let sessionID = session.id.uuidString
         let finish = Date.now
         session.endedAt = finish
         session.isComplete = true
@@ -396,6 +404,7 @@ final class WorkoutViewModel {
         let summary = WorkoutCompletionSummary(id: session.id, name: session.name, minutes: minutes, sets: workSets.count, volumeLB: Int(workSets.reduce(0) { $0 + $1.weightLB * Double($1.reps) }.rounded()), bestLifts: bests)
         completionSummary = summary
         persist()
+        endLiveActivity(sessionID: sessionID)
         return summary
     }
 
@@ -519,5 +528,41 @@ final class WorkoutViewModel {
 
     private func formatWeight(_ value: Double) -> String {
         value.rounded(.towardZero) == value ? String(Int(value)) : String(format: "%.1f", value)
+    }
+
+    private func syncLiveActivity() {
+        guard let session = activeSession, let lift = currentLift else { return }
+        let sessionID = session.id.uuidString
+        let liftID = lift.id.uuidString
+        let attributes = KoiWorkoutActivityAttributes(sessionID: sessionID)
+        let state = KoiWorkoutActivityAttributes.ContentState(
+            liftID: liftID,
+            restUntil: session.restUntil,
+            liftName: lift.name,
+            completedSets: setCount(for: lift),
+            targetSets: lift.targetSets,
+            weightLB: currentWeight,
+            reps: currentReps,
+            isBodyweight: WorkoutNameRules.isBodyweight(lift.name)
+        )
+        let staleDate = session.startedAt.addingTimeInterval(60 * 60 * 8)
+        Task {
+            guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+            let content = KoiSendableActivityContent(content: ActivityContent(state: state, staleDate: staleDate))
+            if let activity = Activity<KoiWorkoutActivityAttributes>.activities.first(where: { $0.attributes.sessionID == sessionID }) {
+                await activity.update(content.content)
+            } else {
+                do { _ = try Activity.request(attributes: attributes, content: content.content, pushType: nil) }
+                catch { logger.error("Unable to start workout Live Activity.") }
+            }
+        }
+    }
+
+    private func endLiveActivity(sessionID: String) {
+        Task {
+            for activity in Activity<KoiWorkoutActivityAttributes>.activities where activity.attributes.sessionID == sessionID {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+        }
     }
 }

@@ -1,5 +1,91 @@
 import Foundation
 import SwiftData
+import ActivityKit
+
+public struct KoiWidgetHabit: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let title: String
+    public let isComplete: Bool
+
+    public init(id: UUID, title: String, isComplete: Bool) {
+        self.id = id
+        self.title = title
+        self.isComplete = isComplete
+    }
+}
+
+public struct KoiWidgetSnapshot: Codable, Equatable, Sendable {
+    public let day: String
+    public let balance: Int
+    public let habits: Int
+    public let habitsCompleted: Int
+    public let habitsTotal: Int
+    public let nutrition: Int
+    public let exercise: Int
+    public let habitItems: [KoiWidgetHabit]
+
+    public init(day: String, balance: Int, habits: Int, nutrition: Int, exercise: Int, habitItems: [KoiWidgetHabit], habitsCompleted: Int? = nil, habitsTotal: Int? = nil) {
+        self.day = day
+        self.balance = min(max(balance, 0), 100)
+        self.habits = min(max(habits, 0), 100)
+        let total = max(habitsTotal ?? habitItems.count, 0)
+        self.habitsTotal = total
+        self.habitsCompleted = min(max(habitsCompleted ?? habitItems.filter(\.isComplete).count, 0), total)
+        self.nutrition = min(max(nutrition, 0), 100)
+        self.exercise = min(max(exercise, 0), 100)
+        self.habitItems = Array(habitItems.prefix(6))
+    }
+
+    public static var empty: KoiWidgetSnapshot {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = .autoupdatingCurrent
+        formatter.dateFormat = "yyyy-MM-dd"
+        return KoiWidgetSnapshot(day: formatter.string(from: .now), balance: 0, habits: 0, nutrition: 0, exercise: 0, habitItems: [])
+    }
+}
+
+public enum KoiWidgetSnapshotStore {
+    public static func read() -> KoiWidgetSnapshot {
+        guard let data = UserDefaults(suiteName: KoiAppGroup.identifier)?.data(forKey: KoiAppGroup.widgetSnapshotKey),
+              let snapshot = try? JSONDecoder().decode(KoiWidgetSnapshot.self, from: data),
+              snapshot.day == KoiWidgetSnapshot.empty.day else { return .empty }
+        return snapshot
+    }
+
+    public static func write(_ snapshot: KoiWidgetSnapshot) {
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        UserDefaults(suiteName: KoiAppGroup.identifier)?.set(data, forKey: KoiAppGroup.widgetSnapshotKey)
+    }
+}
+
+public struct KoiWorkoutActivityAttributes: ActivityAttributes {
+    public struct ContentState: Codable, Hashable {
+        public var liftID: String
+        public var restUntil: Date?
+        public var liftName: String
+        public var completedSets: Int
+        public var targetSets: Int
+        public var weightLB: Double
+        public var reps: Int
+        public var isBodyweight: Bool
+
+        public init(liftID: String, restUntil: Date?, liftName: String, completedSets: Int, targetSets: Int, weightLB: Double, reps: Int, isBodyweight: Bool) {
+            self.liftID = liftID
+            self.restUntil = restUntil
+            self.liftName = liftName
+            self.completedSets = completedSets
+            self.targetSets = targetSets
+            self.weightLB = weightLB
+            self.reps = reps
+            self.isBodyweight = isBodyweight
+        }
+    }
+
+    public var sessionID: String
+
+    public init(sessionID: String) { self.sessionID = sessionID }
+}
 
 @Model
 public final class KoiProfile {

@@ -55,7 +55,7 @@ final class KoiMovementTests: XCTestCase {
         context.insert(KoiMovementDay(date: .now, healthSteps: 4_000, healthWorkoutCount: 2))
         try context.save()
 
-        let hub = HubViewModel()
+        let hub = HubViewModel(publishesWidgetSnapshot: false)
         hub.refresh(using: context)
         XCTAssertEqual(hub.balance.exercise, 0.75, accuracy: 0.0001)
     }

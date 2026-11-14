@@ -14,7 +14,7 @@ final class KoiHubTests: XCTestCase {
         context.insert(task)
         try context.save()
 
-        let model = HubViewModel(calendar: .current)
+        let model = HubViewModel(calendar: .current, publishesWidgetSnapshot: false)
         model.refresh(using: context)
 
         XCTAssertEqual(model.items.count, 2)
@@ -42,7 +42,7 @@ final class KoiHubTests: XCTestCase {
         context.insert(task)
         try context.save()
 
-        let model = HubViewModel(calendar: .current)
+        let model = HubViewModel(calendar: .current, publishesWidgetSnapshot: false)
         model.refresh(using: context)
         model.selectDay(daysAgo: 1)
 

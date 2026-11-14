@@ -38,6 +38,8 @@ struct KoiRootView: View {
     @State private var isRestoreOfferPresented = false
     @State private var backupError: String?
     @State private var rootRefreshID = UUID()
+    @State private var presentsMealComposer = false
+    @State private var startsMealCamera = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -47,7 +49,7 @@ struct KoiRootView: View {
                 .tag(KoiTab.toDo)
             MovementView()
                 .tag(KoiTab.movement)
-            IntakeView()
+            IntakeView(presentsMealComposer: $presentsMealComposer, startsCamera: $startsMealCamera)
                 .tag(KoiTab.intake)
         }
         .id(rootRefreshID)
@@ -80,6 +82,17 @@ struct KoiRootView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .background else { return }
             Task { await createAutomaticBackup() }
+        }
+        .onOpenURL { url in
+            guard url.scheme == "koi" else { return }
+            switch url.host {
+            case "intake":
+                selectedTab = .intake
+                if url.path == "/log" || url.path == "/camera" { presentsMealComposer = true }
+                if url.path == "/camera" { startsMealCamera = true }
+            case "todo": selectedTab = .toDo
+            default: selectedTab = .hub
+            }
         }
         .alert("A Koi backup is available", isPresented: $isRestoreOfferPresented) {
             Button("Restore backup") { Task { await restoreStartupBackup() } }

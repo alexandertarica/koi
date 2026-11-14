@@ -183,6 +183,8 @@
 		B665777E1D0D44A58463C662 = {isa = PBXBuildFile; fileRef = 7F122AD354B34BA288F7374C;  comment = "KoiSchema.swift"; };
 		C78F8228CA684355BB25033A = {isa = PBXBuildFile; fileRef = 0CB6184A194F4FD08F7C3DEA;  comment = "KoiFoundationTests.swift"; };
 		A0CB0236BD9C40A8A41576E7 = {isa = PBXBuildFile; fileRef = 45B4861AB4D64F5A87058EEC;  comment = "KoiWidget.swift"; };
+		A0CB0236BD9C40A8A41576E8 = {isa = PBXBuildFile; fileRef = A0CB0236BD9C40A8A41576E9; };
+		A0CB0236BD9C40A8A41576E9 = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
 				BA446C8702134DC3A4B99FA9 = {isa = XCSwiftPackageProductDependency; package = 570733D204C5417284C1D987; productName = TelemetryDeck; };
 		66E7FC093D87437390ECE51A = {isa = PBXBuildFile; productRef = BA446C8702134DC3A4B99FA9; };
 		A40000000000000000000001 = {isa = PBXShellScriptBuildPhase; buildActionMask = 2147483647; files = (); inputPaths = ("$(PROJECT_DIR)/Koi/Config/Secrets.plist",); outputPaths = ("$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Secrets.plist",); runOnlyForDeploymentPostprocessing = 0; shellPath = /bin/sh; shellScript = "if [ -f \"$PROJECT_DIR/Koi/Config/Secrets.plist\" ]; then /usr/bin/ditto \"$PROJECT_DIR/Koi/Config/Secrets.plist\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/Secrets.plist\"; fi"; };
@@ -191,7 +193,7 @@
 		1F3A7D94263F4614AB55FA66 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (31EB5295F95C4328BCC380FC, 66E7FC093D87437390ECE51A,); runOnlyForDeploymentPostprocessing = 0; };
 		77E4C8E963F3428681327320 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A0CB0236BD9C40A8A41576E7,); runOnlyForDeploymentPostprocessing = 0; };
 		BFA19B24CD8546DCA22A3912 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		13B0B4E1314D48BCA3F5473D = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (DB04D5FB726C405DBA43F874,); runOnlyForDeploymentPostprocessing = 0; };
+		13B0B4E1314D48BCA3F5473D = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (DB04D5FB726C405DBA43F874, A0CB0236BD9C40A8A41576E8,); runOnlyForDeploymentPostprocessing = 0; };
 		EC722F4D434D453EA2CF9F89 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (2877B24DDEDE4CEF8C2C23B8, B665777E1D0D44A58463C662,); runOnlyForDeploymentPostprocessing = 0; };
 		154DF117A59E48C2B7D55269 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		9B532F18E5A94D65B81931BF = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };

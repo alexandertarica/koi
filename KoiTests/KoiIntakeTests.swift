@@ -39,7 +39,7 @@ final class KoiIntakeTests: XCTestCase {
         intake.load(context)
         intake.addMeal(FoodEstimateValue(description: "Day of food", calories: 2_200, proteinGrams: 140, carbohydrateGrams: 0, fatGrams: 0, fiberGrams: 30, addedSugarGrams: 0, sodiumMilligrams: 0, confidence: 1), note: "", jpegData: nil)
 
-        let hub = HubViewModel()
+        let hub = HubViewModel(publishesWidgetSnapshot: false)
         hub.refresh(using: context)
         XCTAssertEqual(hub.balance.nutrition, 0.75, accuracy: 0.0001)
     }

@@ -18,7 +18,7 @@ what's partial, known issues, and the next step.
 | 8 | Progress + Profile (fold rows, body weight) | ✅ |
 | 9 | Onboarding + tour | ✅ |
 | 10 | Notifications + calendar sync + iCloud backup | ✅ |
-| 11 | Widgets, Live Activity (log set from lock screen), Log-a-meal control | ☐ |
+| 11 | Widgets, Live Activity (log set from lock screen), Log-a-meal control | ✅ |
 | 12 | Smart note, readiness, habit coach, trends, supersets, plate drawing, workout import | ☐ |
 | 13 | Analytics, polish pass on every screen, empty states, demo data | ☐ |
 
@@ -97,6 +97,15 @@ what's partial, known issues, and the next step.
   restore confirmation, and automatic backup controls. Forty-six simulator tests
   pass, including archive round-trip and replacement coverage; Profile integration
   settings were reviewed on iPhone 17 Pro.
+- Phase 11: added shared, date-aware Balance and habit snapshots in the App
+  Group; small and medium Balance widgets; small, medium, and large interactive
+  habit widgets; Home and Lock Screen quick-log widgets; Balance, pillars, and
+  next-action Lock Screen widgets; a workout Live Activity with the current
+  set, rest countdown, and a lock-screen Log set action; and a Control Center
+  meal control that opens the camera on a supported device. Widget and Live
+  Activity actions persist through the shared SwiftData container. Forty-seven
+  simulator tests pass; WidgetKit registered the extension, the app launched on
+  iPhone 17 Pro, and the meal composer deep link was reviewed.
 
 ## Partial / known issues
 
@@ -111,6 +120,10 @@ what's partial, known issues, and the next step.
 - CloudKit account availability and a live restore need verification on a device
   signed into an iCloud account. Calendar authorization and notification delivery
   also need device testing; simulator review covered their settings screens.
+- The Balance and habit widget layouts and workout Live Activity still need a
+  visual pass on a physical iPhone; simulator checks covered extension
+  registration and app routing. Control Center availability also depends on
+  iOS presenting the registered control.
 - To-Do reminder notifications and calendar free-time selection/sync are deferred
   to Phase 10. The `-koiDemo` full-week seed is part of Phase 13, so Phase 3 was
   visually checked with empty data and in-session task entry.
@@ -119,4 +132,5 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Phase 11: add widgets, Live Activity, and meal logging control.
+Phase 12: finish the Smart Note, readiness, habit coach, trends, supersets,
+plate drawing, and workout import features.

@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import OSLog
 import SwiftData
+import WidgetKit
 import KoiShared
 
 struct HubTodayItem: Identifiable {
@@ -39,6 +40,7 @@ enum HubPillar: String, CaseIterable, Identifiable {
 final class HubViewModel {
     private let logger = Logger(subsystem: "com.alexandertarica.koi", category: "Hub")
     private let calendar: Calendar
+    private let publishesWidgetSnapshot: Bool
     private var context: ModelContext?
     private var days: [KoiDay] = []
     private var habits: [KoiHabit] = []
@@ -64,8 +66,9 @@ final class HubViewModel {
     var presentsProgress = false
     var presentsProfile = false
 
-    init(calendar: Calendar = .autoupdatingCurrent) {
+    init(calendar: Calendar = .autoupdatingCurrent, publishesWidgetSnapshot: Bool = true) {
         self.calendar = calendar
+        self.publishesWidgetSnapshot = publishesWidgetSnapshot
         self.selectedDate = calendar.startOfDay(for: .now)
     }
 
@@ -209,6 +212,24 @@ final class HubViewModel {
             calendar: calendar
         )
         updateTrend()
+        if publishesWidgetSnapshot, calendar.isDateInToday(selectedDate) {
+            let parts = calendar.dateComponents([.year, .month, .day], from: selectedDate)
+            let dayID = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+            let habitItems = activeHabits.map { habit in
+                KoiWidgetHabit(id: habit.id, title: habit.title, isComplete: (selectedLogs.first(where: { $0.habitID == habit.id })?.completion ?? 0) > 0)
+            }
+            KoiWidgetSnapshotStore.write(KoiWidgetSnapshot(
+                day: dayID,
+                balance: Int((balance.score * 100).rounded()),
+                habits: Int((balance.habits * 100).rounded()),
+                nutrition: Int((balance.nutrition * 100).rounded()),
+                exercise: Int((balance.exercise * 100).rounded()),
+                habitItems: habitItems,
+                habitsCompleted: habitItems.filter(\.isComplete).count,
+                habitsTotal: activeHabits.count
+            ))
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 
     private func previousMisses(for habit: KoiHabit, before date: Date) -> Int {

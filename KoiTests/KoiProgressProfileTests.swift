@@ -62,7 +62,7 @@ final class KoiProgressProfileTests: XCTestCase {
         context.insert(KoiDay(date: .now, habitsScore: 0.9, nutritionScore: 0.2, exerciseScore: 0.1))
         try context.save()
 
-        let model = HubViewModel()
+        let model = HubViewModel(publishesWidgetSnapshot: false)
         model.refresh(using: context)
 
         XCTAssertTrue(model.greeting.contains("Sam"))

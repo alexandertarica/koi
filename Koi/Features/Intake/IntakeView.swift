@@ -5,15 +5,21 @@ import UIKit
 import KoiShared
 
 struct IntakeView: View {
+    @Binding private var presentsMealComposer: Bool
+    @Binding private var startsCamera: Bool
     @Environment(\.modelContext) private var modelContext
     @Environment(\.foodEstimator) private var foodEstimator
     @State private var model = IntakeViewModel()
-    @State private var showsMealComposer = false
     @State private var selectedMeal: KoiFoodEntry?
     @State private var showsNutrients = false
     @State private var showsSupplementComposer = false
     @State private var supplementName = ""
     @State private var showsEntrySheet = false
+
+    init(presentsMealComposer: Binding<Bool> = .constant(false), startsCamera: Binding<Bool> = .constant(false)) {
+        _presentsMealComposer = presentsMealComposer
+        _startsCamera = startsCamera
+    }
 
     var body: some View {
         ScrollView {
@@ -31,8 +37,8 @@ struct IntakeView: View {
         .background(KoiBackground().ignoresSafeArea())
         .foregroundStyle(KoiTheme.onBase)
         .onAppear { model.load(modelContext) }
-        .sheet(isPresented: $showsMealComposer) {
-            MealComposer(model: model, estimator: foodEstimator)
+        .sheet(isPresented: $presentsMealComposer) {
+            MealComposer(model: model, estimator: foodEstimator, startsCamera: $startsCamera)
                 .presentationDetents([.large])
         }
         .sheet(item: $selectedMeal) { meal in
@@ -87,7 +93,7 @@ struct IntakeView: View {
             .frame(height: 176)
             Text("A steady guide, not a rulebook.").font(KoiTheme.caption).opacity(0.8)
             HStack(spacing: KoiTheme.space.s8) {
-                KoiPrimaryButton(title: "Add food") { showsMealComposer = true }
+                KoiPrimaryButton(title: "Add food") { presentsMealComposer = true }
                 Button { showsEntrySheet = true } label: {
                     Image(systemName: "plus").font(.system(size: 17, weight: .regular))
                         .frame(width: 50, height: 50).background(.ultraThinMaterial.opacity(0.45), in: Circle())
@@ -289,10 +295,17 @@ private struct MealComposer: View {
     @State private var photoData: Data?
     @State private var showsLibraryPicker = false
     @State private var showsCameraPicker = false
+    @Binding var startsCamera: Bool
     @State private var value = FoodEstimateValue(description: "", calories: 0, proteinGrams: 0, carbohydrateGrams: 0, fatGrams: 0, fiberGrams: 0, addedSugarGrams: 0, sodiumMilligrams: 0, confidence: 0)
     @State private var isManual = false
     let model: IntakeViewModel
     let estimator: any FoodEstimating
+
+    init(model: IntakeViewModel, estimator: any FoodEstimating, startsCamera: Binding<Bool>) {
+        self.model = model
+        self.estimator = estimator
+        _startsCamera = startsCamera
+    }
 
     var body: some View {
         NavigationStack {
@@ -341,7 +354,13 @@ private struct MealComposer: View {
                 IntakeCameraPicker { image in photoData = image.jpegData(compressionQuality: 0.76) }
             }
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Close") { dismiss() }.font(KoiTheme.caption) } }
-        }.preferredColorScheme(.dark)
+        }
+        .preferredColorScheme(.dark)
+        .onAppear {
+            guard startsCamera else { return }
+            startsCamera = false
+            if UIImagePickerController.isSourceTypeAvailable(.camera) { showsCameraPicker = true }
+        }
     }
 
     private func estimateSummary(_ estimate: FoodEstimateValue) -> some View {

@@ -4,6 +4,7 @@ import KoiShared
 
 struct HubView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model = HubViewModel()
     let onSelectTab: (KoiTab) -> Void
 
@@ -30,7 +31,10 @@ struct HubView: View {
                 ], startPoint: .top, endPoint: .bottom)
             }
         }
-        .task { model.refresh(using: modelContext) }
+        .onAppear { model.refresh(using: modelContext) }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { model.refresh(using: modelContext) }
+        }
         .sheet(isPresented: $model.presentsProgress) {
             KoiProgressView()
                 .presentationDetents([.large])

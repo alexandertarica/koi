@@ -5,6 +5,7 @@ import KoiShared
 struct WorkoutJournalView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model = WorkoutViewModel()
     @State private var showsRoutineBuilder = false
     @State private var editingRoutine: KoiWorkoutRoutine?
@@ -33,6 +34,9 @@ struct WorkoutJournalView: View {
         }
         .preferredColorScheme(.dark)
         .onAppear { model.load(modelContext) }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { model.load(modelContext) }
+        }
         .onChange(of: model.activeSession?.id) { _, sessionID in if sessionID != nil { showsWorkoutMode = true } }
         .sheet(isPresented: $showsRoutineBuilder) {
             WorkoutRoutineBuilder(model: model, existing: editingRoutine)
