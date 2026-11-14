@@ -375,6 +375,8 @@ what's partial, known issues, and the next step.
   17 Pro simulator, launched with no arguments, displays the first onboarding
   screen and no demo data. The bundle is `com.alexandertarica.koi`, version
   1.0 (2); the app and widget retain Koi's App Group and iCloud container.
+- Release compilation still emits two non-fatal Swift 6 sendability warnings:
+  the onboarding connection-toggle setter and the routine photo-picker label.
 - The Release executable contains no `-koiDemo`, `-koiScreen`, `-koiTab`, or
   `-koiShowMealComposer` routes. No external analytics package is configured.
   `LocalAnalytics` records event names and private parameters to on-device
