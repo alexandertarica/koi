@@ -1,0 +1,13 @@
+# Xcode
+xcuserdata/
+DerivedData/
+build/
+*.xcarchive
+*.ipa
+*.dSYM.zip
+
+# Secrets
+Koi/Config/Secrets.plist
+
+# macOS
+.DS_Store
