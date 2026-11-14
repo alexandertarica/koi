@@ -337,15 +337,15 @@ private struct NutrientRow: View {
         .overlay(alignment: .bottomLeading) {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(KoiTheme.onBase.opacity(0.18)).frame(height: 1.5)
-                    Capsule().fill(KoiTheme.onBase.opacity(0.72)).frame(width: proxy.size.width * fraction, height: 1.5)
+                    Capsule().fill(KoiTheme.onBase.opacity(0.18)).frame(height: 3.5)
+                    Capsule().fill(KoiTheme.onBase.opacity(0.72)).frame(width: proxy.size.width * fraction, height: 3.5)
                     Circle().fill(.ultraThinMaterial).overlay(Circle().stroke(KoiTheme.onBase.opacity(0.5), lineWidth: 0.7))
-                        .frame(width: 10, height: 10).offset(x: max(0, proxy.size.width * fraction - 5))
+                        .frame(width: 14, height: 14).offset(x: max(0, proxy.size.width * fraction - 7))
                 }
-                .frame(height: 2)
+                .frame(height: 4)
             }
-            .frame(height: 2)
-            .offset(y: 1)
+            .frame(height: 4)
+            .offset(y: -34)
             .allowsHitTesting(false)
         }
     }

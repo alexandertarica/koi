@@ -353,9 +353,15 @@ what's partial, known issues, and the next step.
 - Quick setup simulator pass: confirmed all three screens render on the iPhone
   17 Pro, with title-case Next/Start labels, and completed Start into the
   demo-free Hub. The optional “Show me around” chip opened the tour and Skip
-  returned to Hub. The Connect screen shows both optional toggles. Health
-  permission UI appeared during the earlier clean-install run; Calendar's
-  permission prompt was not exercised. All 67 simulator tests pass.
+  returned to Hub. Tapping Calendar prompted for full access; after allowing,
+  its switch stayed on. The Health permission screen appeared during the earlier
+  clean-install run and remained optional. All 67 simulator tests pass.
+
+- Final four-tab visual pass: recaptured Hub, To-Do, Movement and Intake on the
+  same booted iPhone 17 Pro using the seeded sample week. Header, tab bar,
+  movement totals, Intake dial and nutrient values aligned. Raised the Intake
+  nutrient tracks within their rows and restored the broader filled track and
+  marker sizing. Debug build succeeds; all 67 simulator tests pass.
 
 ## Next step
 
