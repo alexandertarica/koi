@@ -14,13 +14,22 @@ enum KoiTab: Int, CaseIterable, Identifiable {
     static var launchSelection: KoiTab {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
+        let screen = KoiLaunch.screen
         if let marker = arguments.firstIndex(of: "-koiTab"), arguments.indices.contains(marker + 1) {
             switch arguments[marker + 1].lowercased() {
+            case "hub": return .hub
             case "todo": return .toDo
             case "movement": return .movement
             case "intake": return .intake
             default: break
             }
+        }
+        switch screen {
+        case "todoNew", "newTodo", "newHabit": return .toDo
+        case "workoutJournal", "workout", "workoutMode", "routineBuilder", "run": return .movement
+        case "mealLog": return .intake
+        case "profile", "progress": return .hub
+        default: break
         }
         #endif
         return .hub
@@ -35,12 +44,25 @@ enum KoiTab: Int, CaseIterable, Identifiable {
     }
     var symbol: String {
         switch self {
-        case .hub: "hexagon.fill"
+        case .hub: "circle.hexagongrid.fill"
         case .toDo: "checklist"
         case .movement: "figure.walk"
         case .intake: "leaf"
         }
     }
+}
+
+enum KoiLaunch {
+    static var screen: String? {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "-koiScreen"), arguments.indices.contains(index + 1) else { return nil }
+        return arguments[index + 1]
+        #else
+        return nil
+        #endif
+    }
+    static var directScreen: String? { screen }
 }
 
 struct KoiRootView: View {
@@ -60,6 +82,7 @@ struct KoiRootView: View {
     @State private var startsMealCamera = false
     @State private var presentsSmartNote = false
     @State private var opensSmartNoteAfterOnboarding = false
+    @State private var didRouteDebugScreen = false
     @State private var launchVisible: Bool = {
         #if DEBUG
         !ProcessInfo.processInfo.arguments.contains("-koiDemo")
@@ -83,10 +106,13 @@ struct KoiRootView: View {
         .id(rootRefreshID)
         .tabViewStyle(.page(indexDisplayMode: .never))
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            KoiTabBar(selection: $selectedTab) { presentsSmartNote = true }
-                .padding(.horizontal, KoiTheme.space.s21)
-                .padding(.top, KoiTheme.space.s8)
-                .padding(.bottom, KoiTheme.space.s8)
+            VStack(spacing: 0) {
+                KoiSmartNoteHandle { presentsSmartNote = true }.padding(.bottom, 6)
+                KoiTabBar(selection: $selectedTab) { presentsSmartNote = true }
+            }
+            .padding(.horizontal, KoiTheme.space.s21)
+            .padding(.top, 4)
+            .padding(.bottom, 3)
         }
         .compositingGroup()
         .shadow(color: KoiTheme.legibilityShadow, radius: 7)
@@ -112,9 +138,16 @@ struct KoiRootView: View {
                 NotificationCenter.default.post(name: .koiHealthMovementDidChange, object: nil)
             }
             await notificationProvider.refreshPlan(using: modelContext)
-            if ProcessInfo.processInfo.arguments.contains("-koiDemo") {
-                do { try KoiDemoSeeder.seedIfEmpty(modelContext) }
-                catch { Logger(subsystem: "com.alexandertarica.koi", category: "Demo").error("Unable to seed demo data.") }
+            if !didRouteDebugScreen {
+                didRouteDebugScreen = true
+                switch KoiLaunch.screen {
+                case "smartNote": presentsSmartNote = true
+                case "mealLog": selectedTab = .intake; presentsMealComposer = true
+                case "profile", "progress": selectedTab = .hub
+                case "workoutJournal", "workout", "workoutMode", "routineBuilder", "run": selectedTab = .movement
+                case "todoNew", "newTodo", "newHabit": selectedTab = .toDo
+                default: break
+                }
             }
             guard !hasLoadedOnboarding else { return }
             hasLoadedOnboarding = true
@@ -207,8 +240,7 @@ private struct KoiTabBar: View {
     let onSmartNote: () -> Void
 
     var body: some View {
-        VStack(spacing: KoiTheme.space.s5) {
-            smartNoteHandle
+        VStack(spacing: 0) {
             HStack(spacing: 3) {
             ForEach(KoiTab.allCases) { tab in
                 Button {
@@ -218,17 +250,18 @@ private struct KoiTabBar: View {
                     }
                 } label: {
                     VStack(spacing: 5) {
-                        Image(systemName: tab.symbol)
-                            .font(.system(size: 20, weight: .light))
-                            .frame(height: 23)
+                        Group {
+                            if tab == .hub { KoiHoneycombMark().frame(width: 22, height: 22) }
+                            else { Image(systemName: tab.symbol).font(.system(size: 20, weight: .light)).frame(height: 20) }
+                        }
                         Text(tab.title)
-                            .font(KoiTheme.caption)
+                            .font(.system(size: 12, weight: .regular))
                     }
                     .foregroundStyle(KoiTheme.glassInk)
-                    .frame(maxWidth: .infinity, minHeight: 58)
+                            .frame(maxWidth: .infinity, minHeight: 48)
                     .background {
                         if selection == tab {
-                            Capsule().fill(KoiTheme.onBase.opacity(0.18))
+                            Capsule().fill(Color(red: 0.35, green: 0.52, blue: 0.76).opacity(0.55))
                         }
                     }
                     .contentShape(Capsule())
@@ -239,7 +272,7 @@ private struct KoiTabBar: View {
             }
             }
         }
-        .padding(6)
+        .padding(4)
         .background {
             if #available(iOS 26.0, *) {
                 Capsule().glassEffect(.regular, in: Capsule())
@@ -247,27 +280,49 @@ private struct KoiTabBar: View {
                 Capsule().fill(.ultraThinMaterial.opacity(0.68))
             }
         }
-        .overlay(Capsule().strokeBorder(KoiTheme.onBase.opacity(0.28), lineWidth: 1))
+        .overlay(Capsule().strokeBorder(.white.opacity(0.42), lineWidth: 1))
         .shadow(color: KoiTheme.glassInk.opacity(0.32), radius: 14, y: 4)
     }
+}
 
-    private var smartNoteHandle: some View {
+private struct KoiHoneycombMark: View {
+    private let centers: [CGPoint] = [
+        CGPoint(x: 11, y: 11), CGPoint(x: 11, y: 2), CGPoint(x: 18, y: 6.5),
+        CGPoint(x: 18, y: 15.5), CGPoint(x: 11, y: 20), CGPoint(x: 4, y: 15.5),
+        CGPoint(x: 4, y: 6.5)
+    ]
+
+    var body: some View {
+        Canvas { context, _ in
+            for center in centers {
+                var path = Path()
+                for corner in 0..<6 {
+                    let angle = Double(corner) * .pi / 3
+                    let point = CGPoint(x: center.x + 4.4 * cos(angle), y: center.y + 4.4 * sin(angle))
+                    if corner == 0 { path.move(to: point) } else { path.addLine(to: point) }
+                }
+                path.closeSubpath()
+                context.fill(path, with: .foreground)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private struct KoiSmartNoteHandle: View {
+    let onOpen: () -> Void
+    var body: some View {
         Capsule()
-            .fill(KoiTheme.glassInk.opacity(0.52))
+            .fill(KoiTheme.onBase.opacity(0.62))
             .frame(width: 36, height: 4.5)
-            .frame(width: 160, height: 44)
+            .frame(width: 160, height: 13)
             .contentShape(Rectangle())
-            .onTapGesture { KoiHaptics.tap(); onSmartNote() }
-            .gesture(DragGesture(minimumDistance: 8).onEnded(openWhenSwipedUp))
+            .onTapGesture { KoiHaptics.tap(); onOpen() }
+            .gesture(DragGesture(minimumDistance: 8).onEnded { value in if value.translation.height < -12 { onOpen() } })
             .accessibilityElement()
             .accessibilityLabel("Write a smart note")
             .accessibilityAddTraits(.isButton)
-            .accessibilityAction { onSmartNote() }
-    }
-
-    private func openWhenSwipedUp(_ value: DragGesture.Value) {
-        guard value.translation.height < -12 else { return }
-        onSmartNote()
+            .accessibilityAction { onOpen() }
     }
 }
 
@@ -457,6 +512,41 @@ private struct SmartNoteSheet: View {
 
 @MainActor
 enum KoiDemoSeeder {
+    static func seedForDemoLaunch(_ context: ModelContext, calendar: Calendar = .autoupdatingCurrent) throws {
+        for item in try context.fetch(FetchDescriptor<KoiWorkoutSet>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiWorkoutLift>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiRoutineLift>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiWorkoutSession>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiWorkoutRoutine>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiCardioSession>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiSupplementLog>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiSupplement>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiNutrientEntry>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiNutrientGoal>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiFoodEntry>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiHabitLog>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiHabit>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiTask>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiMovementDay>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiMovementGoal>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiDay>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiBodyWeightEntry>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiQuickNote>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiProfile>()) { context.delete(item) }
+        for item in try context.fetch(FetchDescriptor<KoiOnboardingState>()) { context.delete(item) }
+        try context.save()
+        try seedIfEmpty(context, calendar: calendar)
+        let today = calendar.startOfDay(for: .now)
+        if let profile = try context.fetch(FetchDescriptor<KoiProfile>()).first, profile.name == "Maya",
+           let todayRecord = try context.fetch(FetchDescriptor<KoiDay>()).first(where: { calendar.isDate($0.date, inSameDayAs: today) }) {
+            todayRecord.habitsScore = 0.75
+            todayRecord.nutritionScore = 0.64
+            todayRecord.exerciseScore = 0.93
+            todayRecord.balance = 0.77
+        }
+        try context.save()
+    }
+
     static func seedIfEmpty(_ context: ModelContext, calendar: Calendar = .autoupdatingCurrent) throws {
         let isEmpty = try [
             context.fetch(FetchDescriptor<KoiProfile>()).isEmpty,
@@ -478,50 +568,77 @@ enum KoiDemoSeeder {
             context.fetch(FetchDescriptor<KoiWorkoutSession>()).isEmpty,
             context.fetch(FetchDescriptor<KoiWorkoutLift>()).isEmpty,
             context.fetch(FetchDescriptor<KoiWorkoutSet>()).isEmpty,
-            context.fetch(FetchDescriptor<KoiCardioSession>()).isEmpty
+            context.fetch(FetchDescriptor<KoiCardioSession>()).isEmpty,
+            context.fetch(FetchDescriptor<KoiQuickNote>()).isEmpty
         ].allSatisfy { $0 }
         guard isEmpty else { return }
         let today = calendar.startOfDay(for: .now)
-        let created = calendar.date(byAdding: .day, value: -120, to: today) ?? today
-        context.insert(KoiProfile(name: "Taylor", joinedAt: calendar.date(byAdding: .day, value: -28, to: today) ?? today))
+        let created = calendar.date(byAdding: .day, value: -28, to: today) ?? today
+        context.insert(KoiProfile(name: "Maya", joinedAt: created))
         context.insert(KoiOnboardingState(isComplete: true, hasSeenTour: true, notificationMode: "none", backupEnabled: false))
-        context.insert(KoiMovementGoal(stepGoal: 8_500, weeklyWorkoutGoal: 4))
+        context.insert(KoiMovementGoal(stepGoal: 8_000, weeklyWorkoutGoal: 4))
         for goal in [
             KoiNutrientGoal(key: "calories", name: "Calories", unit: "kcal", goal: 2_200, step: 50, goalType: "around"),
             KoiNutrientGoal(key: "protein", name: "Protein", unit: "g", goal: 140, step: 5),
             KoiNutrientGoal(key: "fiber", name: "Fiber", unit: "g", goal: 30, step: 1),
             KoiNutrientGoal(key: "water", name: "Water", unit: "oz", goal: 100, step: 8),
+            KoiNutrientGoal(key: "added_sugar", name: "Added sugar", unit: "g", goal: 36, step: 1, goalType: "limit"),
             KoiNutrientGoal(key: "carbs", name: "Carbs", unit: "g", goal: 250, step: 5, goalType: "track"),
             KoiNutrientGoal(key: "fat", name: "Fat", unit: "g", goal: 70, step: 5, goalType: "track")
         ] { context.insert(goal) }
+        let supplements = ["Vitamin D", "Omega-3", "Magnesium"].map { KoiSupplement(name: $0) }
+        supplements.forEach { context.insert($0) }
+        for (offset, pounds) in [(7, 152.4), (3, 151.8), (0, 151.2)] {
+            if let date = calendar.date(byAdding: .day, value: -offset, to: today) {
+                context.insert(KoiBodyWeightEntry(date: date, weightLB: pounds))
+            }
+        }
 
-        let titles = ["Make the bed", "Read a little", "Take a walk"]
+        let titles = ["Morning walk", "Stretch", "Read 10 pages", "Plan tomorrow", "Long training session"]
+        let streakLengths = [9, 7, 4, 6, 5]
         let habits = titles.enumerated().map { index, title in
-            KoiHabit(title: title, createdAt: created, schedule: "daily", minimumVersion: ["Straighten the pillow", "One page", "Step outside"][index])
+            let schedule = index == 4 ? "someDays" : "daily"
+            let weekdays = index == 4 ? [2, 4, 6] : []
+            let minimums = ["Step outside", "Stretch briefly", "Read one page", "Write one line", "Start training"]
+            return KoiHabit(title: title, createdAt: created.addingTimeInterval(TimeInterval(index)), schedule: schedule, weekdays: weekdays, minimumVersion: minimums[index], stackingCue: index == 2 ? "morning coffee" : "", identity: index == 2 ? "a reader" : "")
         }
         habits.forEach { context.insert($0) }
-        let balanceSamples = [0.78, 0.74, 0.84, 0.72, 0.91, 0.73, 0.86]
-        let foods = ["Salmon rice bowl", "Yogurt and fruit", "Chicken wrap", "Eggs and toast", "Tofu noodle bowl", "Turkey sandwich", "Oatmeal and berries"]
-        for offset in 0..<7 {
+        for offset in 0...32 {
             guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
-            for (index, habit) in habits.enumerated() {
-                let completion = offset == 2 && index == 1 ? 0 : (offset == 4 && index == 2 ? 1 : 2)
-                context.insert(KoiHabitLog(habitID: habit.id, date: date, completion: completion))
+            if offset <= 28 {
+                for (index, habit) in habits.enumerated() {
+                    let activeStreakDay = index == 2 ? (offset > 0 && offset <= streakLengths[index]) : offset < streakLengths[index]
+                    let completion = activeStreakDay ? 2 : 0
+                    context.insert(KoiHabitLog(habitID: habit.id, date: date, completion: completion))
+                }
             }
-            context.insert(KoiFoodEntry(name: foods[offset], loggedAt: date.addingTimeInterval(12 * 3_600), calories: [1_950.0, 2_280, 2_060, 2_390, 2_120, 1_880, 2_160][offset], proteinGrams: 120 + Double(offset * 4), carbohydrateGrams: 210, fatGrams: 66, fiberGrams: 24 + Double(offset % 5), confidence: 0.84))
-            context.insert(KoiNutrientEntry(date: date, nutrientKey: "water", value: [78.0, 96, 110, 84, 102, 72, 94][offset]))
-            let trained = [1, 3, 5].contains(offset)
-            context.insert(KoiMovementDay(date: date, healthSteps: 6_400 + offset * 615, healthWorkoutCount: trained ? 1 : 0))
-            let demoHabits = completionScore(offset: offset)
-            context.insert(KoiDay(date: date, balance: balanceSamples[offset], habitsScore: demoHabits, nutritionScore: 0.72, exerciseScore: trained ? 0.86 : 0.53))
+            if offset == 0 {
+                for (key, value) in [("calories", 1_450.0), ("protein", 92.0), ("fiber", 18.0), ("water", 60.0), ("added_sugar", 22.0)] {
+                    context.insert(KoiNutrientEntry(date: date, nutrientKey: key, value: value))
+                }
+            } else {
+                context.insert(KoiFoodEntry(name: ["Yogurt and fruit", "Chicken bowl", "Eggs and toast", "Tofu noodles", "Salmon rice bowl", "Turkey sandwich", "Oatmeal and berries"][offset % 7], loggedAt: date.addingTimeInterval(12 * 3_600), calories: [1_950.0, 2_280, 2_060, 2_390, 2_120, 1_880, 2_160][offset % 7], proteinGrams: 120 + Double(offset % 7 * 4), carbohydrateGrams: 210, fatGrams: 66, fiberGrams: 24 + Double(offset % 5), confidence: 0.84))
+                context.insert(KoiNutrientEntry(date: date, nutrientKey: "water", value: [78.0, 96, 110, 84, 102, 72, 94][offset % 7]))
+            }
+            if offset <= 28 {
+                for supplement in supplements {
+                    context.insert(KoiSupplementLog(supplementID: supplement.id, date: date, isTaken: offset > 0 && offset % 3 != 0))
+                }
+            }
+            let stepValues = [6_840, 7_400, 11_300, 6_100, 8_800, 10_400, 7_900, 9_200]
+            let trained = [1, 3, 5].contains(offset % 7)
+            context.insert(KoiMovementDay(date: date, healthSteps: stepValues[offset % stepValues.count], healthWorkoutCount: (offset == 0 || trained) ? 1 : 0))
+            let qualifyingStreakDay = offset < 12 || (offset >= 15 && offset < 33)
+            let score = qualifyingStreakDay ? 0.82 : 0.42
+            context.insert(KoiDay(date: date, balance: score, habitsScore: 0.75, nutritionScore: 0.64, exerciseScore: (offset == 0 || trained) ? 0.93 : 0.53))
         }
 
         let tasks = [
-            KoiTask(title: "Plan the week", dueAt: today, quadrant: 1),
-            KoiTask(title: "Pick up groceries", dueAt: calendar.date(byAdding: .day, value: 1, to: today), quadrant: 0),
-            KoiTask(title: "Send the note", dueAt: calendar.date(byAdding: .day, value: -1, to: today), quadrant: 1, isComplete: true)
+            KoiTask(title: "Finish project draft", notes: "Second pass on the intro.", dueAt: today, quadrant: 1),
+            KoiTask(title: "Grocery run", quadrant: 0),
+            KoiTask(title: "Book dentist", notes: "Overdue.", quadrant: 0),
+            KoiTask(title: "Call trainer", dueAt: calendar.date(byAdding: .day, value: 2, to: today), quadrant: 1)
         ]
-        tasks[2].completedAt = calendar.date(byAdding: .hour, value: -4, to: .now)
         tasks.forEach { context.insert($0) }
 
         for offset in [1, 3, 5] {
@@ -542,16 +659,6 @@ enum KoiDemoSeeder {
         run.endedAt = run.startedAt.addingTimeInterval(1_920)
         run.isComplete = true
         context.insert(run)
-        for offset in stride(from: 28, through: 0, by: -7) {
-            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
-            context.insert(KoiBodyWeightEntry(date: date, weightLB: 158.2 - Double((28 - offset) / 7) * 0.35))
-        }
         try context.save()
-    }
-
-    private static func completionScore(offset: Int) -> Double {
-        if offset == 2 { return 5.0 / 6.0 }
-        if offset == 4 { return 5.0 / 6.0 }
-        return 1
     }
 }

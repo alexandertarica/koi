@@ -299,15 +299,19 @@ what's partial, known issues, and the next step.
   the current simulator review flow cannot clear the SwiftData onboarding state
   or interact with the first-launch overlay through available UI controls.
 
+- Main tab visual pass: corrected demo launch seeding and sample values, added
+  reliable `-koiTab` capture routing, aligned the shared shell and four tab
+  layouts, and fixed the fifth-habit indexing crash. Captured the Hub, To-Do,
+  Movement, and Intake screens on iPhone 17 Pro Simulator. Debug build succeeds
+  and the full simulator suite passes all 64 tests.
+
 ## Next step
 
 The analytics event-name audit found all required event names wired to feature
 actions; TelemetryDeck initializes and signals only in Release.
 Calendar and Reminders sync, Apple Notes handoff, and CloudKit backup/restore
-are implemented. The latest serial iPhone 17 Pro simulator test run passes all
-63 tests. Continue the remaining visual and interaction audit in checklist order;
-paired screenshots and screen-specific haptics/animations are not yet fully
-verified. A Koi-owned signup endpoint is not configured, and HealthKit writes
-are not implemented. Physical-device verification remains for HealthKit data,
-CloudKit account/restore, GPS accuracy, notification delivery, widgets, Live
-Activity, Control Center actions, and configured-network workout imports.
+are implemented. Next, continue the deeper feature and system review. A Koi-
+owned signup endpoint is not configured, and HealthKit writes are not
+implemented. Physical-device verification remains for HealthKit data, CloudKit
+account/restore, GPS accuracy, notification delivery, widgets, Live Activity,
+Control Center actions, and configured-network workout imports.

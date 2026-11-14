@@ -50,14 +50,15 @@ final class KoiFoundationTests: XCTestCase {
         let context = ModelContext(container)
         try KoiDemoSeeder.seedIfEmpty(context)
 
-        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiProfile>()).first?.name, "Taylor")
-        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiHabit>()).count, 3)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiHabitLog>()).count, 21)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiFoodEntry>()).count, 7)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiDay>()).count, 7)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiProfile>()).first?.name, "Maya")
+        XCTAssertEqual(Set(try context.fetch(FetchDescriptor<KoiHabit>()).map(\.title)), Set(["Morning walk", "Stretch", "Read 10 pages", "Plan tomorrow", "Long training session"]))
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiHabitLog>()).count, 145)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiFoodEntry>()).count, 32)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiDay>()).count, 33)
+        XCTAssertEqual(Set(try context.fetch(FetchDescriptor<KoiTask>()).map(\.title)), Set(["Finish project draft", "Grocery run", "Book dentist", "Call trainer"]))
 
         try KoiDemoSeeder.seedIfEmpty(context)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiFoodEntry>()).count, 7)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiFoodEntry>()).count, 32)
         XCTAssertEqual(try context.fetch(FetchDescriptor<KoiWorkoutSession>()).count, 3)
     }
 
@@ -69,9 +70,17 @@ final class KoiFoundationTests: XCTestCase {
         let model = HubViewModel(calendar: .current, publishesWidgetSnapshot: false)
         model.refresh(using: context)
 
-        XCTAssertGreaterThan(model.balance.nutrition, 0.7)
-        XCTAssertEqual(model.streak.current, 7)
-        XCTAssertGreaterThanOrEqual(model.streak.best, model.streak.current)
+        XCTAssertEqual(model.balance.habits, 0.875, accuracy: 0.001)
+        XCTAssertEqual(model.balance.nutrition, 0.6351, accuracy: 0.001)
+        XCTAssertEqual(model.balance.exercise, 0.9275, accuracy: 0.001)
+        XCTAssertEqual(model.balance.score, 0.81, accuracy: 0.01)
+        XCTAssertEqual(model.streak.current, 12)
+        XCTAssertEqual(model.streak.best, 18)
+        XCTAssertEqual(model.stepsText, "6,840")
+        XCTAssertEqual(model.stepGoalText, "8,000")
+        XCTAssertEqual(model.caloriesText, "1,450")
+        XCTAssertEqual(model.proteinText, "92")
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiNutrientEntry>()).first(where: { $0.nutrientKey == "added_sugar" })?.value, 22)
     }
 
     func testDemoSeedDoesNotRunWhenAnySavedModelExists() throws {
@@ -84,5 +93,20 @@ final class KoiFoundationTests: XCTestCase {
 
         XCTAssertEqual(try context.fetch(FetchDescriptor<KoiTask>()).map(\.title), ["Keep this task"])
         XCTAssertTrue(try context.fetch(FetchDescriptor<KoiProfile>()).isEmpty)
+    }
+
+    func testDemoLaunchReplacesStoredContentWithTheFixedSample() throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        context.insert(KoiProfile(name: "Existing"))
+        context.insert(KoiTask(title: "Personal task"))
+        try context.save()
+
+        try KoiDemoSeeder.seedForDemoLaunch(context)
+
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiProfile>()).first?.name, "Maya")
+        XCTAssertEqual(Set(try context.fetch(FetchDescriptor<KoiTask>()).map(\.title)), Set(["Finish project draft", "Grocery run", "Book dentist", "Call trainer"]))
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiSupplement>()).map(\.name).count, 3)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiBodyWeightEntry>()).count, 3)
     }
 }
