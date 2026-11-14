@@ -373,6 +373,12 @@ what's partial, known issues, and the next step.
   no demo seed or debug screen/tab routing flags. The CLI-only simulator pass
   cannot tap Next/Start, so the remainder of the Release onboarding path and
   post-onboarding flows have not been interaction-tested in Release.
+- Haptic and animation audit: the dial sweep, completion tick, and save-success
+  feedback are wired in code. Workout logging now uses the success haptic when
+  a set establishes a new best, and the ordinary check haptic for other sets.
+  The 67-test simulator suite passes after this change. Simulator screenshots
+  cannot verify physical vibration strength or timing; confirm those on an
+  iPhone before judging the haptic feel.
 
 - Food flow: typed estimate returned all seven nutrient values; save updated
   Intake totals and the day's meal list, edit changed the totals, and delete

@@ -594,7 +594,11 @@ private struct WorkoutModeView: View {
                     }.buttonStyle(.plain).onLongPressGesture { model.addRestSeconds(15) }.accessibilityLabel("Rest \(timeString(remaining)). Tap to skip. Hold to add 15 seconds.")
                 }
             } else {
-                KoiPrimaryButton(title: model.isEditingSet ? "Save set" : "Log set") { KoiHaptics.check(); model.logSet(); analyticsProvider.signal("Workout.setLogged") }
+                KoiPrimaryButton(title: model.isEditingSet ? "Save set" : "Log set") {
+                    model.logSet()
+                    if model.isNewBest { KoiHaptics.success() } else { KoiHaptics.check() }
+                    analyticsProvider.signal("Workout.setLogged")
+                }
             }
             HStack {
                 Button("Warm-up set") { KoiHaptics.check(); model.logSet(isWarmUp: true); analyticsProvider.signal("Workout.setLogged") }.font(KoiTheme.caption).buttonStyle(.plain)
