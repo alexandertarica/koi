@@ -89,6 +89,8 @@ final class TodoViewModel {
     private(set) var toastTaskID: UUID?
     private(set) var parsedTitleDate: ParsedDate?
     private(set) var tasksMarkedUrgent: Set<UUID> = []
+    private(set) var coachHabit: KoiHabit?
+    private(set) var coachAction: HabitCoachAction?
     var errorMessage: String?
     var taskDraft = TodoDraft()
     var habitDraft = HabitDraft()
@@ -108,6 +110,9 @@ final class TodoViewModel {
         (habitDraft.schedule != "someDays" || !habitDraft.weekdays.isEmpty)
     }
     var autoUrgentMessage: String? { toast }
+    var shouldShowCoach: Bool {
+        calendar.component(.weekday, from: .now) == 1 && (UserDefaults.standard.object(forKey: "koi.habitCoach.dismissedUntil") as? Date ?? .distantPast) <= .now && coachAction != nil
+    }
 
     func load(_ context: ModelContext, calendarProvider: (any CalendarProviding)? = nil, notificationProvider: (any NotificationProviding)? = nil) {
         self.context = context
@@ -126,6 +131,7 @@ final class TodoViewModel {
                 if applyAutoUrgency(for: task) { changed = true }
             }
             if changed { try context.save() }
+            refreshHabitCoach()
             checkSomedayTasks()
             Task { await synchronizeCalendarEvents() }
             Task { await synchronizeNotifications() }
@@ -335,6 +341,30 @@ final class TodoViewModel {
     func restoreTask(_ task: KoiTask) { task.archivedAt = nil; task.completedAt = nil; task.isComplete = false; persist() }
     func pauseHabit(_ habit: KoiHabit) { habit.isActive = false; habit.pausedAt = .now; persist() }
     func restoreHabit(_ habit: KoiHabit) { habit.isActive = true; habit.pausedAt = nil; persist() }
+    func reviewHabitCoach() {
+        guard let action = coachAction else { return }
+        switch action {
+        case .graduate:
+            guard let coachHabit else { return }
+            coachHabit.graduatedAt = calendar.startOfDay(for: .now)
+            persist()
+        case .easeOff:
+            guard let coachHabit else { return }
+            beginEditingHabit(coachHabit)
+            habitDraft.schedule = "weekly"
+            habitDraft.weekdays = [calendar.component(.weekday, from: .now)]
+        case .stepUp(_):
+            guard let coachHabit else { return }
+            beginEditingHabit(coachHabit)
+            if habitDraft.minimumVersion.isEmpty { habitDraft.minimumVersion = "Current amount" }
+        case .stack(let strongest):
+            beginHabit()
+            habitDraft.stackingCue = strongest
+        }
+    }
+    func dismissHabitCoach() {
+        UserDefaults.standard.set(calendar.date(byAdding: .day, value: 14, to: .now) ?? .now, forKey: "koi.habitCoach.dismissedUntil")
+    }
     func dismissStaleTask(keep: Bool) {
         guard let id = staleTaskID, let task = tasks.first(where: { $0.id == id }) else { return }
         staleTaskID = nil
@@ -352,7 +382,8 @@ final class TodoViewModel {
         return task.urgentOverride == true || (task.dueAt.map { daysUntil($0) <= 1 } ?? (task.quadrant == 0 || task.quadrant == 2))
     }
     func todayCompletion(for habit: KoiHabit) -> Int {
-        logs.first(where: { $0.habitID == habit.id && calendar.isDate($0.date, inSameDayAs: .now) })?.completion ?? 0
+        if habit.graduatedAt.map({ calendar.startOfDay(for: $0) <= calendar.startOfDay(for: .now) }) == true { return 2 }
+        return logs.first(where: { $0.habitID == habit.id && calendar.isDate($0.date, inSameDayAs: .now) })?.completion ?? 0
     }
     func setReminderTime(hour: Int?, minute: Int = 0, exact: Bool = false) {
         habitDraft.reminderHour = hour
@@ -392,6 +423,57 @@ final class TodoViewModel {
         let cutoff = calendar.date(byAdding: .day, value: -7, to: .now) ?? .now
         staleTaskID = tasks.first(where: { !$0.isComplete && !isArchived($0) && currentSection(for: $0) == .someday && $0.lastTouchedAt < cutoff })?.id
     }
+
+    private func refreshHabitCoach() {
+        let today = calendar.startOfDay(for: .now)
+        let active = habits.filter { $0.isActive && $0.pausedAt == nil && $0.graduatedAt == nil }
+        guard !active.isEmpty else { coachHabit = nil; coachAction = nil; return }
+        var inputs: [HabitCoachInput] = []
+        var strongest: (habit: KoiHabit, completions: Int)?
+        for habit in active {
+            var scheduled = 0
+            var complete = 0
+            var minimum = 0
+            for offset in 0..<66 {
+                guard let day = calendar.date(byAdding: .day, value: -offset, to: today),
+                      calendar.startOfDay(for: habit.createdAt) <= day,
+                      coachIsScheduled(habit, on: day) else { continue }
+                scheduled += 1
+                let completion = logs.first(where: { $0.habitID == habit.id && calendar.isDate($0.date, inSameDayAs: day) })?.completion ?? 0
+                if completion == 2 { complete += 1 }
+                if completion == 1 { minimum += 1 }
+            }
+            let strongWeeks = (1...4).allSatisfy { weekOffset in
+                guard let date = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: today),
+                      let interval = calendar.dateInterval(of: .weekOfYear, for: date) else { return false }
+                var weekScheduled = 0
+                var weekComplete = 0
+                for dayOffset in 0..<7 {
+                    guard let day = calendar.date(byAdding: .day, value: dayOffset, to: interval.start),
+                          day < interval.end, coachIsScheduled(habit, on: day) else { continue }
+                    weekScheduled += 1
+                    if logs.first(where: { $0.habitID == habit.id && calendar.isDate($0.date, inSameDayAs: day) })?.completion == 2 { weekComplete += 1 }
+                }
+                return weekScheduled > 0 && weekComplete * 10 >= weekScheduled * 9
+            }
+            let weeklyCount = strongWeeks ? 4 : 0
+            let activeDays = max((calendar.dateComponents([.day], from: calendar.startOfDay(for: habit.createdAt), to: today).day ?? 0) + 1, 0)
+            inputs.append(HabitCoachInput(scheduledDays: scheduled, completedDays: complete, minimumDays: minimum, consecutiveStrongWeeks: weeklyCount, activeDays: activeDays, strongestHabitTitle: habit.title))
+            if complete > (strongest?.completions ?? -1) { strongest = (habit, complete) }
+        }
+        guard let suggestion = HabitCoachEngine.suggestion(inputs) else { coachHabit = nil; coachAction = nil; return }
+        coachHabit = suggestion.index < active.count ? active[suggestion.index] : nil
+        coachAction = suggestion.index == active.count ? .stack(after: strongest?.habit.title ?? "your strongest habit") : suggestion.action
+    }
+
+    private func coachIsScheduled(_ habit: KoiHabit, on date: Date) -> Bool {
+        switch habit.schedule {
+        case "someDays": habit.weekdays.contains(calendar.component(.weekday, from: date))
+        case "weekly": calendar.component(.weekday, from: habit.createdAt) == calendar.component(.weekday, from: date)
+        case "monthly": calendar.component(.day, from: habit.createdAt) == calendar.component(.day, from: date)
+        default: true
+        }
+    }
     private func persist() {
         guard let context else { return }
         do { try context.save(); load(context) }
@@ -423,7 +505,7 @@ final class TodoViewModel {
         guard let notificationProvider else { return }
         var reminders: [NotificationReminder] = []
         if notificationMode == .smart {
-            for habit in habits where habit.isActive && habit.pausedAt == nil {
+            for habit in habits where habit.isActive && habit.pausedAt == nil && habit.graduatedAt == nil {
                 guard let time = habit.reminderTime else { continue }
                 if habit.schedule == "daily" {
                     reminders.append(NotificationReminder(id: "habit-\(habit.id.uuidString)", title: "Time for \(habit.title).", date: time, repeatsWeekday: nil, repeatsDaily: true))

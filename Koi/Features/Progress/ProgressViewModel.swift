@@ -168,7 +168,7 @@ final class ProgressViewModel {
     private func metric(for date: Date) -> ProgressDayMetric {
         let day = calendar.startOfDay(for: date)
         let scheduled = habits.filter { habit in
-            habit.isActive && habit.pausedAt == nil && calendar.startOfDay(for: habit.createdAt) <= day && isScheduled(habit, on: day)
+            habit.isActive && habit.pausedAt == nil && calendar.startOfDay(for: habit.createdAt) <= day && (habit.graduatedAt.map { day < calendar.startOfDay(for: $0) } ?? true) && isScheduled(habit, on: day)
         }
         let scheduledInputs = scheduled.map { habit -> HabitDayInput in
             let log = habitLogs.first { $0.habitID == habit.id && calendar.isDate($0.date, inSameDayAs: day) }

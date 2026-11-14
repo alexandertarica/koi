@@ -164,7 +164,7 @@ final class HubViewModel {
     private func updateDerivedState() {
         let selectedDay = days.first { calendar.isDate($0.date, inSameDayAs: selectedDate) }
         let activeHabits = habits.filter {
-            $0.isActive && $0.pausedAt == nil && calendar.startOfDay(for: $0.createdAt) <= selectedDate && isScheduled($0, on: selectedDate)
+            $0.isActive && $0.pausedAt == nil && calendar.startOfDay(for: $0.createdAt) <= selectedDate && ($0.graduatedAt.map { selectedDate < calendar.startOfDay(for: $0) } ?? true) && isScheduled($0, on: selectedDate)
         }
         let selectedLogs = logs.filter { calendar.isDate($0.date, inSameDayAs: selectedDate) }
         let habitDays = activeHabits.map { habit in

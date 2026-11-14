@@ -8,6 +8,13 @@ struct HealthMovementSample: Equatable, Sendable {
     let workoutCount: Int
 }
 
+struct HealthRecoverySnapshot: Equatable, Sendable {
+    let reading: ReadinessReading
+    let sleepHours: Double?
+    let hrv: Double?
+    let restingHeartRate: Double?
+}
+
 enum HealthServiceError: LocalizedError {
     case unavailable
     case queryFailed
@@ -25,6 +32,11 @@ protocol HealthProviding: Sendable {
     var isAvailable: Bool { get }
     func requestReadAccess() async throws
     func movementData(from start: Date, to end: Date, calendar: Calendar) async throws -> [HealthMovementSample]
+    func recoveryData(for date: Date, calendar: Calendar) async throws -> HealthRecoverySnapshot?
+}
+
+extension HealthProviding {
+    func recoveryData(for date: Date, calendar: Calendar) async throws -> HealthRecoverySnapshot? { nil }
 }
 
 @MainActor
@@ -37,7 +49,12 @@ final class HealthService: HealthProviding {
     func requestReadAccess() async throws {
         guard isAvailable else { throw HealthServiceError.unavailable }
         guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { throw HealthServiceError.unavailable }
-        let types: Set<HKObjectType> = [stepType, HKObjectType.workoutType()]
+        let recoveryTypes: [HKObjectType] = [
+            HKObjectType.categoryType(forIdentifier: .sleepAnalysis),
+            HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
+            HKObjectType.quantityType(forIdentifier: .restingHeartRate)
+        ].compactMap { $0 }
+        let types: Set<HKObjectType> = Set([stepType, HKObjectType.workoutType()] + recoveryTypes)
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             store.requestAuthorization(toShare: [], read: types) { success, error in
                 if let error {
@@ -65,6 +82,49 @@ final class HealthService: HealthProviding {
             cursor = next
         }
         return result
+    }
+
+    func recoveryData(for date: Date, calendar: Calendar) async throws -> HealthRecoverySnapshot? {
+        guard isAvailable,
+              let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis),
+              let hrvType = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
+              let restingType = HKObjectType.quantityType(forIdentifier: .restingHeartRate),
+              let dayStart = calendar.dateInterval(of: .day, for: date)?.start,
+              let previousDay = calendar.date(byAdding: .day, value: -1, to: dayStart),
+              let baselineStart = calendar.date(byAdding: .day, value: -30, to: dayStart) else { return nil }
+        let sleepSamples = try await samples(type: sleepType, from: baselineStart, to: dayStart)
+        let hrvSamples = try await samples(type: hrvType, from: baselineStart, to: dayStart) as? [HKQuantitySample] ?? []
+        let restingSamples = try await samples(type: restingType, from: baselineStart, to: dayStart) as? [HKQuantitySample] ?? []
+
+        let validSleep = sleepSamples.compactMap { sample -> HKCategorySample? in
+            guard let value = sample as? HKCategorySample,
+                  value.value != HKCategoryValueSleepAnalysis.inBed.rawValue,
+                  value.value != HKCategoryValueSleepAnalysis.awake.rawValue else { return nil }
+            return value
+        }
+        let currentSleepSource = preferredSource(validSleep.filter { $0.endDate > previousDay && $0.endDate <= dayStart })
+        let sleepSource = currentSleepSource ?? preferredSource(validSleep)
+        let sourceSleep = validSleep.filter { $0.sourceRevision.source.bundleIdentifier == sleepSource?.source.bundleIdentifier }
+        let lastNight = sourceSleep.filter { $0.endDate > previousDay && $0.endDate <= dayStart }
+        let sleepHours = totalSleepHours(lastNight)
+        let baselineByNight = Dictionary(grouping: sourceSleep.filter { $0.endDate <= previousDay }, by: { calendar.startOfDay(for: $0.endDate) })
+        let sleepBaseline = average(baselineByNight.values.map(totalSleepHours))
+
+        let hrvCurrent = preferredRecentSample(hrvSamples.filter { $0.endDate > previousDay && $0.endDate <= dayStart })
+        let hrvSourceID = hrvCurrent?.sourceRevision.source.bundleIdentifier ?? preferredSource(hrvSamples)?.source.bundleIdentifier
+        let sourceHRV = hrvSamples.filter { $0.sourceRevision.source.bundleIdentifier == hrvSourceID }
+        let hrvBaseline = average(sourceHRV.filter { $0.endDate <= previousDay }.map { $0.quantity.doubleValue(for: .secondUnit(with: .milli)) })
+        let hrvValue = hrvCurrent?.quantity.doubleValue(for: .secondUnit(with: .milli))
+
+        let restingCurrent = preferredRecentSample(restingSamples.filter { $0.endDate > previousDay && $0.endDate <= dayStart })
+        let restingSourceID = restingCurrent?.sourceRevision.source.bundleIdentifier ?? preferredSource(restingSamples)?.source.bundleIdentifier
+        let sourceResting = restingSamples.filter { $0.sourceRevision.source.bundleIdentifier == restingSourceID }
+        let restingBaseline = average(sourceResting.filter { $0.endDate <= previousDay }.map { $0.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute())) })
+        let restingValue = restingCurrent?.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+
+        let reading = ReadinessEngine.evaluate(ReadinessInput(sleepHours: sleepHours, sleepBaselineHours: sleepBaseline, hrv: hrvValue, hrvBaseline: hrvBaseline, restingHeartRate: restingValue, restingHeartRateBaseline: restingBaseline))
+        guard let reading else { return nil }
+        return HealthRecoverySnapshot(reading: reading, sleepHours: sleepHours, hrv: hrvValue, restingHeartRate: restingValue)
     }
 
     private func stepCount(from start: Date, to end: Date) async throws -> Int {
@@ -96,5 +156,41 @@ final class HealthService: HealthProviding {
             }
             store.execute(query)
         }
+    }
+
+    private func samples(type: HKSampleType, from start: Date, to end: Date) async throws -> [HKSample] {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
+                if let error { continuation.resume(throwing: error) }
+                else { continuation.resume(returning: samples ?? []) }
+            }
+            store.execute(query)
+        }
+    }
+
+    private func preferredSource(_ samples: [HKSample]) -> HKSourceRevision? {
+        samples.map(\.sourceRevision).sorted { sourceRank($0) < sourceRank($1) }.first
+    }
+
+    private func preferredRecentSample(_ samples: [HKQuantitySample]) -> HKQuantitySample? {
+        samples.sorted {
+            let rank = sourceRank($0.sourceRevision) - sourceRank($1.sourceRevision)
+            return rank == 0 ? $0.endDate > $1.endDate : rank < 0
+        }.first
+    }
+
+    private func sourceRank(_ source: HKSourceRevision) -> Int {
+        (source.productType?.localizedCaseInsensitiveContains("watch") == true) || source.source.bundleIdentifier.localizedCaseInsensitiveContains("watch") ? 0 : 1
+    }
+
+    private func totalSleepHours(_ samples: [HKSample]) -> Double {
+        samples.reduce(0) { $0 + max($1.endDate.timeIntervalSince($1.startDate), 0) } / 3_600
+    }
+
+    private func average(_ values: [Double]) -> Double? {
+        let valid = values.filter { $0.isFinite && $0 > 0 }
+        guard !valid.isEmpty else { return nil }
+        return valid.reduce(0, +) / Double(valid.count)
     }
 }

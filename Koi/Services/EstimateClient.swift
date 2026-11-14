@@ -17,6 +17,7 @@ enum EstimateClientError: LocalizedError, Equatable {
     case notConfigured
     case missingInput
     case textTooLong
+    case workoutTextTooLong
     case invalidResponse
     case unauthorized
     case tooLarge
@@ -29,6 +30,7 @@ enum EstimateClientError: LocalizedError, Equatable {
         case .notConfigured: "Food estimates aren't available right now. You can enter the numbers yourself."
         case .missingInput: "Add a description or photo to estimate this meal."
         case .textTooLong: "Keep the meal description under 500 characters."
+        case .workoutTextTooLong: "Keep the workout plan under 8,000 characters."
         case .invalidResponse: "Koi couldn't read that estimate. Try again or enter the numbers yourself."
         case .unauthorized: "Koi couldn't verify this request. You can enter the numbers yourself."
         case .tooLarge: "That photo is too large to estimate. Try a smaller photo."
@@ -43,7 +45,22 @@ protocol FoodEstimating: Sendable {
     func estimate(text: String?, jpegData: Data?) async throws -> FoodEstimateValue
 }
 
-struct EstimateClient: FoodEstimating {
+struct ImportedExercise: Decodable, Equatable, Sendable {
+    let name: String
+    let sets: Int
+    let reps: Int
+}
+
+struct ImportedRoutine: Decodable, Equatable, Sendable {
+    let name: String
+    let exercises: [ImportedExercise]
+}
+
+protocol WorkoutImporting: Sendable {
+    func importWorkout(text: String?, jpegData: Data?) async throws -> [ImportedRoutine]
+}
+
+struct EstimateClient: FoodEstimating, WorkoutImporting {
     private let logger = Logger(subsystem: "com.alexandertarica.koi", category: "Estimate")
     private let session: URLSession
     private let configuration: Configuration?
@@ -109,6 +126,40 @@ struct EstimateClient: FoodEstimating {
         }
     }
 
+    func importWorkout(text: String?, jpegData: Data?) async throws -> [ImportedRoutine] {
+        guard let configuration else { throw EstimateClientError.notConfigured }
+        let clean = text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard clean?.isEmpty == false || jpegData != nil else { throw EstimateClientError.missingInput }
+        guard (clean?.count ?? 0) <= 8_000 else { throw EstimateClientError.workoutTextTooLong }
+        var request = URLRequest(url: configuration.baseURL.appending(path: "/api/workout-import"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(configuration.appToken, forHTTPHeaderField: "x-koi-app-token")
+        request.setValue(Self.deviceIdentifier(), forHTTPHeaderField: "x-koi-device")
+        request.httpBody = try JSONEncoder().encode(EstimateRequest(text: clean?.isEmpty == true ? nil : clean, image: jpegData?.base64EncodedString(), mediaType: jpegData == nil ? nil : "image/jpeg"))
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard let response = response as? HTTPURLResponse else { throw EstimateClientError.invalidResponse }
+            switch response.statusCode {
+            case 200..<300:
+                guard let decoded = try? JSONDecoder().decode(WorkoutImportResponse.self, from: data), !decoded.routines.isEmpty else { throw EstimateClientError.invalidResponse }
+                return decoded.routines.map { routine in
+                    ImportedRoutine(name: String(routine.name.prefix(80)), exercises: routine.exercises.compactMap { exercise in
+                        let name = exercise.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !name.isEmpty else { return nil }
+                        return ImportedExercise(name: String(name.prefix(80)), sets: min(max(exercise.sets, 1), 12), reps: min(max(exercise.reps, 1), 100))
+                    })
+                }.filter { !$0.exercises.isEmpty }
+            case 401: throw EstimateClientError.unauthorized
+            case 413: throw EstimateClientError.tooLarge
+            case 429: throw EstimateClientError.dailyLimit
+            case 500..<600: throw EstimateClientError.serverUnavailable
+            default: throw EstimateClientError.invalidResponse
+            }
+        } catch let error as EstimateClientError { throw error }
+        catch { logger.error("Workout import request failed."); throw EstimateClientError.connection }
+    }
+
     private static func loadConfiguration() -> Configuration? {
         guard let url = Bundle.main.url(forResource: "Secrets", withExtension: "plist"),
               let data = try? Data(contentsOf: url),
@@ -131,6 +182,10 @@ private struct EstimateRequest: Encodable {
     let text: String?
     let image: String?
     let mediaType: String?
+}
+
+private struct WorkoutImportResponse: Decodable {
+    let routines: [ImportedRoutine]
 }
 
 private struct EstimateResponse: Decodable {

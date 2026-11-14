@@ -7,11 +7,13 @@ struct MovementView: View {
     @State private var model = MovementViewModel()
     @State private var showsGoals = false
     @State private var showsWorkoutJournal = false
+    @State private var recovery: HealthRecoverySnapshot?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: KoiTheme.space.s34) {
                 header
+                if let recovery { readinessCard(recovery) }
                 hero
                 stepsSection
                 statsSection
@@ -24,13 +26,34 @@ struct MovementView: View {
         .foregroundStyle(KoiTheme.onBase)
         .onAppear {
             model.load(modelContext)
-            Task { await model.refreshHealth(using: healthProvider) }
+            Task {
+                await model.refreshHealth(using: healthProvider)
+                recovery = try? await healthProvider.recoveryData(for: .now, calendar: .autoupdatingCurrent)
+            }
         }
         .sheet(isPresented: $showsGoals) { MovementGoalEditor(model: model).presentationDetents([.medium]) }
-        .sheet(isPresented: $showsWorkoutJournal) { WorkoutJournalView().presentationDetents([.large]) }
+        .sheet(isPresented: $showsWorkoutJournal) { WorkoutJournalView(readiness: recovery?.reading).presentationDetents([.large]) }
         .alert("Movement", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.clearError() } })) {
             Button("OK", role: .cancel) { model.clearError() }
         } message: { Text(model.errorMessage ?? "") }
+    }
+
+    private func readinessCard(_ recovery: HealthRecoverySnapshot) -> some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
+            HStack {
+                Text("READINESS").font(KoiTheme.section).tracking(1.7)
+                Spacer()
+                Text(recovery.reading.level.rawValue.uppercased()).font(KoiTheme.caption).tracking(1.2)
+            }
+            Text(recovery.reading.reasons.joined(separator: " · ")).font(KoiTheme.caption).opacity(0.75)
+            if recovery.reading.level == .takeItEasy {
+                Text("Koi’s pick: go light today and hold your usual weights.").font(KoiTheme.caption)
+            }
+        }
+        .padding(KoiTheme.space.s13)
+        .background(.ultraThinMaterial.opacity(0.2), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(KoiTheme.onBase.opacity(0.2), lineWidth: 1))
+        .accessibilityElement(children: .combine)
     }
 
     private var header: some View {

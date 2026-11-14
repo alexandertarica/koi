@@ -15,6 +15,7 @@ struct TodoView: View {
                 if !model.showingArchive { modePicker }
                 if model.showingArchive { archiveContent }
                 else {
+                    if model.shouldShowCoach { habitCoachCard }
                     habitsSection
                     if model.mode == .list { listContent } else { matrixContent }
                 }
@@ -100,13 +101,15 @@ struct TodoView: View {
                         HStack(spacing: 13) {
                             Button { model.toggleHabit(habit) } label: { CheckCircle(isOn: model.todayCompletion(for: habit) > 0) }
                                 .buttonStyle(.plain).accessibilityLabel("Check in: \(habit.title)")
+                                .disabled(habit.graduatedAt != nil)
                             Button { model.openHabit(habit) } label: {
                                 HStack(spacing: 5) {
                                     Text(habit.title).font(KoiTheme.body)
                                     if !habit.identity.isEmpty { Text("· Part of you").font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.7)) }
                                 }.foregroundStyle(KoiTheme.onBase).frame(maxWidth: .infinity, alignment: .leading)
                             }.buttonStyle(.plain)
-                            Text(scheduleLabel(habit)).font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.68))
+                            Text(habit.graduatedAt == nil ? scheduleLabel(habit) : "Graduated")
+                                .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.68))
                         }.frame(minHeight: 42)
                         if model.selectedHabitID == habit.id { habitDetail(habit) }
                         Rectangle().fill(KoiTheme.divider.opacity(0.6)).frame(height: 0.5)
@@ -115,6 +118,34 @@ struct TodoView: View {
             }
         }
     }
+
+    private var habitCoachCard: some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
+            Text("SUNDAY RECAP").font(KoiTheme.section).tracking(1.8)
+            Text(coachMessage).font(KoiTheme.body)
+            if let habit = model.coachHabit { Text(habit.title).font(KoiTheme.caption).opacity(0.72) }
+            HStack(spacing: KoiTheme.space.s13) {
+                Button(coachButtonTitle) { model.reviewHabitCoach() }.font(KoiTheme.caption).buttonStyle(.plain)
+                Spacer()
+                Button("Not now") { model.dismissHabitCoach() }.font(KoiTheme.caption).buttonStyle(.plain).opacity(0.7)
+            }
+        }
+        .padding(KoiTheme.space.s13)
+        .background(.ultraThinMaterial.opacity(0.24), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(KoiTheme.onBase.opacity(0.2), lineWidth: 1))
+    }
+
+    private var coachMessage: String {
+        switch model.coachAction {
+        case .easeOff: "A gentler weekly rhythm may fit better."
+        case .stepUp(_): "You’ve been steady for four weeks. Keep this amount as your minimum."
+        case .graduate: "This habit has been steady for 66 days. It may be ready to graduate."
+        case .stack(let strongest): "Try a new habit after \(strongest)."
+        case nil: ""
+        }
+    }
+
+    private var coachButtonTitle: String { model.coachAction == .graduate ? "Graduate" : (model.coachAction == nil ? "Review" : "Review habit") }
 
     private var listContent: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s21) {

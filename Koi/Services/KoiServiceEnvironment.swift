@@ -5,6 +5,10 @@ private struct FoodEstimatingKey: EnvironmentKey {
     static let defaultValue: any FoodEstimating = EstimateClient()
 }
 
+private struct WorkoutImportingKey: EnvironmentKey {
+    static let defaultValue: any WorkoutImporting = EstimateClient()
+}
+
 private struct HealthProvidingKey: EnvironmentKey {
     static let defaultValue: any HealthProviding = HealthService()
 }
@@ -29,6 +33,11 @@ extension EnvironmentValues {
     var foodEstimator: any FoodEstimating {
         get { self[FoodEstimatingKey.self] }
         set { self[FoodEstimatingKey.self] = newValue }
+    }
+
+    var workoutImporter: any WorkoutImporting {
+        get { self[WorkoutImportingKey.self] }
+        set { self[WorkoutImportingKey.self] = newValue }
     }
 
     var healthProvider: any HealthProviding {

@@ -1,6 +1,8 @@
 import SwiftData
 import SwiftUI
 import KoiShared
+import PhotosUI
+import UIKit
 
 struct WorkoutJournalView: View {
     @Environment(\.modelContext) private var modelContext
@@ -12,6 +14,11 @@ struct WorkoutJournalView: View {
     @State private var showsWorkoutMode = false
     @State private var summary: WorkoutCompletionSummary?
     @State private var journalTab = "Strength"
+    let readiness: ReadinessReading?
+
+    init(readiness: ReadinessReading? = nil) {
+        self.readiness = readiness
+    }
 
     var body: some View {
         NavigationStack {
@@ -33,7 +40,7 @@ struct WorkoutJournalView: View {
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() }.font(KoiTheme.caption) } }
         }
         .preferredColorScheme(.dark)
-        .onAppear { model.load(modelContext) }
+        .onAppear { model.load(modelContext); model.setReadiness(readiness) }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { model.load(modelContext) }
         }
@@ -266,6 +273,7 @@ struct WorkoutJournalView: View {
 
 private struct WorkoutRoutineBuilder: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.workoutImporter) private var importer
     @State private var name: String
     @State private var lifts: [String]
     @State private var nextLift = ""
@@ -274,6 +282,13 @@ private struct WorkoutRoutineBuilder: View {
     @State private var plannedDate: Date
     @State private var when = "Any time"
     @State private var choosesDate = false
+    @State private var importText = ""
+    @State private var importPhotoItem: PhotosPickerItem?
+    @State private var importPhotoJPEG: Data?
+    @State private var importedRoutines: [ImportedRoutine] = []
+    @State private var selectedImportedRoutine: ImportedRoutine?
+    @State private var isImporting = false
+    @State private var importError: String?
     let model: WorkoutViewModel
     let existing: KoiWorkoutRoutine?
 
@@ -291,6 +306,27 @@ private struct WorkoutRoutineBuilder: View {
                 VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
                     Text(existing == nil ? "Build a routine." : "Shape this routine.").font(KoiTheme.title)
                     TextField("Routine name", text: $name).font(KoiTheme.body).padding(13).background(.ultraThinMaterial.opacity(0.22), in: RoundedRectangle(cornerRadius: 14))
+                    VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
+                        Text("IMPORT A PLAN").font(KoiTheme.section).tracking(1.7)
+                        TextEditor(text: $importText).font(KoiTheme.caption).scrollContentBackground(.hidden).frame(minHeight: 68)
+                            .padding(8).background(.ultraThinMaterial.opacity(0.2), in: RoundedRectangle(cornerRadius: 12))
+                            .accessibilityLabel("Workout plan text")
+                        HStack {
+                            PhotosPicker(selection: $importPhotoItem, matching: .images) { Label(importPhotoJPEG == nil ? "Add a photo" : "Photo ready", systemImage: "photo") }
+                                .font(KoiTheme.caption).buttonStyle(.plain)
+                            Button(isImporting ? "Reading…" : "Read plan") { Task { await importPlan() } }
+                                .disabled(isImporting || (importText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && importPhotoJPEG == nil))
+                                .font(KoiTheme.caption).buttonStyle(.plain)
+                            if !importedRoutines.isEmpty {
+                                Menu("Choose routine") {
+                                    ForEach(importedRoutines.indices, id: \.self) { index in
+                                        Button(importedRoutines[index].name) { applyImported(importedRoutines[index]) }
+                                    }
+                                }.font(KoiTheme.caption).buttonStyle(.plain)
+                            }
+                        }
+                        if let importError { Text(importError).font(KoiTheme.caption).foregroundStyle(.orange) }
+                    }
                     VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
                         Text("LIFTS").font(KoiTheme.section).tracking(1.7)
                         ForEach(lifts.indices, id: \.self) { index in
@@ -326,11 +362,13 @@ private struct WorkoutRoutineBuilder: View {
                         if choosesDate { DatePicker("Planned day", selection: $plannedDate, in: .now..., displayedComponents: .date).datePickerStyle(.compact).font(KoiTheme.caption).tint(KoiTheme.onBase) }
                     }
                     KoiPrimaryButton(title: "Start now") {
-                        model.saveRoutine(existing: existing, name: name, liftNames: lifts, plannedAt: selectedPlannedDate, startNow: true, targetSets: Int(sets) ?? 3, targetReps: Int(reps) ?? 8)
+                        if let selectedImportedRoutine, existing == nil { model.saveImportedRoutine(selectedImportedRoutine, plannedAt: selectedPlannedDate, startNow: true) }
+                        else { model.saveRoutine(existing: existing, name: name, liftNames: lifts, plannedAt: selectedPlannedDate, startNow: true, targetSets: Int(sets) ?? 3, targetReps: Int(reps) ?? 8) }
                         dismiss()
                     }
                     Button("Save for later") {
-                        model.saveRoutine(existing: existing, name: name, liftNames: lifts, plannedAt: selectedPlannedDate, startNow: false, targetSets: Int(sets) ?? 3, targetReps: Int(reps) ?? 8)
+                        if let selectedImportedRoutine, existing == nil { model.saveImportedRoutine(selectedImportedRoutine, plannedAt: selectedPlannedDate, startNow: false) }
+                        else { model.saveRoutine(existing: existing, name: name, liftNames: lifts, plannedAt: selectedPlannedDate, startNow: false, targetSets: Int(sets) ?? 3, targetReps: Int(reps) ?? 8) }
                         dismiss()
                     }.font(KoiTheme.caption).frame(maxWidth: .infinity).buttonStyle(.plain)
                 }.padding(KoiTheme.space.s21)
@@ -338,6 +376,13 @@ private struct WorkoutRoutineBuilder: View {
             .background(KoiBackground().ignoresSafeArea()).foregroundStyle(KoiTheme.onBase)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Close") { dismiss() }.font(KoiTheme.caption) } }
         }.preferredColorScheme(.dark)
+        .onChange(of: importPhotoItem) { _, item in
+            guard let item else { return }
+            Task {
+                guard let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) else { importError = "Couldn't read that photo. Try another."; return }
+                importPhotoJPEG = image.jpegData(compressionQuality: 0.84)
+            }
+        }
     }
 
     private var selectedPlannedDate: Date? {
@@ -365,10 +410,31 @@ private struct WorkoutRoutineBuilder: View {
         guard !clean.isEmpty else { return }
         lifts.append(clean); nextLift = ""
     }
+
+    @MainActor private func importPlan() async {
+        isImporting = true
+        importError = nil
+        defer { isImporting = false }
+        do {
+            importedRoutines = try await importer.importWorkout(text: importText, jpegData: importPhotoJPEG)
+            guard let first = importedRoutines.first else { importError = "Koi couldn't find a routine in that plan."; return }
+            applyImported(first)
+        } catch let error as LocalizedError { importError = error.errorDescription ?? "Couldn't read that plan. Try again." }
+        catch { importError = "Couldn't read that plan. Try again." }
+    }
+
+    private func applyImported(_ routine: ImportedRoutine) {
+        selectedImportedRoutine = routine
+        name = routine.name
+        lifts = routine.exercises.map(\.name)
+        sets = String(routine.exercises.map(\.sets).max() ?? 3)
+        reps = String(routine.exercises.map(\.reps).max() ?? 8)
+    }
 }
 
 private struct WorkoutModeView: View {
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("koi.workout.barWeightLB") private var gymBarWeight = 45.0
     @State private var nextLift = ""
     let model: WorkoutViewModel
     let onFinish: (WorkoutCompletionSummary?) -> Void
@@ -421,10 +487,17 @@ private struct WorkoutModeView: View {
                             GlassChip(title: lift.name, symbol: model.setCount(for: lift) >= lift.targetSets ? "checkmark" : nil, isOn: model.currentLift?.id == lift.id)
                         }.buttonStyle(.plain)
                             .contextMenu {
+                                Button(model.isPairing(lift) ? "Tap the next lift" : "Pair with next", systemImage: "link") { model.pairWithNext(lift) }
+                                if model.isPaired(lift) { Button("Unpair", systemImage: "link.badge.minus", role: .destructive) { model.unpair(lift) } }
                                 Button("Remove lift", role: .destructive) { model.removeLift(lift) }
                             }
                     }
                 }
+            }
+            if model.activeLifts.contains(where: { model.isPairing($0) }) {
+                Text("Choose another lift to pair.").font(KoiTheme.caption).opacity(0.72)
+            } else if let lift = model.currentLift, model.isPaired(lift) {
+                Text("Superset · alternate lifts, then rest.").font(KoiTheme.caption).opacity(0.72)
             }
             HStack(spacing: KoiTheme.space.s8) {
                 TextField("Add a lift", text: $nextLift).font(KoiTheme.body).padding(.vertical, KoiTheme.space.s8)
@@ -469,6 +542,9 @@ private struct WorkoutModeView: View {
                 valueControl(title: "REPS", value: "\(model.currentReps)", unit: "REPS", minus: { model.changeReps(by: -1) }, plus: { model.changeReps(by: 1) }) {
                     TextField("8", value: Binding(get: { model.currentReps }, set: { model.setReps($0) }), format: .number).keyboardType(.numberPad).multilineTextAlignment(.center).font(.system(size: 40, weight: .semibold, design: .rounded)).frame(width: 74)
                 }
+            }
+            if isBarbell(lift.name) {
+                plateDiagram(for: model.currentWeight, barWeight: gymBarWeight)
             }
             if model.isNewBest { GlassChip(title: "New best", symbol: "sparkle", isOn: true) }
             if model.isResting {
@@ -543,6 +619,41 @@ private struct WorkoutModeView: View {
                 Button(action: plus) { Image(systemName: "plus").frame(width: 30, height: 30) }
             }.buttonStyle(.plain)
         }.frame(maxWidth: .infinity).padding(.vertical, KoiTheme.space.s8)
+    }
+
+    private func plateDiagram(for weight: Double, barWeight: Double) -> some View {
+        let load = PlateMath.load(weight: weight, bar: barWeight)
+        return VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
+            HStack {
+                Text("PLATES · \(formatWeight(barWeight)) LB BAR").font(KoiTheme.section).tracking(1.2)
+                Spacer()
+                Menu("Bar") {
+                    Button("45 lb") { gymBarWeight = 45 }
+                    Button("35 lb") { gymBarWeight = 35 }
+                    Button("60 lb · trap bar") { gymBarWeight = 60 }
+                }.font(KoiTheme.caption).buttonStyle(.plain)
+            }
+            HStack(spacing: 3) {
+                Rectangle().fill(KoiTheme.onBase.opacity(0.72)).frame(width: 12, height: 16)
+                Rectangle().fill(KoiTheme.onBase.opacity(0.45)).frame(maxWidth: .infinity).frame(height: 4)
+                ForEach(Array(load.platesPerSide.enumerated()), id: \.offset) { _, plate in
+                    let emphasis = min(plate / 45, 1)
+                    let width = max(5, min(12, 5 + plate / 8))
+                    let height = max(18, min(42, 15 + plate / 2))
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(KoiTheme.onBase.opacity(0.2 + emphasis * 0.55))
+                        .frame(width: width, height: height)
+                        .accessibilityLabel("Plate per side")
+                }
+            }.frame(height: 46)
+            Text(load.isExact ? "\(load.platesPerSide.map(formatWeight).joined(separator: " + ")) each side" : "Use \(formatWeight(load.usableWeight)) lb")
+                .font(KoiTheme.caption).opacity(0.7)
+        }.padding(KoiTheme.space.s13).background(.ultraThinMaterial.opacity(0.18), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func isBarbell(_ name: String) -> Bool {
+        let value = name.lowercased()
+        return value.contains("barbell") || ["bench press", "deadlift", "squat", "overhead press", "military press"].contains(where: value.contains)
     }
 
     private func durationText(from start: Date, now: Date) -> String {

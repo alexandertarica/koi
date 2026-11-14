@@ -19,7 +19,7 @@ what's partial, known issues, and the next step.
 | 9 | Onboarding + tour | ✅ |
 | 10 | Notifications + calendar sync + iCloud backup | ✅ |
 | 11 | Widgets, Live Activity (log set from lock screen), Log-a-meal control | ✅ |
-| 12 | Smart note, readiness, habit coach, trends, supersets, plate drawing, workout import | ☐ |
+| 12 | Smart note, readiness, habit coach, trends, supersets, plate drawing, workout import | ✅ |
 | 13 | Analytics, polish pass on every screen, empty states, demo data | ☐ |
 
 ## Done
@@ -106,6 +106,23 @@ what's partial, known issues, and the next step.
   Activity actions persist through the shared SwiftData container. Forty-seven
   simulator tests pass; WidgetKit registered the extension, the app launched on
   iPhone 17 Pro, and the meal composer deep link was reviewed.
+- Phase 12: added the tab-bar Smart Note sheet with food estimate, water, habit,
+  to-do, workout-set and planned-lift actions. Foundation Models classifies
+  notes on device when available, with a deterministic parser as fallback.
+  HealthKit now reads sleep, HRV and resting heart rate against recent
+  baselines, preferring Apple Watch sources; low readiness keeps usual loads in
+  workout progression. Sunday coaching supports easing a schedule, setting a
+  minimum, graduating a habit, or stacking a habit, with a two-week snooze.
+  Graduation is preserved in backups and historical Balance. Workout routines
+  import from text or photos through the configured backend with per-lift set
+  and rep targets. Workout mode supports alternating supersets with rest after
+  the pair and per-side plate drawings for barbell lifts, including bar-weight
+  selection and nearest-load guidance. Tests cover readiness bands, plate
+  selection, coach thresholds, note parsing, imported routine persistence,
+  superset alternation and graduation backup. Fifty-two simulator tests passed
+  before the final classifier and load-hold edits; the latest app and test
+  targets compile successfully. iPhone 17 Pro review covered Smart Note,
+  Movement, workout import, To-Do and Profile.
 
 ## Partial / known issues
 
@@ -124,6 +141,11 @@ what's partial, known issues, and the next step.
   visual pass on a physical iPhone; simulator checks covered extension
   registration and app routing. Control Center availability also depends on
   iOS presenting the registered control.
+- Health readiness needs enough HealthKit sleep and recovery samples; the
+  simulator has none. The workout-import endpoint and photo flow still need a
+  configured-network device check. The latest simulator test launch stalled
+  after CoreSimulatorService stopped responding; `build-for-testing` succeeded,
+  and the last complete suite run passed all 52 tests.
 - To-Do reminder notifications and calendar free-time selection/sync are deferred
   to Phase 10. The `-koiDemo` full-week seed is part of Phase 13, so Phase 3 was
   visually checked with empty data and in-session task entry.
@@ -132,5 +154,5 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Phase 12: finish the Smart Note, readiness, habit coach, trends, supersets,
-plate drawing, and workout import features.
+Phase 13: add release-only analytics, finish the tour and interaction polish,
+and seed representative demo data for the full-week review.

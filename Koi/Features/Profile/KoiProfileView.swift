@@ -46,7 +46,8 @@ struct KoiProfileView: View {
                     fold("Apple Health", summary: model.healthConnected ? "Connected" : "Not connected") { healthSection }
                     fold("Apple Calendar", summary: model.calendarConnected ? "Connected" : "Not connected") { calendarSection }
                     fold("Smart notes", summary: "Write freely from the tab bar") {
-                        Text("Smart notes will be available in a later update.").font(KoiTheme.caption).opacity(0.72)
+                        Text("Turn a short note into a meal estimate, water log, habit check, to-do or workout.")
+                            .font(KoiTheme.caption).opacity(0.72)
                     }
                     fold("iCloud backup", summary: backupSummary) { backupSection }
                     fold("Tips & gestures", summary: "A few quiet shortcuts") { tipsSection }

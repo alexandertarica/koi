@@ -43,6 +43,10 @@ final class WorkoutViewModel {
     private var workoutLifts: [KoiWorkoutLift] = []
     private var workoutSets: [KoiWorkoutSet] = []
     private var movementDays: [KoiMovementDay] = []
+    private var supersetPairs: [UUID: UUID] = [:]
+    private var supersetAnchorID: UUID?
+    private var lastSupersetLiftID: UUID?
+    private(set) var readiness: ReadinessLevel?
 
     private(set) var routines: [KoiWorkoutRoutine] = []
     private(set) var activeSession: KoiWorkoutSession?
@@ -96,7 +100,14 @@ final class WorkoutViewModel {
         }
         let summaries = routines.map { WorkoutRoutineSummary(id: $0.id, name: $0.name, muscleGroup: $0.muscleGroup, plannedAt: $0.plannedAt) }
         let planned = todaysPlannedRoutine.map { WorkoutRoutineSummary(id: $0.id, name: $0.name, muscleGroup: $0.muscleGroup, plannedAt: $0.plannedAt) }
-        return WorkoutEngine.recommend(WorkoutRecommendationInput(groupLastTrained: lastByGroup, lastRoutineNameByGroup: lastRoutineNames, consecutiveTrainingDays: consecutiveTrainingDays, plannedRoutine: planned, routines: summaries))
+        let result = WorkoutEngine.recommend(WorkoutRecommendationInput(groupLastTrained: lastByGroup, lastRoutineNameByGroup: lastRoutineNames, consecutiveTrainingDays: consecutiveTrainingDays, plannedRoutine: planned, routines: summaries))
+        guard readiness == .takeItEasy else { return result }
+        return WorkoutRecommendation(group: result.group, routine: result.routine, suggestsRest: false, reason: "Recovery is low. Go light and hold your usual weights.")
+    }
+
+    func setReadiness(_ reading: ReadinessReading?) {
+        readiness = reading?.level
+        if let lift = currentLift { hydrateSet(for: lift) }
     }
 
     var canLogAlreadyDid: Bool {
@@ -208,6 +219,25 @@ final class WorkoutViewModel {
         saveRoutine(existing: nil, name: summary.name, liftNames: lifts, plannedAt: nil, startNow: false)
     }
 
+    func saveImportedRoutine(_ imported: ImportedRoutine, plannedAt: Date?, startNow: Bool) {
+        guard let context else { return }
+        let name = imported.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let exercises = imported.exercises.filter { !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard !name.isEmpty, !exercises.isEmpty else { errorMessage = "Koi couldn't find a complete routine in that plan."; return }
+        let routine = KoiWorkoutRoutine(name: name, muscleGroup: WorkoutNameRules.guessRoutineGroup(name), plannedAt: startNow ? nil : plannedAt)
+        context.insert(routine)
+        for (index, exercise) in exercises.enumerated() {
+            context.insert(KoiRoutineLift(routineID: routine.id, name: exercise.name, muscleGroup: WorkoutNameRules.guessGroup(exercise.name), targetSets: exercise.sets, targetReps: exercise.reps, order: index))
+        }
+        do {
+            try context.save()
+            if startNow { startRoutine(routine) } else { load(context) }
+        } catch {
+            logger.error("Unable to save an imported workout routine.")
+            errorMessage = "Couldn't save that routine. Try again."
+        }
+    }
+
     func saveRoutine(existing: KoiWorkoutRoutine?, name: String, liftNames: [String], plannedAt: Date?, startNow: Bool, targetSets: Int = 3, targetReps: Int = 8) {
         guard let context else { return }
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -291,10 +321,24 @@ final class WorkoutViewModel {
     }
 
     func selectLift(_ id: UUID) {
+        if let anchor = supersetAnchorID, anchor != id {
+            supersetPairs[anchor] = id
+            supersetPairs[id] = anchor
+            supersetAnchorID = nil
+        }
         selectedLiftID = id
         isNewBest = false
         if let lift = activeLifts.first(where: { $0.id == id }) { hydrateSet(for: lift) }
         syncLiveActivity()
+    }
+
+    func pairWithNext(_ lift: KoiWorkoutLift) { supersetAnchorID = lift.id }
+    func isPairing(_ lift: KoiWorkoutLift) -> Bool { supersetAnchorID == lift.id }
+    func isPaired(_ lift: KoiWorkoutLift) -> Bool { supersetPairs[lift.id] != nil }
+    func unpair(_ lift: KoiWorkoutLift) {
+        if let partner = supersetPairs.removeValue(forKey: lift.id) { supersetPairs.removeValue(forKey: partner) }
+        if supersetAnchorID == lift.id { supersetAnchorID = nil }
+        lastSupersetLiftID = nil
     }
 
     func changeMuscleGroup(of lift: KoiWorkoutLift, to group: String) {
@@ -341,12 +385,28 @@ final class WorkoutViewModel {
         if !warmUp, !bodyweight, let estimate = WorkoutEngine.estimatedOneRepMax(weightLB: weight, reps: currentReps) {
             isNewBest = estimate > previousBest
         } else { isNewBest = false }
-        activeSession.restUntil = warmUp ? nil : .now.addingTimeInterval(TimeInterval(lift.restSeconds))
+        let partnerID = supersetPairs[lift.id]
+        let completesSuperset = partnerID != nil && lastSupersetLiftID == partnerID
+        if warmUp || partnerID == nil {
+            activeSession.restUntil = warmUp ? nil : .now.addingTimeInterval(TimeInterval(lift.restSeconds))
+            lastSupersetLiftID = nil
+        } else if completesSuperset {
+            activeSession.restUntil = .now.addingTimeInterval(TimeInterval(lift.restSeconds))
+            lastSupersetLiftID = nil
+            if let partnerID { selectedLiftID = partnerID }
+        } else {
+            activeSession.restUntil = nil
+            lastSupersetLiftID = lift.id
+            if let partnerID { selectedLiftID = partnerID }
+        }
         saveAndReload(context)
-        if let refreshedLift = activeLifts.first(where: { $0.id == lift.id }) {
-            selectedLiftID = refreshedLift.id
-            currentWeight = weight
-            currentReps = currentSets.count < refreshedLift.targetSets ? refreshedLift.targetReps : currentReps
+        if let refreshedLift = currentLift {
+            if refreshedLift.id != lift.id { hydrateSet(for: refreshedLift) }
+            else {
+                selectedLiftID = refreshedLift.id
+                currentWeight = weight
+                currentReps = currentSets.count < refreshedLift.targetSets ? refreshedLift.targetReps : currentReps
+            }
         }
     }
 
@@ -455,10 +515,11 @@ final class WorkoutViewModel {
         guard let previous = completedWorkouts.first(where: { $0.id == previousLift.sessionID }) else { return nil }
         let sets = workoutSets.filter { $0.sessionID == previous.id && $0.liftID == previousLift.id }.sorted { $0.loggedAt < $1.loggedAt }
         let inputs = sets.filter { !$0.isWarmUp }.map { WorkoutSetResult(weightLB: $0.weightLB, reps: $0.reps, estimatedOneRepMax: WorkoutEngine.estimatedOneRepMax(weightLB: $0.weightLB, reps: $0.reps, isBodyweight: $0.isBodyweight)) }
-        return WorkoutEngine.nextStep(lastSets: inputs, targetReps: lift.targetReps, targetSets: lift.targetSets, isBodyweight: WorkoutNameRules.isBodyweight(lift.name))
+        return WorkoutEngine.nextStep(lastSets: inputs, targetReps: lift.targetReps, targetSets: lift.targetSets, isBodyweight: WorkoutNameRules.isBodyweight(lift.name), holdWeight: readiness == .takeItEasy)
     }
 
     private func progressionCaption(for lift: KoiWorkoutLift) -> String {
+        if readiness == .takeItEasy { return "Recovery is low. Hold your usual weight." }
         guard let previousLift = previousLift(for: lift),
               let previous = completedWorkouts.first(where: { $0.id == previousLift.sessionID }) else { return "" }
         let sets = workoutSets.filter { $0.sessionID == previous.id && $0.liftID == previousLift.id && !$0.isWarmUp }.sorted { $0.loggedAt < $1.loggedAt }

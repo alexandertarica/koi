@@ -195,6 +195,7 @@ public final class KoiHabit {
     public var stackingCue: String = ""
     public var identity: String = ""
     public var pausedAt: Date? = nil
+    public var graduatedAt: Date? = nil
 
     public init(title: String, note: String = "", isActive: Bool = true, createdAt: Date = .now, schedule: String = "daily", weekdays: [Int] = [], reminderTime: Date? = nil, minimumVersion: String = "", stackingCue: String = "", identity: String = "") {
         self.id = UUID()
@@ -209,6 +210,7 @@ public final class KoiHabit {
         self.stackingCue = stackingCue
         self.identity = identity
         self.pausedAt = nil
+        self.graduatedAt = nil
     }
 }
 
