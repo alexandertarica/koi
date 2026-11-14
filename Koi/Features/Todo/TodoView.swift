@@ -13,7 +13,7 @@ struct TodoView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
+            VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
                 header.modifier(KoiIntroReveal(order: 0))
                 if model.showingArchive { archiveContent.modifier(KoiIntroReveal(order: 2)) }
                 else if model.showingNewTask { NewTaskSheet(model: model, embedded: true).modifier(KoiIntroReveal(order: 1)) }
@@ -25,13 +25,18 @@ struct TodoView: View {
                 }
             }
             .padding(.horizontal, KoiTheme.space.s21)
-            .padding(.top, KoiTheme.space.s21)
+            .padding(.top, KoiTheme.space.s13)
             .padding(.bottom, KoiTheme.space.s34)
         }
         .scrollIndicators(.hidden)
         .onAppear {
             model.setMode(startsInMatrix ? .matrix : .list)
             model.load(modelContext, calendarProvider: calendarProvider, notificationProvider: notificationProvider)
+            switch KoiLaunch.screen {
+            case "todoNew", "newTodo": model.beginTask()
+            case "newHabit": model.beginHabit()
+            default: break
+            }
         }
         .alert("Keep this for later?", isPresented: Binding(get: { model.staleTaskID != nil }, set: { if !$0 { model.dismissStaleTask(keep: true) } })) {
             Button("Keep", role: .cancel) { model.dismissStaleTask(keep: true) }
@@ -63,10 +68,8 @@ struct TodoView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
-                Image("KoiWordmark")
-                    .resizable().renderingMode(.template).scaledToFit()
-                    .frame(width: 240, height: 28)
-                    .foregroundStyle(KoiTheme.onBase)
+                Image("KoiWordmark").resizable().renderingMode(.template).scaledToFit()
+                    .frame(width: 240, height: 28).foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95))
                     .accessibilityLabel("Koi")
                 Spacer()
                 Button {
@@ -81,15 +84,15 @@ struct TodoView: View {
                         .font(.system(size: 21, weight: .light)).foregroundStyle(KoiTheme.onBase)
                         .frame(width: 44, height: 44).contentShape(Circle())
                 }
+                .padding(.vertical, -8)
                 .buttonStyle(.plain)
                 .accessibilityLabel(model.showingArchive || model.showingNewTask || model.showingNewHabit ? "Close" : "Archive")
             }
             VStack(alignment: .leading, spacing: 0) {
                 Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased())
-                    .font(KoiTheme.section).tracking(2.7).foregroundStyle(KoiTheme.onBase.opacity(0.8))
-                    .padding(.top, 7)
+                    .font(KoiTheme.section).tracking(2.7).foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95).opacity(0.88)).padding(.top, 7)
                 Text(model.showingArchive ? "Archive" : (model.showingNewTask ? (model.editingTaskID == nil ? "New to-do" : "Edit to-do") : model.showingNewHabit ? (model.editingHabitID == nil ? "New habit" : "Edit habit") : "Practice"))
-                    .font(KoiTheme.title).foregroundStyle(KoiTheme.onBase).padding(.top, 3)
+                    .font(KoiTheme.title).foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95)).padding(.top, 3)
             }
             if model.showingArchive || model.showingNewTask || model.showingNewHabit {
                 EmptyView()
@@ -109,7 +112,7 @@ struct TodoView: View {
                         .accessibilityElement(children: .combine)
                     }
                 }
-                .padding(.top, KoiTheme.space.s13)
+                .padding(.top, KoiTheme.space.s21)
             }
         }
     }
@@ -155,7 +158,7 @@ struct TodoView: View {
         let today = calendar.startOfDay(for: .now)
         return model.activeTasks.filter { task in
             guard let due = task.dueAt else { return false }
-            return calendar.startOfDay(for: due) <= today
+            return calendar.startOfDay(for: due) == today
         }
     }
 
@@ -187,22 +190,16 @@ struct TodoView: View {
                 withAnimation(.snappy) { model.toggleHabit(habit) }
             } label: {
                 ZStack {
-                    Circle().strokeBorder(KoiTheme.onBase.opacity(0.45), lineWidth: 1.5)
                     ForEach(0..<24, id: \.self) { index in
-                        Capsule().fill(KoiTheme.onBase.opacity(complete ? 0.85 : 0.5))
+                        let completion = model.todayCompletion(for: habit)
+                        let progress = completion >= 2 ? 24 : completion == 1 ? 12 : 0
+                        Capsule().fill(KoiTheme.onBase.opacity(index < progress ? 0.92 : 0.28))
                             .frame(width: 1, height: index.isMultiple(of: 4) ? 6 : 3)
                             .offset(y: -21)
                             .rotationEffect(.degrees(Double(index) * 15))
                     }
-                    if complete {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 16, weight: .light))
-                            .foregroundStyle(KoiTheme.onBase)
-                            .transition(.scale.combined(with: .opacity))
-                    } else {
-                        Text(String(habit.title.prefix(1)).uppercased())
-                            .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.8))
-                    }
+                    Text(String(habit.title.prefix(1)).uppercased())
+                        .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.8))
                 }
                 .frame(width: 48, height: 48)
                 .contentShape(Circle())
@@ -239,12 +236,27 @@ struct TodoView: View {
         var cursor = calendar.startOfDay(for: .now)
         if !completedDates.contains(cursor) { cursor = calendar.date(byAdding: .day, value: -1, to: cursor) ?? cursor }
         var count = 0
-        while completedDates.contains(cursor) {
+        while cursor >= calendar.startOfDay(for: habit.createdAt) {
+            if !habitIsScheduled(habit, on: cursor, calendar: calendar) {
+                guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+                cursor = previous
+                continue
+            }
+            guard completedDates.contains(cursor) else { break }
             count += 1
             guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
             cursor = previous
         }
         return count
+    }
+
+    private func habitIsScheduled(_ habit: KoiHabit, on date: Date, calendar: Calendar) -> Bool {
+        switch habit.schedule {
+        case "weekly": calendar.component(.weekday, from: date) == calendar.component(.weekday, from: habit.createdAt)
+        case "monthly": calendar.component(.day, from: date) == calendar.component(.day, from: habit.createdAt)
+        case "someDays": habit.weekdays.contains(calendar.component(.weekday, from: date))
+        default: true
+        }
     }
 
     private var habitCoachCard: some View {
@@ -295,28 +307,6 @@ struct TodoView: View {
                     taskSection("Upcoming", tasks: upcomingTasks, compact: false)
                 }
             }
-            if !model.finishedTasks.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Button {
-                        KoiHaptics.tap()
-                        withAnimation(KoiTheme.morph) { showFinished.toggle() }
-                    } label: {
-                        HStack(spacing: KoiTheme.space.s8) {
-                            sectionLabel("DONE · \(model.finishedTasks.count)")
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 11, weight: .light))
-                                .rotationEffect(.degrees(showFinished ? 0 : -90))
-                            Spacer()
-                        }.contentShape(Rectangle()).foregroundStyle(KoiTheme.onBase)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(model.finishedTasks.count) done")
-                    if showFinished {
-                        VStack(spacing: 0) { ForEach(model.finishedTasks) { taskRow($0, compact: true) } }
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-                }
-            }
         }
     }
 
@@ -348,7 +338,6 @@ struct TodoView: View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
             if let title { sectionLabel(title) }
             VStack(spacing: 0) { ForEach(tasks) { taskRow($0, compact: compact) } }
-                .background(.ultraThinMaterial.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
         }
     }
 
@@ -411,8 +400,11 @@ struct TodoView: View {
                         withAnimation(KoiTheme.morph) { model.openTask(task) }
                     } label: {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(task.title).font(KoiTheme.body).strikethrough(task.isComplete).foregroundStyle(KoiTheme.onBase).lineLimit(2)
-                            if !compact, let due = model.dueLabel(for: task) {
+                            Text(task.title).font(.custom("RobotoMono-Light", size: 15)).strikethrough(task.isComplete).foregroundStyle(KoiTheme.onBase).lineLimit(2)
+                            if !compact, let dueAt = task.dueAt,
+                               Calendar.current.startOfDay(for: dueAt) <= Calendar.current.startOfDay(for: .now),
+                               !model.tasksMarkedUrgent.contains(task.id),
+                               let due = model.dueLabel(for: task) {
                                 HStack(spacing: 4) {
                                     Text(due)
                                     if task.hasTime && task.calendarEventID != nil { Image(systemName: "calendar").accessibilityLabel("On your calendar") }
@@ -440,7 +432,12 @@ struct TodoView: View {
                             }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.buttonStyle(.plain)
-                    if model.tasksMarkedUrgent.contains(task.id) { Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .light)).foregroundStyle(KoiTheme.onBase.opacity(0.72)) }
+                    if !compact, let dueAt = task.dueAt,
+                       Calendar.current.startOfDay(for: dueAt) > Calendar.current.startOfDay(for: .now) {
+                        Text(model.dueLabel(for: task) ?? "")
+                            .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.72))
+                            .frame(minWidth: 46, alignment: .trailing)
+                    }
                 }
                 .frame(minHeight: 44)
             }

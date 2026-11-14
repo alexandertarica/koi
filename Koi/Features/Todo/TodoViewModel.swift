@@ -126,7 +126,7 @@ final class TodoViewModel {
         if let notificationProvider { self.notificationProvider = notificationProvider }
         do {
             tasks = try context.fetch(FetchDescriptor<KoiTask>(sortBy: [SortDescriptor(\.createdAt)]))
-            habits = try context.fetch(FetchDescriptor<KoiHabit>(sortBy: [SortDescriptor(\.createdAt)]))
+            habits = try context.fetch(FetchDescriptor<KoiHabit>(sortBy: [SortDescriptor(\.createdAt)])).sorted { $0.createdAt < $1.createdAt }
             logs = try context.fetch(FetchDescriptor<KoiHabitLog>())
             movementDays = try context.fetch(FetchDescriptor<KoiMovementDay>())
             movementGoal = try context.fetch(FetchDescriptor<KoiMovementGoal>()).first
@@ -424,7 +424,7 @@ final class TodoViewModel {
             return time.hour == 0 && time.minute == 0 ? "Today" : "Today · \(dueAt.formatted(date: .omitted, time: .shortened))"
         }
         if calendar.isDateInTomorrow(dueAt) { return "Tomorrow" }
-        return dueAt.formatted(date: .abbreviated, time: .omitted)
+        return dueAt.formatted(.dateTime.month(.abbreviated).day())
     }
 
     private func quadrant(urgent: Bool, important: Bool) -> Int {
