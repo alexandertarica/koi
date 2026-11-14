@@ -12,3 +12,21 @@ single daily Balance, on a calm, watery iPhone app.
 
 1. Copy `Secrets.example.plist` to `Koi/Config/Secrets.plist` and fill in the token.
 2. Open `Koi.xcodeproj` in Xcode 26, select your team, run on an iPhone 17 Pro simulator.
+
+## Built at the CPVC AI Hackathon (Nov 13–15, 2026)
+
+All code in this repository was written during the hackathon, starting Friday
+evening. The idea, design direction and brand assets were prepared beforehand,
+as the rules allow.
+
+## Credits
+
+- **OpenAI Codex**: wrote the app code from the spec and design docs, working
+  through the phases in `HANDOFF.md`.
+- **Claude (Anthropic)**: planning, design review, side-by-side screen checks,
+  and the TestFlight release.
+- **In-app AI**: meal photos and text become calorie and nutrient estimates, and
+  workout screenshots become sets and reps. This runs through Koi's own API
+  proxy (OpenRouter), so no keys ship in the app.
+- **TelemetryDeck** for privacy-friendly analytics (release builds only).
+- **Roboto Mono** (Google Fonts, Apache 2.0).
