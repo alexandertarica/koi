@@ -144,9 +144,11 @@ what's partial, known issues, and the next step.
   pass, including archive round-trip and replacement coverage; Profile integration
   settings were reviewed on iPhone 17 Pro.
 - Phase 11: added shared, date-aware Balance and habit snapshots in the App
-  Group; small and medium Balance widgets; small, medium, and large interactive
-  habit widgets; Home and Lock Screen quick-log widgets; Balance, pillars, and
-  next-action Lock Screen widgets; a workout Live Activity with the current
+  Group; small and medium Home Screen Balance widgets; dedicated circular
+  Balance and rectangular Balance-with-pillars Lock Screen widgets; small,
+  medium, and large interactive habit widgets; a dedicated three-ring habit
+  widget; Home and Lock Screen quick-log widgets; a Lock Screen meal-camera
+  widget; next-action Lock Screen widget; a workout Live Activity with the current
   set, rest countdown, and a lock-screen Log set action; and a Control Center
   meal control that opens the camera on a supported device. Widget and Live
   Activity actions persist through the shared SwiftData container. Forty-seven

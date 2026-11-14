@@ -117,7 +117,29 @@ struct KoiBalanceWidget: Widget {
         }
         .configurationDisplayName("Koi Balance")
         .description("A quiet look at today's Balance.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+
+struct BalanceWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "KoiBalanceLock", provider: KoiProvider()) { entry in
+            KoiBalanceWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Balance")
+        .description("Today's Balance score.")
+        .supportedFamilies([.accessoryCircular])
+    }
+}
+
+struct BalancePillarsWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "KoiBalancePillars", provider: KoiProvider()) { entry in
+            KoiBalanceWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Balance and pillars")
+        .description("Today's Balance with habits, nutrition and exercise.")
+        .supportedFamilies([.accessoryRectangular])
     }
 }
 
@@ -192,6 +214,55 @@ struct KoiHabitsWidget: Widget {
     }
 }
 
+private struct KoiHabitRingsView: View {
+    let entry: KoiEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("TODAY'S HABITS").font(.system(size: 9, design: .monospaced)).tracking(1.3).foregroundStyle(KoiWidgetColors.muted)
+                Spacer()
+                Text("\(entry.snapshot.habitsCompleted)/\(entry.snapshot.habitsTotal)").font(.system(size: 11, design: .monospaced))
+            }
+            if entry.snapshot.habitItems.isEmpty {
+                Text("Your habits will settle here.").font(.system(size: 12)).foregroundStyle(KoiWidgetColors.muted).frame(maxHeight: .infinity, alignment: .center)
+            } else {
+                HStack(alignment: .top, spacing: 7) {
+                    ForEach(entry.snapshot.habitItems.prefix(3)) { habit in
+                        VStack(spacing: 5) {
+                            ZStack {
+                                Circle().stroke(KoiWidgetColors.ink.opacity(0.18), lineWidth: 3)
+                                Circle().trim(from: 0, to: habit.isComplete ? 1 : 0.08)
+                                    .stroke(KoiWidgetColors.ink.opacity(habit.isComplete ? 0.9 : 0.38), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                    .rotationEffect(.degrees(-90))
+                                if habit.isComplete { Image(systemName: "checkmark").font(.system(size: 9, weight: .medium)) }
+                            }
+                            .frame(width: 25, height: 25)
+                            Text(habit.title).font(.system(size: 8)).lineLimit(1).frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(13)
+        .foregroundStyle(KoiWidgetColors.ink)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .containerBackground(KoiWidgetColors.water.gradient, for: .widget)
+        .widgetURL(KoiWidgetLinks.habits)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(entry.snapshot.habitsCompleted) of \(entry.snapshot.habitsTotal) habits complete")
+    }
+}
+
+struct HabitRingsWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "KoiHabitRings", provider: KoiProvider()) { entry in KoiHabitRingsView(entry: entry) }
+            .configurationDisplayName("Habit rings")
+            .description("A small ring for each of today's first three habits.")
+            .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+
 private struct KoiQuickLogView: View {
     @Environment(\.widgetFamily) private var family
 
@@ -224,6 +295,24 @@ struct KoiQuickLogWidget: Widget {
             .configurationDisplayName("Quick log")
             .description("Open the meal composer from Home or Lock Screen.")
             .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+    }
+}
+
+struct MealCameraWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "KoiMealCamera", provider: KoiProvider()) { _ in
+            Link(destination: KoiWidgetLinks.mealCamera) {
+                ZStack {
+                    AccessoryWidgetBackground()
+                    Image(systemName: "camera").font(.system(size: 20, weight: .light))
+                }
+            }
+            .widgetAccentable()
+            .accessibilityLabel("Log a meal")
+        }
+        .configurationDisplayName("Meal camera")
+        .description("Open the meal camera from your Lock Screen.")
+        .supportedFamilies([.accessoryCircular])
     }
 }
 
@@ -441,8 +530,12 @@ struct KoiMealControl: ControlWidget {
 struct KoiWidgetBundle: WidgetBundle {
     var body: some Widget {
         KoiBalanceWidget()
+        BalanceWidget()
+        BalancePillarsWidget()
         KoiHabitsWidget()
+        HabitRingsWidget()
         KoiQuickLogWidget()
+        MealCameraWidget()
         KoiNextActionWidget()
         KoiWorkoutLiveActivity()
         KoiMealControl()
