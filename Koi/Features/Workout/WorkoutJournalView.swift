@@ -41,7 +41,18 @@ struct WorkoutJournalView: View {
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { KoiHaptics.tap(); dismiss() }.font(KoiTheme.caption) } }
         }
         .preferredColorScheme(.dark)
-        .onAppear { model.load(modelContext); model.setReadiness(readiness) }
+        .onAppear {
+            model.load(modelContext)
+            model.setReadiness(readiness)
+            switch KoiLaunch.screen {
+            case "workout", "workoutMode":
+                if model.activeSession == nil { model.startEmptyWorkout() }
+                showsWorkoutMode = true
+            case "routineBuilder": showsRoutineBuilder = true
+            case "run": journalTab = "Cardio"
+            default: break
+            }
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { model.load(modelContext) }
         }

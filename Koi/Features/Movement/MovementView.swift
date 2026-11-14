@@ -5,13 +5,13 @@ struct MovementView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.healthProvider) private var healthProvider
     @State private var model = MovementViewModel()
-    @State private var showsGoals = false
     @State private var showsWorkoutJournal = false
+    @State private var stepsExpanded = false
     @State private var recovery: HealthRecoverySnapshot?
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: KoiTheme.space.s34) {
+            VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
                 header.modifier(KoiIntroReveal(order: 0))
                 hero.modifier(KoiIntroReveal(order: 1))
                 if let recovery { readinessCard(recovery).modifier(KoiIntroReveal(order: 2)) }
@@ -19,13 +19,15 @@ struct MovementView: View {
                 statsSection.modifier(KoiIntroReveal(order: 4))
             }
             .padding(.horizontal, KoiTheme.space.s21)
-            .padding(.top, KoiTheme.space.s21)
+            .padding(.top, KoiTheme.space.s13)
             .padding(.bottom, KoiTheme.space.s55)
         }
-        .background(KoiBackground().ignoresSafeArea())
         .foregroundStyle(KoiTheme.onBase)
         .onAppear {
             model.load(modelContext)
+            if ["workoutJournal", "workout", "workoutMode", "routineBuilder", "run"].contains(KoiLaunch.screen ?? "") {
+                showsWorkoutJournal = true
+            }
             Task {
                 await model.refreshHealth(using: healthProvider)
                 recovery = try? await healthProvider.recoveryData(for: .now, calendar: .autoupdatingCurrent)
@@ -37,7 +39,6 @@ struct MovementView: View {
                 recovery = try? await healthProvider.recoveryData(for: .now, calendar: .autoupdatingCurrent)
             }
         }
-        .sheet(isPresented: $showsGoals) { MovementGoalEditor(model: model).presentationDetents([.medium]) }
         .sheet(isPresented: $showsWorkoutJournal) { WorkoutJournalView(readiness: recovery?.reading).presentationDetents([.large]) }
         .alert("Movement", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.clearError() } })) {
             Button("OK", role: .cancel) { model.clearError() }
@@ -63,23 +64,21 @@ struct MovementView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: KoiTheme.space.s5) {
-                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased()).font(KoiTheme.section).tracking(2.7).opacity(0.92)
-                Text("Movement").font(KoiTheme.title)
-            }
-            Spacer()
-            HStack(spacing: KoiTheme.space.s8) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
+                Image("KoiWordmark").resizable().renderingMode(.template).scaledToFit()
+                    .frame(width: 240, height: 28).foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95))
+                Spacer()
                 Button { KoiHaptics.tap(); showsWorkoutJournal = true } label: {
-                    Image(systemName: "dumbbell").font(.system(size: 18, weight: .light))
-                        .frame(width: 42, height: 42).background(.ultraThinMaterial.opacity(0.4), in: Circle())
-                        .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.24), lineWidth: 1))
+                    Image(systemName: "dumbbell").font(.system(size: 21, weight: .light)).foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95))
+                        .frame(width: 44, height: 44).contentShape(Circle())
                 }.buttonStyle(.plain).accessibilityLabel("Workout journal")
-                Button { KoiHaptics.tap(); showsGoals = true } label: {
-                    Image(systemName: "slider.horizontal.3").font(.system(size: 18, weight: .light))
-                        .frame(width: 42, height: 42).background(.ultraThinMaterial.opacity(0.45), in: Circle())
-                        .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.26), lineWidth: 1))
-                }.buttonStyle(.plain).accessibilityLabel("Edit movement goals")
+                    .padding(.vertical, -8)
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased())
+                    .font(KoiTheme.section).tracking(2.7).foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95).opacity(0.88)).padding(.top, 7)
+                Text("Movement").font(KoiTheme.title).foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95)).padding(.top, 3)
             }
         }
     }
@@ -99,7 +98,7 @@ struct MovementView: View {
                     else { KoiHaptics.ringFill(duration: 0.65, beats: 14) }
                     model.toggleManualTraining()
                 }, label: "LOG", what: "workout")
-                Text(model.isTrainingDay ? "LOGGED" : "TODAY").font(KoiTheme.section).tracking(1.3)
+                Text(model.isTrainingDay ? "LOGGED" : "LOG").font(KoiTheme.section).tracking(1.3)
             }.foregroundStyle(KoiTheme.onBase).padding(.trailing, KoiTheme.space.s21).padding(.bottom, 64).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         }
         .frame(height: 380).padding(.top, -KoiTheme.space.s13)
@@ -107,47 +106,68 @@ struct MovementView: View {
     }
 
     private var stepsSection: some View {
-        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
-            HStack {
-                VStack(alignment: .leading, spacing: KoiTheme.space.s5) {
-                    Text(model.stepSourceLabel.uppercased()).font(KoiTheme.section).tracking(1.8)
-                    Text("\(model.stepsRemaining.formatted()) to your daily goal").font(KoiTheme.caption).opacity(0.76)
-                }
-                Spacer()
-                Button { model.changeSteps(by: -1_000) } label: { Image(systemName: "minus").frame(width: 38, height: 38) }
-                    .buttonStyle(.plain).background(.ultraThinMaterial.opacity(0.28), in: Circle()).overlay(Circle().stroke(KoiTheme.onBase.opacity(0.25), lineWidth: 1))
-                    .accessibilityLabel("Subtract 1,000 steps")
-                Text(model.steps.formatted()).font(KoiTheme.caption).monospacedDigit().frame(minWidth: 58, alignment: .trailing)
-                Button { model.changeSteps(by: 1_000) } label: { Image(systemName: "plus").frame(width: 38, height: 38) }
-                    .buttonStyle(.plain).background(.ultraThinMaterial.opacity(0.28), in: Circle()).overlay(Circle().stroke(KoiTheme.onBase.opacity(0.25), lineWidth: 1))
-                    .accessibilityLabel("Add 1,000 steps")
-            }
-            HStack(spacing: KoiTheme.space.s8) {
-                Button { model.changeSteps(by: 1_000) } label: { GlassChip(title: "Walk +1,000", symbol: "figure.walk") }.buttonStyle(.plain)
-                Button { model.changeSteps(by: 4_000) } label: { GlassChip(title: "Run +4,000", symbol: "figure.run") }.buttonStyle(.plain)
-                Spacer(minLength: 0)
-            }
-            if healthProvider.isAvailable && !model.healthEnabled {
-                Button {
-                    Task { await model.connectHealth(using: healthProvider) }
-                } label: {
-                    HStack(spacing: KoiTheme.space.s8) {
-                        Image(systemName: "heart.text.square").font(.system(size: 15, weight: .light))
-                        Text(model.isRefreshingHealth ? "Connecting to Apple Health" : "Connect Apple Health").font(KoiTheme.caption)
-                        Spacer()
-                        Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .light)).opacity(0.72)
-                    }.foregroundStyle(KoiTheme.onBase.opacity(0.85)).padding(.vertical, KoiTheme.space.s8)
-                }.buttonStyle(.plain).disabled(model.isRefreshingHealth)
-            } else if model.healthEnabled {
-                HStack(spacing: KoiTheme.space.s8) {
-                    Image(systemName: "heart.fill").font(.system(size: 13, weight: .light))
-                    Text("Apple Health syncs when Koi opens.").font(KoiTheme.caption)
+        VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
+            Button { withAnimation(KoiTheme.morph) { stepsExpanded.toggle() } } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("STEPS").font(KoiTheme.section).tracking(1.8)
+                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .light)).rotationEffect(.degrees(stepsExpanded ? 180 : 0))
                     Spacer()
-                    Button { Task { await model.refreshHealth(using: healthProvider) } } label: {
-                        Image(systemName: model.isRefreshingHealth ? "arrow.clockwise" : "arrow.clockwise")
-                            .font(.system(size: 14, weight: .light)).frame(width: 34, height: 34)
-                    }.buttonStyle(.plain).disabled(model.isRefreshingHealth).accessibilityLabel("Refresh Apple Health")
-                }.opacity(0.8)
+                    Text(model.steps.formatted()).font(.custom("RobotoMono-Light", size: 29)).monospacedDigit()
+                    Text("/ \(model.stepGoal.formatted()) steps").font(KoiTheme.caption)
+                }.foregroundStyle(KoiTheme.onBase).contentShape(Rectangle())
+            }.buttonStyle(.plain)
+            GeometryReader { proxy in
+                let fraction = min(max(Double(model.steps) / Double(max(model.stepGoal, 1)), 0), 1)
+                ZStack(alignment: .leading) {
+                    Capsule().fill(KoiTheme.onBase.opacity(0.18)).frame(height: 2)
+                    Capsule().fill(KoiTheme.onBase.opacity(0.64)).frame(width: proxy.size.width * fraction, height: 2)
+                    Circle().fill(.ultraThinMaterial)
+                        .overlay(Circle().stroke(KoiTheme.onBase.opacity(0.55), lineWidth: 0.7))
+                        .frame(width: 12, height: 12).offset(x: max(0, proxy.size.width * fraction - 6))
+                }
+                .frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 0).onChanged { value in
+                    let targetSteps = min(max(value.location.x / max(proxy.size.width, 1), 0), 1) * Double(max(model.stepGoal, 1))
+                    model.setSteps(Int((targetSteps / 100).rounded()) * 100)
+                })
+            }
+            .frame(height: 18)
+            if stepsExpanded {
+                HStack {
+                    Text(model.stepSourceLabel.uppercased()).font(KoiTheme.section).tracking(1.8)
+                    Spacer()
+                    Button { model.changeSteps(by: -1_000) } label: { Image(systemName: "minus").frame(width: 38, height: 38) }
+                        .buttonStyle(.plain).background(.ultraThinMaterial.opacity(0.28), in: Circle()).overlay(Circle().stroke(KoiTheme.onBase.opacity(0.25), lineWidth: 1))
+                        .accessibilityLabel("Subtract 1,000 steps")
+                    Button { model.changeSteps(by: 1_000) } label: { Image(systemName: "plus").frame(width: 38, height: 38) }
+                        .buttonStyle(.plain).background(.ultraThinMaterial.opacity(0.28), in: Circle()).overlay(Circle().stroke(KoiTheme.onBase.opacity(0.25), lineWidth: 1))
+                        .accessibilityLabel("Add 1,000 steps")
+                }
+                HStack(spacing: KoiTheme.space.s8) {
+                    Button { model.changeSteps(by: 1_000) } label: { GlassChip(title: "Walk +1,000", symbol: "figure.walk") }.buttonStyle(.plain)
+                    Button { model.changeSteps(by: 4_000) } label: { GlassChip(title: "Run +4,000", symbol: "figure.run") }.buttonStyle(.plain)
+                    Spacer(minLength: 0)
+                }
+                if healthProvider.isAvailable && !model.healthEnabled {
+                    Button { Task { await model.connectHealth(using: healthProvider) } } label: {
+                        HStack(spacing: KoiTheme.space.s8) {
+                            Image(systemName: "heart.text.square").font(.system(size: 15, weight: .light))
+                            Text(model.isRefreshingHealth ? "Connecting to Apple Health" : "Connect Apple Health").font(KoiTheme.caption)
+                            Spacer()
+                            Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .light)).opacity(0.72)
+                        }.foregroundStyle(KoiTheme.onBase.opacity(0.85)).padding(.vertical, KoiTheme.space.s8)
+                    }.buttonStyle(.plain).disabled(model.isRefreshingHealth)
+                } else if model.healthEnabled {
+                    HStack(spacing: KoiTheme.space.s8) {
+                        Image(systemName: "heart.fill").font(.system(size: 13, weight: .light))
+                        Text("Apple Health syncs when Koi opens.").font(KoiTheme.caption)
+                        Spacer()
+                        Button { Task { await model.refreshHealth(using: healthProvider) } } label: {
+                            Image(systemName: "arrow.clockwise").font(.system(size: 14, weight: .light)).frame(width: 34, height: 34)
+                        }.buttonStyle(.plain).disabled(model.isRefreshingHealth).accessibilityLabel("Refresh Apple Health")
+                    }.opacity(0.8)
+                }
             }
         }
     }
@@ -180,7 +200,7 @@ private struct MovementDialCanvas: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let center = CGPoint(x: proxy.size.width * 0.14, y: proxy.size.height / 2)
+            let center = CGPoint(x: 0, y: proxy.size.height / 2)
             let radius = proxy.size.height / 2 - 14
             let progress = min(max(Double(steps) / Double(max(goal, 1)), 0), 1)
             ZStack(alignment: .topLeading) {
@@ -188,6 +208,14 @@ private struct MovementDialCanvas: View {
                     func point(_ t: Double, _ r: CGFloat) -> CGPoint {
                         let angle = -Double.pi / 2 + Double.pi * t
                         return CGPoint(x: center.x + r * cos(angle), y: center.y + r * sin(angle))
+                    }
+                    func barPoint(_ degrees: Double) -> CGPoint {
+                        let angle = degrees * Double.pi / 180
+                        return CGPoint(x: center.x + cos(angle) * (radius - 25), y: center.y + sin(angle) * (radius - 25))
+                    }
+                    func barDot(_ degrees: Double, opacity: Double) {
+                        let p = barPoint(degrees)
+                        context.fill(Path(ellipseIn: CGRect(x: p.x - 2, y: p.y - 2, width: 4, height: 4)), with: .color(.white.opacity(opacity)))
                     }
                     for tick in 0...72 {
                         let t = Double(tick) / 72
@@ -204,12 +232,15 @@ private struct MovementDialCanvas: View {
                     }
                     let count = min(max(workoutGoal, 1), 7)
                     for index in 0..<count {
-                        let start = Double(index) / Double(count)
-                        var track = Path(); track.addArc(center: center, radius: radius - 25, startAngle: .degrees(-90 + start * 180), endAngle: .degrees(-90 + (start + 1 / Double(count)) * 180), clockwise: false)
+                        let start = -90 + Double(index) / Double(count) * 180 + 5
+                        let span = 180 / Double(count) - 10
+                        var track = Path(); track.addArc(center: center, radius: radius - 25, startAngle: .degrees(start), endAngle: .degrees(start + span), clockwise: false)
                         context.stroke(track, with: .color(.white.opacity(0.38)), lineWidth: 4)
+                        barDot(start, opacity: 0.38); barDot(start + span, opacity: 0.38)
                         if index < workouts {
-                            var fill = Path(); fill.addArc(center: center, radius: radius - 25, startAngle: .degrees(-90 + start * 180), endAngle: .degrees(-90 + (start + 0.92 / Double(count)) * 180), clockwise: false)
+                            var fill = Path(); fill.addArc(center: center, radius: radius - 25, startAngle: .degrees(start), endAngle: .degrees(start + span), clockwise: false)
                             context.stroke(fill, with: .color(.white.opacity(0.78)), lineWidth: 4)
+                            barDot(start, opacity: 0.78); barDot(start + span, opacity: 0.78)
                         }
                     }
                     if progress > 0 {
@@ -219,10 +250,11 @@ private struct MovementDialCanvas: View {
                         context.stroke(circle, with: .color(.white.opacity(0.74)), lineWidth: 1)
                     }
                 }
+                let labelAngle = (-Double.pi / 2 + Double.pi * (0.5 / Double(max(workoutGoal, 1)))) * 0.5
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(workouts) / \(workoutGoal)").font(.custom("RobotoMono-Light", size: 14))
+                    Text("\(workouts) of \(workoutGoal)").font(.custom("RobotoMono-Light", size: 14))
                     Text("WORKOUTS").font(KoiTheme.section).tracking(0.8)
-                }.foregroundStyle(KoiTheme.onBase.opacity(0.9)).position(x: center.x + radius * 0.28 - 52, y: center.y)
+                }.foregroundStyle(KoiTheme.onBase.opacity(0.9)).position(x: (radius - 38) * cos(labelAngle) - 30, y: center.y + (radius - 38) * sin(labelAngle))
             }
         }
     }

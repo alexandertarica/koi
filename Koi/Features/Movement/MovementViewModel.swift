@@ -80,6 +80,14 @@ final class MovementViewModel {
         saveAndReload(context)
     }
 
+    func setSteps(_ value: Int) {
+        guard let context else { return }
+        let record = day(for: selectedDate) ?? createDay(in: context)
+        let healthSteps = max(record.healthSteps ?? 0, 0)
+        record.manualStepAdjustment = min(max(value - healthSteps, -healthSteps), 1_000_000)
+        saveAndReload(context)
+    }
+
     func setStepGoal(_ value: Int) {
         guard let context, let goal, (1_000...30_000).contains(value) else { return }
         goal.stepGoal = value
@@ -157,7 +165,7 @@ final class MovementViewModel {
         let todayRecord = movementDays.first { calendar.isDate($0.date, inSameDayAs: selectedDate) }
         steps = todayRecord?.steps ?? 0
         isManuallyTrained = todayRecord?.didManuallyTrain ?? false
-        workoutsThisWeek = days.reduce(0) { $0 + $1.workoutCount }
+        workoutsThisWeek = days.filter { $0.workoutCount > 0 }.count
         let stepValues = days.map(\.steps)
         averageSteps = stepValues.isEmpty ? 0 : stepValues.reduce(0, +) / stepValues.count
         bestDaySteps = stepValues.max() ?? 0
