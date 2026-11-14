@@ -12,7 +12,9 @@ public enum KoiSchema {
         KoiNutrientGoal.self,
         KoiNutrientEntry.self,
         KoiSupplement.self,
-        KoiSupplementLog.self
+        KoiSupplementLog.self,
+        KoiMovementGoal.self,
+        KoiMovementDay.self
     ]
 
     public static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {

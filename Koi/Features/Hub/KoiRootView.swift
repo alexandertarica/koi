@@ -34,7 +34,7 @@ struct KoiRootView: View {
                 .tag(KoiTab.hub)
             TodoView()
                 .tag(KoiTab.toDo)
-            KoiTabPlaceholder(tab: .movement)
+            MovementView()
                 .tag(KoiTab.movement)
             IntakeView()
                 .tag(KoiTab.intake)
@@ -49,32 +49,6 @@ struct KoiRootView: View {
         .background(KoiBackground().ignoresSafeArea())
         .tint(KoiTheme.onBase)
         .preferredColorScheme(.dark)
-    }
-}
-
-private struct KoiTabPlaceholder: View {
-    let tab: KoiTab
-
-    var body: some View {
-        ZStack {
-            VStack(spacing: KoiTheme.space.s21) {
-                HStack(spacing: 8) {
-                    Image(systemName: tab.symbol).font(.system(size: 20, weight: .light))
-                    Text(tab.title.uppercased())
-                        .font(KoiTheme.section)
-                        .tracking(2.4)
-                    Spacer()
-                }
-                .foregroundStyle(KoiTheme.onBase)
-                Spacer()
-                Text("Still water")
-                    .font(KoiTheme.title)
-                    .foregroundStyle(KoiTheme.onBase)
-                Spacer()
-            }
-            .padding(.horizontal, KoiTheme.space.s21)
-            .padding(.top, KoiTheme.space.s21)
-        }
     }
 }
 

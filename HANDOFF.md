@@ -12,7 +12,7 @@ what's partial, known issues, and the next step.
 | 2 | Hub: dial, scrub, pillar lines, Today list, trend chip | ✅ |
 | 3 | To-Do: habits + to-dos, list + matrix, new to-do, new habit, archive, auto-urgent | ✅ |
 | 4 | Intake: dial, quiet rows, food log with AI, meals, supplements, edit mode | ✅ |
-| 5 | Movement: dial, steps, Health sync | ☐ |
+| 5 | Movement: dial, steps, Health sync | ✅ |
 | 6 | Workout journal + workout mode + rest + summary + routines + Koi's pick | ☐ |
 | 7 | Cardio: GPS run, treadmill, class, stats | ☐ |
 | 8 | Progress + Profile (fold rows, body weight) | ☐ |
@@ -57,12 +57,16 @@ what's partial, known issues, and the next step.
   and the private configuration is conditionally copied into the app bundle.
   Twenty-eight simulator tests pass; the empty Intake screen, meal entry, saved
   meal state, and goal editor were reviewed on iPhone 17 Pro.
+- Phase 5: added step and rolling workout scoring, configurable step and weekly
+  training goals, persistent manual step adjustments and training marks, and
+  HealthKit reads for daily steps and workouts behind an injected service.
+  The Hub now derives its Exercise pillar from movement events. Thirty-one
+  simulator tests pass; the empty Movement screen, step logging, training mark,
+  and Hub score update were reviewed on iPhone 17 Pro.
 
 ## Partial / known issues
 
-- Movement pillar values currently come from daily score records; Phase 5 adds
-  event-level activity data.
-- Movement remains a placeholder pending its phase. The Hub's
+- Workout journal and cardio remain planned for Phases 6 and 7. The Hub's
   Profile and Progress sheets are previews; Phase 8 replaces them with full views.
 - To-Do reminder notifications and calendar free-time selection/sync are deferred
   to Phase 10. The `-koiDemo` full-week seed is part of Phase 13, so Phase 3 was
@@ -72,4 +76,4 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Phase 5: build Movement goals, step logging and Health sync.
+Phase 6: build the workout journal and workout mode.

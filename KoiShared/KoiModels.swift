@@ -217,3 +217,48 @@ public final class KoiSupplementLog {
         self.isTaken = isTaken
     }
 }
+
+@Model
+public final class KoiMovementGoal {
+    @Attribute(.unique) public var id: String
+    public var stepGoal: Int
+    public var weeklyWorkoutGoal: Int
+    public var healthEnabled: Bool
+
+    public init(stepGoal: Int = 8_000, weeklyWorkoutGoal: Int = 4, healthEnabled: Bool = false) {
+        self.id = "movement"
+        self.stepGoal = max(stepGoal, 1)
+        self.weeklyWorkoutGoal = max(weeklyWorkoutGoal, 1)
+        self.healthEnabled = healthEnabled
+    }
+}
+
+@Model
+public final class KoiMovementDay {
+    @Attribute(.unique) public var dayID: String
+    public var date: Date
+    public var healthSteps: Int?
+    public var manualStepAdjustment: Int
+    public var healthWorkoutCount: Int
+    public var didManuallyTrain: Bool
+
+    public init(date: Date, healthSteps: Int? = nil, manualStepAdjustment: Int = 0, healthWorkoutCount: Int = 0, didManuallyTrain: Bool = false) {
+        self.dayID = Self.identifier(for: date)
+        self.date = date
+        self.healthSteps = healthSteps.map { max($0, 0) }
+        self.manualStepAdjustment = manualStepAdjustment
+        self.healthWorkoutCount = max(healthWorkoutCount, 0)
+        self.didManuallyTrain = didManuallyTrain
+    }
+
+    public var steps: Int { max((healthSteps ?? 0) + manualStepAdjustment, 0) }
+    public var workoutCount: Int { max(healthWorkoutCount, didManuallyTrain ? 1 : 0) }
+    public var isTrainingDay: Bool { didManuallyTrain || healthWorkoutCount > 0 }
+
+    private static func identifier(for date: Date) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .autoupdatingCurrent
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+}

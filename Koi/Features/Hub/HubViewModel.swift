@@ -47,6 +47,8 @@ final class HubViewModel {
     private var foodEntries: [KoiFoodEntry] = []
     private var nutrientEntries: [KoiNutrientEntry] = []
     private var nutrientGoals: [KoiNutrientGoal] = []
+    private var movementDays: [KoiMovementDay] = []
+    private var movementGoal: KoiMovementGoal?
 
     private(set) var selectedDate: Date
     private(set) var balance = BalanceResult(score: 0, habits: 0, nutrition: 0, exercise: 0)
@@ -97,6 +99,8 @@ final class HubViewModel {
             foodEntries = try modelContext.fetch(FetchDescriptor<KoiFoodEntry>())
             nutrientEntries = try modelContext.fetch(FetchDescriptor<KoiNutrientEntry>())
             nutrientGoals = try modelContext.fetch(FetchDescriptor<KoiNutrientGoal>())
+            movementDays = try modelContext.fetch(FetchDescriptor<KoiMovementDay>())
+            movementGoal = try modelContext.fetch(FetchDescriptor<KoiMovementGoal>()).first
             updateDerivedState()
         } catch {
             logger.error("Unable to load Hub data.")
@@ -165,11 +169,12 @@ final class HubViewModel {
         }
         let habitScore = HabitRules.dayScore(habitDays, previousMisses: misses)
         let nutritionScore = nutritionScore(for: selectedDate) ?? selectedDay?.nutritionScore ?? 0
+        let exerciseScore = exerciseScore(for: selectedDate) ?? selectedDay?.exerciseScore ?? 0
         balance = BalanceEngine.score(
             pillars: BalancePillars(
                 habits: activeHabits.isEmpty ? (selectedDay?.habitsScore ?? 0) : habitScore,
                 nutrition: nutritionScore,
-                exercise: selectedDay?.exerciseScore ?? 0
+                exercise: exerciseScore
             )
         )
 
@@ -245,8 +250,9 @@ final class HubViewModel {
             guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
             let snapshot = days.first(where: { calendar.isDate($0.date, inSameDayAs: day) })
             let nutrition = nutritionScore(for: day) ?? snapshot?.nutritionScore ?? 0
+            let exercise = exerciseScore(for: day) ?? snapshot?.exerciseScore ?? 0
             let score = snapshot.map {
-                BalanceEngine.score(pillars: BalancePillars(habits: $0.habitsScore, nutrition: nutrition, exercise: $0.exerciseScore)).score
+                BalanceEngine.score(pillars: BalancePillars(habits: $0.habitsScore, nutrition: nutrition, exercise: exercise)).score
             } ?? (calendar.isDate(day, inSameDayAs: today) ? balance.score : 0)
             if offset < 7 { week.append(score) } else { previous.append(score) }
         }
@@ -284,6 +290,24 @@ final class HubViewModel {
             calories: totals["calories"] ?? 0,
             calorieGoal: calorieGoal,
             hasAnyIntake: true
+        ).score
+    }
+
+    private func exerciseScore(for date: Date) -> Double? {
+        let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date)) ?? date
+        let start = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: date)) ?? date
+        let days = movementDays.filter { $0.date >= start && $0.date < end }
+        guard !days.isEmpty else { return nil }
+        let currentDay = days.first { calendar.isDate($0.date, inSameDayAs: date) }
+        let workoutCount = days.reduce(0) { $0 + $1.workoutCount }
+        return ExerciseEngine.score(
+            ExerciseDayInput(
+                steps: currentDay?.steps ?? 0,
+                stepGoal: movementGoal?.stepGoal ?? 8_000,
+                isTrainingDay: currentDay?.isTrainingDay ?? false,
+                workoutsInLastSevenDays: workoutCount,
+                weeklyWorkoutGoal: movementGoal?.weeklyWorkoutGoal ?? 4
+            )
         ).score
     }
 
