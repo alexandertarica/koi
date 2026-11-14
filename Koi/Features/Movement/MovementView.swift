@@ -174,20 +174,19 @@ struct MovementView: View {
 
     private var statsSection: some View {
         HStack(spacing: 0) {
-            stat(value: "\(model.workoutsThisWeek)", title: "WORKOUTS", detail: "LAST 7 DAYS")
+            stat(value: "\(model.workoutsThisWeek)", title: "WORKOUTS")
             Spacer(minLength: 8)
-            stat(value: model.averageSteps.formatted(), title: "AVG STEPS", detail: "PER DAY")
+            stat(value: model.averageSteps.formatted(), title: "AVG STEPS")
             Spacer(minLength: 8)
-            stat(value: model.bestDaySteps.formatted(), title: "BEST DAY", detail: "STEPS")
+            stat(value: model.bestDaySteps.formatted(), title: "BEST DAY")
         }
         .padding(.top, KoiTheme.space.s8)
     }
 
-    private func stat(value: String, title: String, detail: String) -> some View {
+    private func stat(value: String, title: String) -> some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s5) {
             Text(value).font(.system(size: 21, weight: .medium, design: .rounded)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.72)
             Text(title).font(KoiTheme.caption).tracking(1)
-            Text(detail).font(KoiTheme.caption).opacity(0.68)
         }
     }
 }

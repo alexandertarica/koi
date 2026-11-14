@@ -156,16 +156,18 @@ struct HubView: View {
                     withAnimation(KoiTheme.morph) { model.toggleProgress() }
                 } label: {
                     HStack(spacing: 6) {
-                        if model.hasWeekOfHistory { Image(systemName: model.trendIsPositive ? "arrow.up.right" : "arrow.down.right").font(.system(size: 10)) }
-                        Text(model.trendText).font(KoiTheme.caption).lineLimit(1)
+                        if model.hasWeekOfHistory { Image(systemName: model.trendIsPositive ? "arrow.up.right" : "arrow.down.right").font(.system(size: 10)).foregroundStyle(KoiTheme.onBase) }
+                        Text(model.trendText).font(KoiTheme.caption).lineLimit(1).foregroundStyle(KoiTheme.onBase)
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
                     .background(.ultraThinMaterial.opacity(0.6), in: Capsule())
                     .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
                     .frame(maxWidth: 160, alignment: .trailing)
+                    .foregroundStyle(KoiTheme.onBase)
                 }
                 .buttonStyle(.plain)
+                .foregroundColor(.white.opacity(0.9))
                 .accessibilityLabel("Open progress. \(model.trendText)")
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)

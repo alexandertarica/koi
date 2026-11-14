@@ -307,7 +307,7 @@ private struct KoiTabBar: View {
                             .font(.system(size: 12, weight: .regular))
                     }
                     .foregroundStyle(KoiTheme.glassInk)
-                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .frame(maxWidth: .infinity, minHeight: 56)
                     .background {
                         if selection == tab {
                             Capsule().fill(Color(red: 0.35, green: 0.52, blue: 0.76).opacity(0.55))

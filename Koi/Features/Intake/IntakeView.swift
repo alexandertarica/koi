@@ -333,17 +333,16 @@ private struct NutrientRow: View {
                 }.padding(.top, KoiTheme.space.s5).transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .foregroundStyle(KoiTheme.onBase).buttonStyle(.plain).padding(.vertical, KoiTheme.space.s5)
+        .foregroundStyle(KoiTheme.onBase).buttonStyle(.plain).padding(.top, KoiTheme.space.s5).padding(.bottom, 53)
         .overlay(alignment: .bottomLeading) {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(KoiTheme.onBase.opacity(0.18))
-                    Capsule().fill(KoiTheme.onBase.opacity(0.72)).frame(width: (proxy.size.width - 2 * KoiTheme.space.s13) * fraction)
+                    Capsule().fill(KoiTheme.onBase.opacity(0.18)).frame(height: 1.5)
+                    Capsule().fill(KoiTheme.onBase.opacity(0.72)).frame(width: proxy.size.width * fraction, height: 1.5)
                     Circle().fill(.ultraThinMaterial).overlay(Circle().stroke(KoiTheme.onBase.opacity(0.5), lineWidth: 0.7))
-                        .frame(width: 10, height: 10).offset(x: max(0, (proxy.size.width - 2 * KoiTheme.space.s13) * fraction - 5))
+                        .frame(width: 10, height: 10).offset(x: max(0, proxy.size.width * fraction - 5))
                 }
-                .frame(height: 3)
-                .padding(.horizontal, KoiTheme.space.s13)
+                .frame(height: 2)
             }
             .frame(height: 2)
             .offset(y: 1)

@@ -332,6 +332,14 @@ what's partial, known issues, and the next step.
   final Hub state, and tour chip remain to be checked interactively. A model
   persistence test covers empty setup, saved focus and defaults.
 
+- Main-tab visual pass: compared Hub, To-Do, Movement and Intake on the same
+  booted iPhone 17 Pro, switching between installed builds for captures. Corrected
+  the Hub trend-chip contrast, removed secondary unit lines from Movement stats,
+  and spaced Intake nutrient folds to the intended rhythm with full-width thin
+  tracks. Hub score/pillars/streak/Today values and the To-Do rows matched the
+  seeded data. All 67 simulator tests pass. One simulator was used sequentially;
+  both appearances and empty-state captures remain to be checked.
+
 ## Next step
 
 The analytics event-name audit found all required event names wired to feature
