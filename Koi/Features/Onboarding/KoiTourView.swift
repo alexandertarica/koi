@@ -82,6 +82,7 @@ struct KoiTourView: View {
                     .accessibilityAction(named: Text("Try Smart Note")) { finish(at: "hands-on") }
                 } else {
                     KoiPrimaryButton(title: "Continue") {
+                        KoiHaptics.tap()
                         withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) { stopIndex += 1 }
                     }
                 }
@@ -98,6 +99,7 @@ struct KoiTourView: View {
     }
 
     private func finish(at point: String) {
+        KoiHaptics.success()
         analyticsProvider.signal("Tour.ended", parameters: ["at": point])
         onFinish()
         if point == "hands-on" {

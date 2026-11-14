@@ -69,7 +69,7 @@ struct OnboardingView: View {
     private var navigationHeader: some View {
         HStack {
             if model.step != .welcome {
-                Button { model.goBack() } label: {
+                Button { KoiHaptics.tap(); model.goBack() } label: {
                     Label("Back", systemImage: "chevron.left").font(KoiTheme.caption)
                 }.buttonStyle(.plain)
             } else {
@@ -79,10 +79,10 @@ struct OnboardingView: View {
                     if model.step != .welcome {
                         Text("\(model.step.rawValue + 1) OF 7").font(KoiTheme.caption).tracking(1.1).opacity(0.7)
                         Button("Skip") {
+                            KoiHaptics.success()
                             model.skipToDefaults()
                             analyticsProvider.signal("Onboarding.skipped", parameters: ["step": model.step.title])
                             analyticsProvider.signal("Onboarding.completed", parameters: ["method": "skip"])
-                            KoiHaptics.success()
                         }.font(KoiTheme.caption).buttonStyle(.plain).padding(.leading, KoiTheme.space.s8)
                     }
         }
@@ -130,7 +130,7 @@ struct OnboardingView: View {
     private var focusContent: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
             ForEach(BalanceFocus.allCases, id: \.self) { focus in
-                Button { model.focus = focus } label: {
+                Button { KoiHaptics.change(); model.focus = focus } label: {
                     HStack(spacing: KoiTheme.space.s13) {
                         Image(systemName: model.focus == focus ? "largecircle.fill.circle" : "circle").font(.system(size: 20, weight: .light))
                         VStack(alignment: .leading, spacing: 5) {
@@ -150,7 +150,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
             ForEach(model.habits) { habit in
                 HStack(spacing: KoiTheme.space.s13) {
-                    Button { model.toggleHabit(habit.id) } label: {
+                    Button { KoiHaptics.change(); model.toggleHabit(habit.id) } label: {
                         Image(systemName: habit.isSelected ? "checkmark.circle.fill" : "circle")
                             .font(.system(size: 20, weight: .light)).foregroundStyle(KoiTheme.onBase)
                     }.buttonStyle(.plain).accessibilityLabel(habit.isSelected ? "Remove \(habit.title)" : "Choose \(habit.title)")
@@ -160,7 +160,7 @@ struct OnboardingView: View {
                 .padding(.vertical, KoiTheme.space.s8)
                 .overlay(alignment: .bottom) { Rectangle().fill(KoiTheme.divider.opacity(0.6)).frame(height: 1) }
             }
-            Button { model.habits.append(OnboardingHabitDraft(title: "")) } label: {
+            Button { KoiHaptics.tap(); model.habits.append(OnboardingHabitDraft(title: "")) } label: {
                 Label("Add a ritual", systemImage: "plus").font(KoiTheme.caption)
             }.buttonStyle(.plain)
             Text("Choose at least three. You can change them any time.").font(KoiTheme.caption).opacity(0.68)
@@ -288,9 +288,9 @@ struct OnboardingView: View {
         HStack {
             Text(title).font(KoiTheme.body)
             Spacer()
-            Button { value.wrappedValue = max(range.lowerBound, value.wrappedValue - step) } label: { Image(systemName: "minus.circle").font(.system(size: 20, weight: .light)) }.buttonStyle(.plain)
+            Button { KoiHaptics.change(); value.wrappedValue = max(range.lowerBound, value.wrappedValue - step) } label: { Image(systemName: "minus.circle").font(.system(size: 20, weight: .light)) }.buttonStyle(.plain)
             Text("\(value.wrappedValue)").font(KoiTheme.caption).monospacedDigit().frame(minWidth: 60)
-            Button { value.wrappedValue = min(range.upperBound, value.wrappedValue + step) } label: { Image(systemName: "plus.circle").font(.system(size: 20, weight: .light)) }.buttonStyle(.plain)
+            Button { KoiHaptics.change(); value.wrappedValue = min(range.upperBound, value.wrappedValue + step) } label: { Image(systemName: "plus.circle").font(.system(size: 20, weight: .light)) }.buttonStyle(.plain)
         }
     }
 
@@ -317,6 +317,7 @@ struct OnboardingView: View {
 
     private func continueTapped() {
         guard model.canContinue else { return }
+        KoiHaptics.tap()
         guard model.step == .connect, model.notificationMode != "none" else {
             advanceWithAnalytics()
             return

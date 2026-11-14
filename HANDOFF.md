@@ -279,14 +279,18 @@ what's partial, known issues, and the next step.
   paired captures of their in-place panels remain outstanding because they
   require interactions that the available simulator command interface cannot
   send.
+- Onboarding Back, Skip, Continue, focus/habit choices, and value steppers now
+  provide tap, success or selection feedback; tour continuation and completion
+  are also acknowledged. The first test launch exited before XCTest bootstrap;
+  after rebooting the simulator, the retry passed all 63 tests.
 
 ## Next step
 
 The analytics event-name audit found all required event names wired to feature
 actions; TelemetryDeck initializes and signals only in Release.
 Calendar and Reminders sync, Apple Notes handoff, and CloudKit backup/restore
-are implemented. A final serial iPhone 17 Pro simulator test run passes all 63
-tests. Continue the remaining visual and interaction audit in checklist order;
+are implemented. The latest serial iPhone 17 Pro simulator test run passes all
+63 tests. Continue the remaining visual and interaction audit in checklist order;
 paired screenshots and screen-specific haptics/animations are not yet fully
 verified. A Koi-owned signup endpoint is not configured, and HealthKit writes
 are not implemented. Physical-device verification remains for HealthKit data,
