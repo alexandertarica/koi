@@ -340,6 +340,16 @@ what's partial, known issues, and the next step.
   seeded data. All 67 simulator tests pass. One simulator was used sequentially;
   both appearances and empty-state captures remain to be checked.
 
+- Sub-screen launch pass: direct debug launches displayed the workout journal,
+  workout mode, routine builder, cardio/run view, new to-do, new habit, Smart
+  Note, Profile, Progress and meal composer. The first captures revealed blank
+  embedded task and habit forms: their nested navigation/scroll containers had
+  no height inside the To-Do scroller. Embedded forms now render in intrinsic
+  layouts with readable prompts; the simulator screenshots show the fields,
+  choices and save controls. All 67 tests pass. Screenshots were reviewed, but
+  simulator taps through workout logging, rest/PR feedback, run tracking, and
+  the onboarding tour remain outstanding.
+
 ## Next step
 
 The analytics event-name audit found all required event names wired to feature

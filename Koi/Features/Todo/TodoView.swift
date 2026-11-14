@@ -551,10 +551,30 @@ private struct NewTaskSheet: View {
     private let prompts = ["What needs doing?", "On your mind?", "One thing…", "What's next?"]
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 21) {
-                    TextField(prompts[Int(Date.now.timeIntervalSince1970 / 86400) % prompts.count], text: Binding(get: { model.taskDraft.title }, set: { value in model.updateTaskTitle(value) }), axis: .vertical)
+        Group {
+            if embedded {
+                formContent
+            } else {
+                NavigationStack {
+                    ScrollView { formContent }
+                        .background(KoiBackground().ignoresSafeArea())
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button("Cancel") { model.cancelNewTask(); dismiss() }
+                                    .foregroundStyle(KoiTheme.onBase)
+                            }
+                        }
+                }
+            }
+        }
+        .presentationDetents(embedded ? [] : [.large])
+        .preferredColorScheme(embedded ? nil : .dark)
+        .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { titleFocused = true } }
+    }
+
+    private var formContent: some View {
+        VStack(alignment: .leading, spacing: 21) {
+                    TextField("", text: Binding(get: { model.taskDraft.title }, set: { value in model.updateTaskTitle(value) }), prompt: Text(prompts[Int(Date.now.timeIntervalSince1970 / 86400) % prompts.count]).foregroundColor(KoiTheme.onBase.opacity(0.68)), axis: .vertical)
                         .font(.custom("RobotoMono-Light", size: 24)).foregroundStyle(KoiTheme.onBase).lineLimit(2...4).focused($titleFocused)
                     if let parsed = model.parsedTitleDate {
                         Button { model.ignoreParsedDate() } label: { GlassChip(title: parsedDateLabel(parsed), symbol: "calendar", isOn: true) }.buttonStyle(.plain)
@@ -589,7 +609,7 @@ private struct NewTaskSheet: View {
                         }
                     }
                     HStack { Text("+ Note").font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase); Spacer() }
-                    TextField("A note, if it helps", text: Binding(get: { model.taskDraft.notes }, set: { model.taskDraft.notes = $0 }), axis: .vertical)
+                    TextField("", text: Binding(get: { model.taskDraft.notes }, set: { model.taskDraft.notes = $0 }), prompt: Text("A note, if it helps").foregroundColor(KoiTheme.onBase.opacity(0.68)), axis: .vertical)
                         .font(KoiTheme.body).foregroundStyle(KoiTheme.onBase).lineLimit(2...5)
                     KoiPrimaryButton(title: buttonTitle) {
                         let isNew = model.editingTaskID == nil
@@ -606,19 +626,8 @@ private struct NewTaskSheet: View {
                         if !embedded && !model.showingNewTask { dismiss() }
                     }
                         .disabled(!model.canSaveTask).opacity(model.canSaveTask ? 1 : 0.52)
-                }.padding(21)
-            }
-            .background { if !embedded { KoiBackground().ignoresSafeArea() } }
-            .toolbar {
-                if !embedded {
-                    ToolbarItem(placement: .topBarLeading) { Button("Cancel") { model.cancelNewTask(); dismiss() }.foregroundStyle(KoiTheme.onBase) }
-                }
-            }
+        }.padding(21)
         }
-        .presentationDetents(embedded ? [] : [.large])
-        .preferredColorScheme(embedded ? nil : .dark)
-        .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { titleFocused = true } }
-    }
 
     private var buttonTitle: String {
         let date = model.taskDraft.dueAt.map { " · \(taskDueLabel($0))" } ?? ""
@@ -647,12 +656,32 @@ private struct NewHabitSheet: View {
     private let days: [(String, Int)] = [("M", 2), ("T", 3), ("W", 4), ("T", 5), ("F", 6), ("S", 7), ("S", 1)]
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 21) {
-                    TextField("What would you like to make a habit?", text: Binding(get: { model.habitDraft.title }, set: { model.habitDraft.title = $0 }), axis: .vertical)
+        Group {
+            if embedded {
+                formContent
+            } else {
+                NavigationStack {
+                    ScrollView { formContent }
+                        .background(KoiBackground().ignoresSafeArea())
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button("Cancel") { model.cancelNewHabit(); dismiss() }
+                                    .foregroundStyle(KoiTheme.onBase)
+                            }
+                        }
+                }
+            }
+        }
+        .presentationDetents(embedded ? [] : [.large])
+        .preferredColorScheme(embedded ? nil : .dark)
+        .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { titleFocused = true } }
+    }
+
+    private var formContent: some View {
+        VStack(alignment: .leading, spacing: 21) {
+                    TextField("", text: Binding(get: { model.habitDraft.title }, set: { model.habitDraft.title = $0 }), prompt: Text("What would you like to make a habit?").foregroundColor(KoiTheme.onBase.opacity(0.68)), axis: .vertical)
                         .font(.custom("RobotoMono-Light", size: 24)).foregroundStyle(KoiTheme.onBase).lineLimit(2...4).focused($titleFocused)
-                    TextField("+ Note", text: Binding(get: { model.habitDraft.note }, set: { model.habitDraft.note = $0 }))
+                    TextField("", text: Binding(get: { model.habitDraft.note }, set: { model.habitDraft.note = $0 }), prompt: Text("+ Note").foregroundColor(KoiTheme.onBase.opacity(0.68)))
                         .font(KoiTheme.body).foregroundStyle(KoiTheme.onBase)
                     VStack(alignment: .leading, spacing: 13) {
                         Text("HOW OFTEN").font(KoiTheme.section).tracking(2).foregroundStyle(KoiTheme.onBase.opacity(0.76))
@@ -677,30 +706,19 @@ private struct NewHabitSheet: View {
                             .font(KoiTheme.body).tint(KoiTheme.onBase).foregroundStyle(KoiTheme.onBase)
                         }
                     }
-                    TextField("Two-minute version (optional)", text: Binding(get: { model.habitDraft.minimumVersion }, set: { model.habitDraft.minimumVersion = $0 }))
+                    TextField("", text: Binding(get: { model.habitDraft.minimumVersion }, set: { model.habitDraft.minimumVersion = $0 }), prompt: Text("Two-minute version (optional)").foregroundColor(KoiTheme.onBase.opacity(0.68)))
                         .font(KoiTheme.body).foregroundStyle(KoiTheme.onBase)
-                    TextField("After I…", text: Binding(get: { model.habitDraft.stackingCue }, set: { model.habitDraft.stackingCue = $0 }))
+                    TextField("", text: Binding(get: { model.habitDraft.stackingCue }, set: { model.habitDraft.stackingCue = $0 }), prompt: Text("After I…").foregroundColor(KoiTheme.onBase.opacity(0.68)))
                         .font(KoiTheme.body).foregroundStyle(KoiTheme.onBase)
-                    TextField("Who you're becoming (optional)", text: Binding(get: { model.habitDraft.identity }, set: { model.habitDraft.identity = $0 }))
+                    TextField("", text: Binding(get: { model.habitDraft.identity }, set: { model.habitDraft.identity = $0 }), prompt: Text("Who you're becoming (optional)").foregroundColor(KoiTheme.onBase.opacity(0.68)))
                         .font(KoiTheme.body).foregroundStyle(KoiTheme.onBase)
                     KoiPrimaryButton(title: habitButtonTitle) {
                         if model.saveHabit() { KoiHaptics.success() }
                         if !embedded && !model.showingNewHabit { dismiss() }
                     }
                         .disabled(!model.canSaveHabit).opacity(model.canSaveHabit ? 1 : 0.52)
-                }.padding(21)
-            }
-            .background { if !embedded { KoiBackground().ignoresSafeArea() } }
-            .toolbar {
-                if !embedded {
-                    ToolbarItem(placement: .topBarLeading) { Button("Cancel") { model.cancelNewHabit(); dismiss() }.foregroundStyle(KoiTheme.onBase) }
-                }
-            }
+        }.padding(21)
         }
-        .presentationDetents(embedded ? [] : [.large])
-        .preferredColorScheme(embedded ? nil : .dark)
-        .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { titleFocused = true } }
-    }
 
     private var habitButtonTitle: String {
         let schedule = model.habitDraft.schedule == "someDays" ? "some days" : model.habitDraft.schedule
