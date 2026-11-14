@@ -19,6 +19,7 @@ struct IntakeView: View {
     @State private var selectedNutrient: String?
     @State private var composerActive = false
     @State private var foodRingLit = false
+    @State private var composerID = UUID()
 
     init(presentsMealComposer: Binding<Bool> = .constant(false), startsCamera: Binding<Bool> = .constant(false)) {
         _presentsMealComposer = presentsMealComposer
@@ -31,6 +32,7 @@ struct IntakeView: View {
                 header.modifier(KoiIntroReveal(order: 0))
                 if composerActive {
                     MealComposer(model: model, estimator: foodEstimator, startsCamera: $startsCamera, onClose: closeComposer)
+                        .id(composerID)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 } else {
                     calorieCard.modifier(KoiIntroReveal(order: 1))
@@ -67,7 +69,7 @@ struct IntakeView: View {
             Button("Add") { model.addSupplement(name: supplementName); supplementName = "" }
             Button("Cancel", role: .cancel) { supplementName = "" }
         }
-        .alert("", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.clearEstimate() } })) {
+        .alert("", isPresented: Binding(get: { model.errorMessage != nil && !composerActive }, set: { if !$0 { model.clearEstimate() } })) {
             Button("OK", role: .cancel) { model.clearEstimate() }
         } message: { Text(model.errorMessage ?? "") }
     }
@@ -86,7 +88,7 @@ struct IntakeView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased())
                     .font(KoiTheme.section).tracking(2.7).foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95).opacity(0.88)).padding(.top, 7)
-                Text(composerActive ? "Meal" : "Intake").font(KoiTheme.title).foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95)).padding(.top, 3)
+                Text(composerActive ? "Log food" : "Intake").font(KoiTheme.title).foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95)).padding(.top, 3)
             }
         }
     }
@@ -111,7 +113,7 @@ struct IntakeView: View {
                             withAnimation(.easeOut(duration: 0.2)) { foodRingLit = false }
                         }
                     }
-                    Text(model.mealCount == 0 ? "FOOD" : "\(model.mealCount) LOGGED").font(KoiTheme.section).tracking(1.3)
+                    Text(model.mealCount == 0 ? "LOG" : "\(model.mealCount) logged").font(KoiTheme.section).tracking(1.3)
                 }
                 .foregroundStyle(KoiTheme.onBase)
                 .padding(.trailing, KoiTheme.space.s21)
@@ -190,7 +192,7 @@ struct IntakeView: View {
         }.padding(.horizontal, KoiTheme.space.s13)
     }
 
-    private func openComposer() { withAnimation(KoiTheme.morph) { composerActive = true }; presentsMealComposer = false }
+    private func openComposer() { composerID = UUID(); withAnimation(KoiTheme.morph) { composerActive = true }; presentsMealComposer = false }
     private func closeComposer() { withAnimation(KoiTheme.morph) { composerActive = false }; startsCamera = false; model.clearEstimate() }
 }
 
@@ -428,7 +430,6 @@ private struct FlowLayout: Layout {
 @MainActor
 private struct MealComposer: View {
     @Environment(\.analyticsProvider) private var analyticsProvider
-    @Environment(\.dismiss) private var dismiss
     @State private var description = ""
     @State private var photoItem: PhotosPickerItem?
     @State private var photoData: Data?
@@ -436,6 +437,8 @@ private struct MealComposer: View {
     @State private var showsCameraPicker = false
     @Binding var startsCamera: Bool
     @State private var value = FoodEstimateValue(description: "", calories: 0, proteinGrams: 0, carbohydrateGrams: 0, fatGrams: 0, fiberGrams: 0, addedSugarGrams: 0, sodiumMilligrams: 0, confidence: 0)
+    @State private var savedMeal: KoiFoodEntry?
+    @State private var isFixingNumbers = false
     @State private var isManual = false
     let model: IntakeViewModel
     let estimator: any FoodEstimating
@@ -449,62 +452,68 @@ private struct MealComposer: View {
     }
 
     var body: some View {
-        ScrollView {
-                VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
-                    Text("Add a meal or snack.").font(KoiTheme.title)
-                    TextField("What did you have?", text: $description, axis: .vertical)
-                        .font(KoiTheme.body).lineLimit(2...4).padding(13).background(.ultraThinMaterial.opacity(0.28), in: RoundedRectangle(cornerRadius: 16))
-                    Button { showsLibraryPicker = true } label: {
-                        HStack(spacing: 8) { Image(systemName: photoData == nil ? "photo" : "checkmark"); Text(photoData == nil ? "Choose a photo" : "Photo added") }.font(KoiTheme.caption).padding(13).frame(maxWidth: .infinity).background(.ultraThinMaterial.opacity(0.28), in: RoundedRectangle(cornerRadius: 16))
-                    }.buttonStyle(.plain)
-                    .photosPicker(isPresented: $showsLibraryPicker, selection: $photoItem, matching: .images)
-                    .onChange(of: photoItem) { _, item in
-                        Task { if let data = try? await item?.loadTransferable(type: Data.self) { photoData = UIImage(data: data)?.jpegData(compressionQuality: 0.76) } }
+        VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
+            if let savedMeal {
+                if isFixingNumbers { fixNumbers(for: savedMeal) }
+                else { resultSummary(for: savedMeal) }
+            } else {
+                TextField("Describe your meal (optional)", text: $description, axis: .vertical)
+                    .font(KoiTheme.body).lineLimit(1...3).padding(13)
+                    .background(KoiTheme.onBase.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(KoiTheme.onBase.opacity(0.2), lineWidth: 1))
+                    .accessibilityLabel("Describe your meal")
+
+                photoAction(title: "Take a photo", symbol: "camera") {
+                    #if targetEnvironment(simulator)
+                    model.showCameraUnavailable()
+                    #else
+                    showsCameraPicker = true
+                    #endif
+                }
+                photoAction(title: photoData == nil ? "Upload a photo" : "Photo added", symbol: photoData == nil ? "photo" : "checkmark") {
+                    showsLibraryPicker = true
+                }
+
+                if let photoData, let image = UIImage(data: photoData) {
+                    Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 190).clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                if model.isEstimating {
+                    HStack(spacing: KoiTheme.space.s8) {
+                        ProgressView().tint(KoiTheme.onBase)
+                        Text("Reading your plate…").font(KoiTheme.caption)
+                    }.frame(maxWidth: .infinity, alignment: .center).padding(.vertical, KoiTheme.space.s8)
+                }
+
+                if let error = model.errorMessage {
+                    VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+                        Text(error).font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.9))
+                        HStack(spacing: KoiTheme.space.s13) {
+                            if canEstimate { Button("Try again") { Task { await estimateAndSave() } }.buttonStyle(.plain) }
+                            Button("Enter manually") { withAnimation(KoiTheme.morph) { isManual = true } }.buttonStyle(.plain)
+                        }.font(KoiTheme.caption)
                     }
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                        Button {
-                            #if targetEnvironment(simulator)
-                            model.showCameraUnavailable()
-                            #else
-                            showsCameraPicker = true
-                            #endif
-                        } label: {
-                            HStack(spacing: 8) { Image(systemName: "camera"); Text("Take a photo") }.font(KoiTheme.caption).padding(13).frame(maxWidth: .infinity).background(.ultraThinMaterial.opacity(0.18), in: RoundedRectangle(cornerRadius: 16))
-                        }.buttonStyle(.plain)
-                    }
-                    if let photoData, let image = UIImage(data: photoData) { Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 200).clipShape(RoundedRectangle(cornerRadius: 16)) }
-                    if let estimate = model.estimate {
-                        estimateSummary(estimate)
-                        if estimate.confidence < 0.55 { Text("This is a rough estimate. You can adjust the numbers before saving.").font(KoiTheme.caption).opacity(0.8) }
-                    }
-                    if isManual || model.estimate != nil { nutritionFields }
-                    KoiPrimaryButton(title: model.isEstimating ? "Reading your plate…" : (model.estimate == nil && !isManual ? "Estimate meal" : "Log meal")) {
-                        if model.estimate == nil && !isManual {
-                            Task {
-                                await model.estimateMeal(text: description, jpegData: photoData, using: estimator)
-                                if let estimated = model.estimate { value = estimated }
-                                else { analyticsProvider.signal("Food.aiFailed") }
-                            }
-                        } else {
-                            let cleanDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
-                            let finalValue = FoodEstimateValue(description: cleanDescription.isEmpty ? value.description : cleanDescription, calories: value.calories, proteinGrams: value.proteinGrams, carbohydrateGrams: value.carbohydrateGrams, fatGrams: value.fatGrams, fiberGrams: value.fiberGrams, addedSugarGrams: value.addedSugarGrams, sodiumMilligrams: value.sodiumMilligrams, confidence: value.confidence)
-                            let wasAI = model.estimate != nil
-                            model.addMeal(finalValue, note: cleanDescription, jpegData: photoData)
-                            if wasAI { analyticsProvider.signal("Food.loggedWithAI") }
-                            onClose()
-                        }
-                    }.disabled(model.isEstimating || (description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && photoData == nil))
-                    if model.estimate == nil && !isManual {
-                        Button("Enter numbers yourself") { isManual = true }.font(KoiTheme.caption).frame(maxWidth: .infinity).buttonStyle(.plain)
-                    }
-                    if let error = model.errorMessage { Text(error).font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.85)) }
-                }.padding(KoiTheme.space.s21)
+                }
+
+                if isManual {
+                    nutritionFields
+                    KoiPrimaryButton(title: "Log meal") { saveManualMeal() }
+                        .disabled(model.isEstimating || !canSaveManualMeal)
+                } else if !model.isEstimating && canEstimate && !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    KoiPrimaryButton(title: "Log from description") { Task { await estimateAndSave() } }
+                        .disabled(model.isEstimating)
+                }
             }
-            .background(KoiBackground().ignoresSafeArea())
-            .foregroundStyle(KoiTheme.onBase)
-            .sheet(isPresented: $showsCameraPicker) {
-                IntakeCameraPicker { image in photoData = image.jpegData(compressionQuality: 0.76) }
+        }
+        .foregroundStyle(KoiTheme.onBase)
+        .photosPicker(isPresented: $showsLibraryPicker, selection: $photoItem, matching: .images)
+        .onChange(of: photoItem) { _, item in loadPhoto(item) }
+        .sheet(isPresented: $showsCameraPicker) {
+            IntakeCameraPicker { image in
+                photoData = image.jpegData(compressionQuality: 0.76)
+                if description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { Task { await estimateAndSave() } }
             }
+        }
         .onAppear {
             guard startsCamera else { return }
             startsCamera = false
@@ -516,11 +525,104 @@ private struct MealComposer: View {
         }
     }
 
-    private func estimateSummary(_ estimate: FoodEstimateValue) -> some View {
-        VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
-            Text(estimate.description).font(KoiTheme.body)
-            Text("Estimate · \(Int(estimate.confidence * 100))% confidence").font(KoiTheme.caption).opacity(0.7)
-        }.padding(KoiTheme.space.s13).frame(maxWidth: .infinity, alignment: .leading).background(.ultraThinMaterial.opacity(0.28), in: RoundedRectangle(cornerRadius: 16))
+    private var canEstimate: Bool {
+        !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || photoData != nil
+    }
+
+    private var canSaveManualMeal: Bool {
+        canEstimate || value.calories > 0 || value.proteinGrams > 0 || value.carbohydrateGrams > 0 || value.fatGrams > 0 || value.fiberGrams > 0 || value.addedSugarGrams > 0 || value.sodiumMilligrams > 0
+    }
+
+    private func photoAction(title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: KoiTheme.space.s8) {
+                Image(systemName: symbol)
+                Text(title).font(KoiTheme.caption)
+                Spacer()
+                Image(systemName: "sparkles").font(.system(size: 12, weight: .regular))
+            }
+            .padding(.horizontal, KoiTheme.space.s13)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .contentShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(style: StrokeStyle(lineWidth: 1, dash: [5, 4])).foregroundStyle(KoiTheme.onBase.opacity(0.55)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func loadPhoto(_ item: PhotosPickerItem?) {
+        guard let item else { return }
+        Task {
+            guard let data = try? await item.loadTransferable(type: Data.self), let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.76) else { return }
+            photoData = jpeg
+            guard description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            await estimateAndSave()
+        }
+    }
+
+    private func estimateAndSave() async {
+        guard canEstimate, !model.isEstimating, savedMeal == nil else { return }
+        model.clearEstimate()
+        await model.estimateMeal(text: description, jpegData: photoData, using: estimator)
+        guard let estimate = model.estimate else { analyticsProvider.signal("Food.aiFailed"); return }
+        value = estimate
+        let note = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let meal = model.addMeal(estimate, note: note, jpegData: photoData) else { return }
+        savedMeal = meal
+        analyticsProvider.signal("Food.loggedWithAI")
+        KoiHaptics.success()
+    }
+
+    private func saveManualMeal() {
+        guard savedMeal == nil, canSaveManualMeal else { return }
+        let clean = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        value.description = clean.isEmpty ? "Meal" : clean
+        guard let meal = model.addMeal(value, note: clean, jpegData: photoData) else { return }
+        savedMeal = meal
+        KoiHaptics.success()
+    }
+
+    private func resultSummary(for meal: KoiFoodEntry) -> some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("~\(Int(meal.calories.rounded())) kcal").font(.system(size: 30, weight: .regular, design: .rounded)).contentTransition(.numericText())
+                Spacer()
+                Text("\(Int((meal.confidence * 100).rounded()))% sure").font(KoiTheme.caption).opacity(0.78)
+            }
+            Text(meal.name).font(KoiTheme.body)
+            Text("P \(Int(meal.proteinGrams.rounded()))g · C \(Int(meal.carbohydrateGrams.rounded()))g · F \(Int(meal.fatGrams.rounded()))g").font(KoiTheme.caption).opacity(0.82)
+            Text("Added to today's totals.").font(KoiTheme.caption).opacity(0.78)
+            HStack(spacing: KoiTheme.space.s8) {
+                Button { withAnimation(KoiTheme.morph) { isFixingNumbers = true } } label: { GlassChip(title: "Fix numbers", symbol: "slider.horizontal.3") }.buttonStyle(.plain)
+                Button(action: logAnother) { GlassChip(title: "Log another", symbol: "plus") }.buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func fixNumbers(for meal: KoiFoodEntry) -> some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+            Text("Fix numbers").font(KoiTheme.title)
+            TextField("Meal name", text: $value.description).font(KoiTheme.body)
+            nutritionFields
+            if let error = model.errorMessage { Text(error).font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.9)) }
+            KoiPrimaryButton(title: "Save") {
+                let note = description.trimmingCharacters(in: .whitespacesAndNewlines)
+                if model.updateMeal(meal, value: value, note: note, jpegData: photoData) {
+                    withAnimation(KoiTheme.morph) { isFixingNumbers = false }
+                    KoiHaptics.success()
+                }
+            }
+        }
+    }
+
+    private func logAnother() {
+        description = ""
+        photoItem = nil
+        photoData = nil
+        savedMeal = nil
+        isFixingNumbers = false
+        isManual = false
+        value = FoodEstimateValue(description: "", calories: 0, proteinGrams: 0, carbohydrateGrams: 0, fatGrams: 0, fiberGrams: 0, addedSugarGrams: 0, sodiumMilligrams: 0, confidence: 0)
+        model.clearEstimate()
     }
 
     private var nutritionFields: some View {

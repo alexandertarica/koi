@@ -209,14 +209,18 @@ final class IntakeViewModel {
         errorMessage = "The camera isn't available in Simulator. Choose a photo instead."
     }
 
-    func addMeal(_ value: FoodEstimateValue, note: String, jpegData: Data?) {
-        guard let context else { return }
-        context.insert(makeFoodEntry(value, note: note, image: jpegData))
-        saveAndReload(context)
+    @discardableResult
+    func addMeal(_ value: FoodEstimateValue, note: String, jpegData: Data?) -> KoiFoodEntry? {
+        guard let context else { return nil }
+        let meal = makeFoodEntry(value, note: note, image: jpegData)
+        context.insert(meal)
+        guard saveAndReload(context) else { context.delete(meal); return nil }
         clearEstimate()
+        return meal
     }
 
-    func updateMeal(_ meal: KoiFoodEntry, value: FoodEstimateValue, note: String, jpegData: Data?) {
+    @discardableResult
+    func updateMeal(_ meal: KoiFoodEntry, value: FoodEstimateValue, note: String, jpegData: Data?) -> Bool {
         meal.name = value.description.trimmingCharacters(in: .whitespacesAndNewlines)
         meal.loggedAt = selectedDate
         meal.calories = finite(value.calories)
@@ -229,7 +233,8 @@ final class IntakeViewModel {
         meal.confidence = min(max(value.confidence, 0), 1)
         meal.imageJPEG = jpegData
         meal.notes = note
-        if let context { saveAndReload(context) }
+        guard let context else { return false }
+        return saveAndReload(context)
     }
 
     func deleteMeal(_ meal: KoiFoodEntry) {
@@ -310,9 +315,10 @@ final class IntakeViewModel {
         )
     }
 
-    private func saveAndReload(_ context: ModelContext) {
-        do { try context.save(); load(context); toast = nil }
-        catch { logger.error("Unable to save Intake changes."); errorMessage = "Couldn't save that nutrition change. Try again." }
+    @discardableResult
+    private func saveAndReload(_ context: ModelContext) -> Bool {
+        do { try context.save(); load(context); toast = nil; return true }
+        catch { logger.error("Unable to save Intake changes."); errorMessage = "Couldn't save that nutrition change. Try again."; return false }
     }
 
     private func finite(_ value: Double) -> Double { value.isFinite ? max(value, 0) : 0 }

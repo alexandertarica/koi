@@ -72,6 +72,11 @@ struct KoiRootView: View {
     @Environment(\.analyticsProvider) private var analyticsProvider
     @Environment(\.notificationProvider) private var notificationProvider
     @Environment(\.healthProvider) private var healthProvider
+    @Query private var tourTasks: [KoiTask]
+    @Query private var tourHabits: [KoiHabit]
+    @Query private var tourMeals: [KoiFoodEntry]
+    @Query private var tourMovementDays: [KoiMovementDay]
+    @Query private var tourWorkouts: [KoiWorkoutSession]
     @State private var selectedTab: KoiTab = KoiTab.launchSelection
     @State private var isOnboardingPresented = false
     @State private var hasLoadedOnboarding = false
@@ -135,7 +140,7 @@ struct KoiRootView: View {
                 if state?.isComplete != true {
                     if try await backupProvider.hasBackup() { isRestoreOfferPresented = true }
                     else { isOnboardingPresented = true }
-                } else { showTourOffer = !(state?.hasSeenTour ?? true) }
+                } else { showTourOffer = !(state?.hasSeenTour ?? true) && firstLoggedItemCount == 0 }
             } catch {
                 isOnboardingPresented = true
             }
@@ -157,6 +162,9 @@ struct KoiRootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: KoiNotificationRouter.didOpen), perform: handleNotificationRoute)
         .onChange(of: selectedTab) { _, tab in analyticsProvider.signal("Screen.opened", parameters: ["screen": tab.title]) }
+        .onChange(of: firstLoggedItemCount, initial: true) { _, count in
+            if count > 0 { markTourSeen() }
+        }
         .alert("A Koi backup is available", isPresented: $isRestoreOfferPresented) {
             Button("Restore backup") { Task { await restoreStartupBackup() } }
             Button("Set up as new", role: .cancel) { isOnboardingPresented = true }
@@ -198,16 +206,26 @@ struct KoiRootView: View {
 
     private var bottomControls: some View {
             VStack(spacing: 0) {
-                if showTourOffer {
-                    Button {
-                        presentsTour = true
-                    } label: {
-                        Text("Show me around").font(KoiTheme.caption)
-                            .padding(.horizontal, KoiTheme.space.s13)
-                            .padding(.vertical, KoiTheme.space.s5)
-                            .background(.ultraThinMaterial.opacity(0.7), in: Capsule())
-                            .overlay(Capsule().stroke(KoiTheme.onBase.opacity(0.3), lineWidth: 1))
-                    }.buttonStyle(.plain).padding(.bottom, 5)
+                if showTourOffer && selectedTab == .hub {
+                    HStack(spacing: KoiTheme.space.s8) {
+                        Button {
+                            markTourSeen()
+                            presentsTour = true
+                        } label: {
+                            Text("Show me around").font(KoiTheme.caption)
+                                .padding(.horizontal, KoiTheme.space.s13)
+                                .padding(.vertical, KoiTheme.space.s5)
+                                .background(.ultraThinMaterial.opacity(0.7), in: Capsule())
+                                .overlay(Capsule().stroke(KoiTheme.onBase.opacity(0.3), lineWidth: 1))
+                        }.buttonStyle(.plain)
+                        Button { markTourSeen() } label: {
+                            Image(systemName: "xmark").font(.system(size: 10, weight: .medium))
+                                .frame(width: 28, height: 28)
+                                .background(.ultraThinMaterial.opacity(0.55), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Dismiss tour offer")
+                    }.padding(.bottom, 5)
                 }
                 KoiSmartNoteHandle { presentsSmartNote = true }.padding(.bottom, 6)
                 KoiTabBar(selection: $selectedTab) { presentsSmartNote = true }
@@ -256,7 +274,7 @@ struct KoiRootView: View {
     @MainActor
     private func refreshTourOffer() {
         showTourOffer = (try? modelContext.fetch(FetchDescriptor<KoiOnboardingState>()).first)
-            .map { $0.isComplete && !$0.hasSeenTour } ?? false
+            .map { $0.isComplete && !$0.hasSeenTour && firstLoggedItemCount == 0 } ?? false
     }
 
     @MainActor
@@ -266,6 +284,10 @@ struct KoiRootView: View {
         state.hasSeenTour = true
         do { try modelContext.save(); showTourOffer = false }
         catch { Logger(subsystem: "com.alexandertarica.koi", category: "Onboarding").error("Unable to save tour preference.") }
+    }
+
+    private var firstLoggedItemCount: Int {
+        tourTasks.count + tourHabits.count + tourMeals.count + tourMovementDays.count + tourWorkouts.count
     }
 
     @MainActor

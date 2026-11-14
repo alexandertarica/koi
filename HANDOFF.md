@@ -403,6 +403,24 @@ what's partial, known issues, and the next step.
 - Workout mode now labels an exact empty-bar load “No plates needed” instead of
   showing an empty per-side breakdown. Plate math and the empty-load case were
   checked in the simulator; the 67-test suite passes.
+- Judge-path food pane pass: on a clean iPhone 17 Pro install without demo
+  seeding, Welcome → Connect → Focus reached the empty Hub; creating and
+  checking a habit and saving a to-do worked. A typed meal reached the live
+  estimator, returned all seven nutrients, saved once, and updated the Intake
+  totals and Hub Balance. The current meal composer is an inline, scrollable
+  pane with a quiet description field and dashed camera/library rows; a new
+  screenshot shows the pane without the old glass box or clipping. Photo
+  selection was confirmed in Photos before the composer rewrite; the new
+  auto-estimate-on-photo callback still needs end-to-end activation. Profile and
+  Progress rendered from direct launch routes. A step/workout action was not
+  repeated in this pass. The simulator's first-open URL confirmation prevents
+  shell-only tapping of that prompt; the widget action still needs device UI.
+- Removed the top status-bar wash that appeared as a separate dark band.
+  “Show me around” is now limited to the Hub and is dismissed permanently when
+  tapped, dismissed with its close control, or after the first item is logged.
+  The Hub and meal-pane screenshots show the new background treatment and the
+  offer absent after an item was logged. The serial simulator suite passes all
+  67 tests after these changes.
 
 ## Remaining work
 

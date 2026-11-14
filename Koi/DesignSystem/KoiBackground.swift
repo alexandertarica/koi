@@ -38,8 +38,6 @@ struct KoiBackground: View {
                         endPoint: .bottom
                     )
                 }
-                LinearGradient(colors: [.clear, KoiTheme.deepWater.opacity(0.18)], startPoint: .top, endPoint: .bottom)
-                    .frame(height: 14).frame(maxHeight: .infinity, alignment: .top)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
             .animation(.easeOut(duration: 0.3), value: motion.offset)
