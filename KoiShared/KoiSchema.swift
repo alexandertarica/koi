@@ -5,6 +5,7 @@ import SwiftData
 public enum KoiSchema {
     public static let models: [any PersistentModel.Type] = [
         KoiProfile.self,
+        KoiOnboardingState.self,
         KoiBodyWeightEntry.self,
         KoiDay.self,
         KoiHabit.self,

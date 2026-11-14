@@ -16,7 +16,7 @@ what's partial, known issues, and the next step.
 | 6 | Workout journal + workout mode + rest + summary + routines + Koi's pick | ✅ |
 | 7 | Cardio: GPS run, treadmill, class, stats | ✅ |
 | 8 | Progress + Profile (fold rows, body weight) | ✅ |
-| 9 | Onboarding + tour | ☐ |
+| 9 | Onboarding + tour | ✅ |
 | 10 | Notifications + calendar sync + iCloud backup | ☐ |
 | 11 | Widgets, Live Activity (log set from lock screen), Log-a-meal control | ☐ |
 | 12 | Smart note, readiness, habit coach, trends, supersets, plate drawing, workout import | ☐ |
@@ -82,12 +82,22 @@ what's partial, known issues, and the next step.
   body weight history, nutrition goals and movement targets; Hub greeting and
   Balance weighting follow the saved profile. Forty simulator tests pass, and
   Progress and Profile flows were reviewed on iPhone 17 Pro.
+- Phase 9: added a persistent seven-step first-launch setup with editable starter
+  habits, focus, optional body details, goal targets, Health access, notification
+  preference, and optional email fields. Completion saves the profile, goals,
+  habits, and onboarding state before showing a replayable 12-step tour. Forty-three
+  simulator tests pass; the welcome screen was reviewed on iPhone 17 Pro.
 
 ## Partial / known issues
 
 - Replay tour and service settings in Profile are deferred to their later
   phases. GPS authorization and route math are covered through the injected
   run-tracker test double; physical-device GPS accuracy still needs a device run.
+- The guided tour is currently a sequence of app explanations; target cutouts,
+  tab changes during the tour, and its hands-on Smart Note step remain for the
+  final polish phase after those screens exist. Calendar and notification
+  authorization/settings are deferred to Phase 10; onboarding stores the chosen
+  daily notification preference.
 - To-Do reminder notifications and calendar free-time selection/sync are deferred
   to Phase 10. The `-koiDemo` full-week seed is part of Phase 13, so Phase 3 was
   visually checked with empty data and in-session task entry.
@@ -96,4 +106,4 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Phase 9: build persistent onboarding and the guided tour.
+Phase 10: add notifications, calendar sync, and iCloud backup.

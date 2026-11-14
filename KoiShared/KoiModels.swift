@@ -19,6 +19,37 @@ public final class KoiProfile {
 }
 
 @Model
+public final class KoiOnboardingState {
+    @Attribute(.unique) public var id: String
+    public var isComplete: Bool
+    public var hasSeenTour: Bool
+    public var birthYear: Int?
+    public var heightCM: Double?
+    public var sexAtBirth: String?
+    public var healthConnected: Bool
+    public var calendarConnected: Bool
+    public var notificationMode: String
+    public var dailyCheckInHour: Int
+    public var betaEmail: String
+    public var launchEmail: String
+
+    public init(isComplete: Bool = false, hasSeenTour: Bool = false, birthYear: Int? = nil, heightCM: Double? = nil, sexAtBirth: String? = nil, healthConnected: Bool = false, calendarConnected: Bool = false, notificationMode: String = "smart", dailyCheckInHour: Int = 9, betaEmail: String = "", launchEmail: String = "") {
+        self.id = "onboarding"
+        self.isComplete = isComplete
+        self.hasSeenTour = hasSeenTour
+        self.birthYear = birthYear
+        self.heightCM = heightCM
+        self.sexAtBirth = sexAtBirth
+        self.healthConnected = healthConnected
+        self.calendarConnected = calendarConnected
+        self.notificationMode = notificationMode
+        self.dailyCheckInHour = dailyCheckInHour
+        self.betaEmail = betaEmail
+        self.launchEmail = launchEmail
+    }
+}
+
+@Model
 public final class KoiBodyWeightEntry {
     @Attribute(.unique) public var dayID: String
     public var date: Date

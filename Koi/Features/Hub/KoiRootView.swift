@@ -1,4 +1,6 @@
 import SwiftUI
+import SwiftData
+import KoiShared
 
 enum KoiTab: Int, CaseIterable, Identifiable {
     case hub
@@ -26,7 +28,10 @@ enum KoiTab: Int, CaseIterable, Identifiable {
 }
 
 struct KoiRootView: View {
+    @Environment(\.modelContext) private var modelContext
     @State private var selectedTab: KoiTab = .hub
+    @State private var isOnboardingPresented = false
+    @State private var hasLoadedOnboarding = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -49,6 +54,19 @@ struct KoiRootView: View {
         .background(KoiBackground().ignoresSafeArea())
         .tint(KoiTheme.onBase)
         .preferredColorScheme(.dark)
+        .fullScreenCover(isPresented: $isOnboardingPresented) {
+            OnboardingView()
+        }
+        .task {
+            guard !hasLoadedOnboarding else { return }
+            hasLoadedOnboarding = true
+            do {
+                let state = try modelContext.fetch(FetchDescriptor<KoiOnboardingState>()).first
+                if state?.isComplete != true { isOnboardingPresented = true }
+            } catch {
+                isOnboardingPresented = true
+            }
+        }
     }
 }
 

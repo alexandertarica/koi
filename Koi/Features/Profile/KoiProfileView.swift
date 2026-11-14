@@ -10,6 +10,7 @@ struct KoiProfileView: View {
     @State private var model = ProfileViewModel()
     @State private var openSection: String? = "Body weight"
     @State private var photoItem: PhotosPickerItem?
+    @State private var presentsTour = false
     let onSelectTab: (KoiTab) -> Void
 
     var body: some View {
@@ -17,6 +18,17 @@ struct KoiProfileView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
                     profileHeader
+                    Button { presentsTour = true } label: {
+                        HStack(spacing: KoiTheme.space.s8) {
+                            Image(systemName: "sparkle.magnifyingglass")
+                            Text("Replay the tour")
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.system(size: 11, weight: .light)).opacity(0.65)
+                        }
+                        .font(KoiTheme.caption)
+                        .foregroundStyle(KoiTheme.onBase)
+                        .padding(.vertical, KoiTheme.space.s8)
+                    }.buttonStyle(.plain)
                     fold("Body weight", summary: model.currentWeight.map { "\(Int($0.rounded())) lb · \(model.weightTrendText)" } ?? "Log a starting point") { bodyWeightSection }
                     fold("Your focus", summary: focusLine(model.focus)) { focusSection }
                     fold("Nutrition goals", summary: model.nutritionGoalSummary) {
@@ -38,6 +50,9 @@ struct KoiProfileView: View {
         }
         .preferredColorScheme(.dark)
         .task { model.load(context) }
+        .fullScreenCover(isPresented: $presentsTour) {
+            KoiTourView(onFinish: { presentsTour = false })
+        }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
             Task {
