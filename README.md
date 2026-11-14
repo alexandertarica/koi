@@ -27,5 +27,4 @@ evening. The idea was brought in beforehand.
 - **In-app AI**: meal photos and text become calorie and nutrient estimates, and
   workout screenshots become sets and reps. This runs through Koi's own API
   proxy (OpenRouter), so no keys ship in the app.
-- **TelemetryDeck** for privacy-friendly analytics (release builds only).
 - **Roboto Mono** (Google Fonts, Apache 2.0).

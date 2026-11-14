@@ -307,7 +307,7 @@ Request: same shape, text ≤8000. Response:
 Errors: 401 bad token, 413 too large, 429 limit, 5xx try again. Show calm,
 specific messages ("Couldn't reach Koi's estimator. Check your connection.").
 
-## 5. Analytics (TelemetryDeck, release only, anonymous)
+## 5. Analytics (local event hooks, anonymous)
 
 Onboarding.step / completed, Screen.opened {screen}, Food.loggedWithAI,
 Food.aiFailed, Task.completed, Task.placed {quadrant, dated}, Habit.completed,

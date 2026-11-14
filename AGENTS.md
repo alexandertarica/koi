@@ -19,7 +19,7 @@ relaunches, time zones and empty states.
 - WidgetKit + ActivityKit (widgets, Live Activity), App Intents (controls,
   widget buttons), HealthKit, EventKit, CloudKit (backup), CoreLocation (runs),
   Foundation Models (on-device Apple Intelligence, optional).
-- Analytics: TelemetryDeck (Swift package), release builds only.
+- Analytics: local event hooks only; nothing leaves the device.
 - Backend: the existing HTTPS endpoints described in `SPEC.md` (Backend).
   The app never holds a model provider key.
 

@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 import KoiShared
-import TelemetryDeck
 import AppIntents
 import UserNotifications
 import OSLog
@@ -16,9 +15,6 @@ struct KoiApp: App {
         runTracker = RunTracker()
         notificationRouter = KoiNotificationRouter()
         UNUserNotificationCenter.current().delegate = notificationRouter
-        #if !DEBUG
-        TelemetryDeck.initialize(config: .init(appID: "57EF3910-7D36-44AF-AA9B-E63F815F5ECA"))
-        #endif
         do {
             modelContainer = try KoiSchema.makeContainer()
         } catch {

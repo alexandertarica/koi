@@ -1,26 +1,26 @@
 import SwiftUI
 import UserNotifications
-import TelemetryDeck
 
 protocol AnalyticsProviding: Sendable {
     func signal(_ name: String)
     func signal(_ name: String, parameters: [String: String])
 }
 
-struct TelemetryAnalytics: AnalyticsProviding {
+/// Records product events locally in debug builds. Nothing leaves the device.
+struct LocalAnalytics: AnalyticsProviding {
     func signal(_ name: String) {
         signal(name, parameters: [:])
     }
 
     func signal(_ name: String, parameters: [String: String] = [:]) {
-        #if !DEBUG
-        TelemetryDeck.signal(name, parameters: parameters)
+        #if DEBUG
+        print("[event]", name, parameters)
         #endif
     }
 }
 
 private struct AnalyticsProvidingKey: EnvironmentKey {
-    static let defaultValue: any AnalyticsProviding = TelemetryAnalytics()
+    static let defaultValue: any AnalyticsProviding = LocalAnalytics()
 }
 
 private struct FoodEstimatingKey: EnvironmentKey {

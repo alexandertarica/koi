@@ -27,7 +27,7 @@ what's partial, known issues, and the next step.
 - Phase 0: created the Xcode project with app, widget extension, shared schema
   framework and unit-test targets. Set bundle IDs, version/build, team, iOS
   deployment targets, App Group, HealthKit, iCloud, location background mode,
-  Live Activities and local notification descriptions. Added the TelemetryDeck
+  Live Activities and local notification descriptions. Added the local analytics
   package and its release-only app ID, app-group SwiftData container and shared
   day/habit/task/food models.
 - Phase 0: added the brand image catalog and fonts, water background, theme
@@ -176,7 +176,7 @@ what's partial, known issues, and the next step.
   superset alternation and graduation backup. The latest combined suite now
   passes all 54 simulator tests. iPhone 17 Pro review covered Smart Note,
   Movement, workout import, To-Do and Profile.
-- Phase 13: added release-only TelemetryDeck initialization and an injected
+- Phase 13: added local analytics hooks and an injected
   analytics provider. Events cover screen visits, onboarding skip/completion and
   tour completion, pillar opens, notes, food estimation, habit and task
   completion/placement, workout routine creation, sets and completion, and
@@ -353,7 +353,7 @@ what's partial, known issues, and the next step.
 ## Next step
 
 The analytics event-name audit found all required event names wired to feature
-actions; TelemetryDeck initializes and signals only in Release.
+actions; analytics events stay on device.
 Calendar and Reminders sync, Apple Notes handoff, and CloudKit backup/restore
 are implemented. Next, continue the deeper feature and system review. A Koi-
 owned signup endpoint is not configured, and HealthKit writes are not
