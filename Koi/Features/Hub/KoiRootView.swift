@@ -32,7 +32,7 @@ struct KoiRootView: View {
         TabView(selection: $selectedTab) {
             HubView(onSelectTab: { selectedTab = $0 })
                 .tag(KoiTab.hub)
-            KoiTabPlaceholder(tab: .toDo)
+            TodoView()
                 .tag(KoiTab.toDo)
             KoiTabPlaceholder(tab: .movement)
                 .tag(KoiTab.movement)

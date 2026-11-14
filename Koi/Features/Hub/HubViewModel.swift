@@ -125,6 +125,8 @@ final class HubViewModel {
         case .task:
             guard let task = tasks.first(where: { $0.id == item.id }) else { return }
             task.isComplete.toggle()
+            task.completedAt = task.isComplete ? .now : nil
+            task.lastTouchedAt = .now
         case .habit:
             guard let habit = habits.first(where: { $0.id == item.id }) else { return }
             let log = logs.first { $0.habitID == habit.id && calendar.isDate($0.date, inSameDayAs: selectedDate) }
@@ -144,7 +146,9 @@ final class HubViewModel {
 
     private func updateDerivedState() {
         let selectedDay = days.first { calendar.isDate($0.date, inSameDayAs: selectedDate) }
-        let activeHabits = habits.filter { $0.isActive && calendar.startOfDay(for: $0.createdAt) <= selectedDate }
+        let activeHabits = habits.filter {
+            $0.isActive && $0.pausedAt == nil && calendar.startOfDay(for: $0.createdAt) <= selectedDate && isScheduled($0, on: selectedDate)
+        }
         let selectedLogs = logs.filter { calendar.isDate($0.date, inSameDayAs: selectedDate) }
         let habitDays = activeHabits.map { habit in
             let completion = selectedLogs.first(where: { $0.habitID == habit.id })?.completion ?? 0
@@ -168,7 +172,7 @@ final class HubViewModel {
             return HubTodayItem(id: habit.id, title: habit.title, kind: .habit, completion: completion, dueAt: nil)
         }
         let selectedTasks = tasks.compactMap { task -> HubTodayItem? in
-            guard let dueAt = task.dueAt, dueAt < dayEnd else { return nil }
+            guard task.archivedAt == nil, !isArchived(task), let dueAt = task.dueAt, dueAt < dayEnd else { return nil }
             return HubTodayItem(id: task.id, title: task.title, kind: .task, completion: task.isComplete ? 2 : 0, dueAt: dueAt)
         }
         items = (selectedHabits + selectedTasks).sorted {
@@ -197,12 +201,33 @@ final class HubViewModel {
         for _ in 0..<365 {
             guard let previousDay = calendar.date(byAdding: .day, value: -1, to: cursor),
                   calendar.startOfDay(for: previousDay) >= calendar.startOfDay(for: habit.createdAt) else { break }
+            guard isScheduled(habit, on: previousDay) else { cursor = previousDay; continue }
             let log = logs.first { $0.habitID == habit.id && calendar.isDate($0.date, inSameDayAs: previousDay) }
             guard (log?.completion ?? 0) == 0 else { break }
             misses += 1
             cursor = previousDay
         }
         return misses
+    }
+
+    private func isScheduled(_ habit: KoiHabit, on date: Date) -> Bool {
+        switch habit.schedule {
+        case "weekly":
+            return calendar.component(.weekday, from: date) == calendar.component(.weekday, from: habit.createdAt)
+        case "monthly":
+            let createdDay = calendar.component(.day, from: habit.createdAt)
+            let lastDay = calendar.range(of: .day, in: .month, for: date)?.upperBound.advanced(by: -1) ?? createdDay
+            return calendar.component(.day, from: date) == min(createdDay, lastDay)
+        case "someDays":
+            return habit.weekdays.contains(calendar.component(.weekday, from: date))
+        default:
+            return true
+        }
+    }
+
+    private func isArchived(_ task: KoiTask) -> Bool {
+        guard task.isComplete, let completedAt = task.completedAt else { return false }
+        return completedAt < (calendar.date(byAdding: .day, value: -1, to: .now) ?? .now)
     }
 
     private func updateTrend() {

@@ -34,13 +34,27 @@ public final class KoiHabit {
     public var note: String
     public var isActive: Bool
     public var createdAt: Date
+    public var schedule: String = "daily"
+    public var weekdays: [Int] = []
+    public var reminderTime: Date? = nil
+    public var minimumVersion: String = ""
+    public var stackingCue: String = ""
+    public var identity: String = ""
+    public var pausedAt: Date? = nil
 
-    public init(title: String, note: String = "", isActive: Bool = true, createdAt: Date = .now) {
+    public init(title: String, note: String = "", isActive: Bool = true, createdAt: Date = .now, schedule: String = "daily", weekdays: [Int] = [], reminderTime: Date? = nil, minimumVersion: String = "", stackingCue: String = "", identity: String = "") {
         self.id = UUID()
         self.title = title
         self.note = note
         self.isActive = isActive
         self.createdAt = createdAt
+        self.schedule = schedule
+        self.weekdays = weekdays
+        self.reminderTime = reminderTime
+        self.minimumVersion = minimumVersion
+        self.stackingCue = stackingCue
+        self.identity = identity
+        self.pausedAt = nil
     }
 }
 
@@ -50,7 +64,7 @@ public final class KoiHabitLog {
     public var habitID: UUID
     public var date: Date
     /// 0 is not done, 1 is the two-minute minimum, and 2 is complete.
-    public var completion: Int
+    public var completion: Int = 0
 
     public init(habitID: UUID, date: Date = .now, completion: Int = 0) {
         self.id = UUID()
@@ -69,15 +83,27 @@ public final class KoiTask {
     public var quadrant: Int
     public var isComplete: Bool
     public var createdAt: Date
+    public var important: Bool = true
+    public var urgentOverride: Bool? = nil
+    public var completedAt: Date? = nil
+    public var archivedAt: Date? = nil
+    public var lastTouchedAt: Date = Date.now
+    public var timeMinutes: Int = 30
 
-    public init(title: String, notes: String = "", dueAt: Date? = nil, quadrant: Int = 1, isComplete: Bool = false, createdAt: Date = .now) {
+    public init(title: String, notes: String = "", dueAt: Date? = nil, quadrant: Int = 1, isComplete: Bool = false, createdAt: Date = .now, important: Bool? = nil, urgentOverride: Bool? = nil, timeMinutes: Int = 30) {
         self.id = UUID()
         self.title = title
         self.notes = notes
         self.dueAt = dueAt
-        self.quadrant = quadrant
+        self.quadrant = min(max(quadrant, 0), 3)
         self.isComplete = isComplete
         self.createdAt = createdAt
+        self.important = important ?? (quadrant == 0 || quadrant == 1)
+        self.urgentOverride = urgentOverride
+        self.completedAt = nil
+        self.archivedAt = nil
+        self.lastTouchedAt = createdAt
+        self.timeMinutes = max(timeMinutes, 0)
     }
 }
 
