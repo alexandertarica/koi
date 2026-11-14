@@ -5,6 +5,21 @@ import KoiShared
 
 @MainActor
 final class KoiIntakeTests: XCTestCase {
+    func testEstimateDecodesEveryServerNutrientField() throws {
+        let data = Data(#"{"calories":612,"protein_g":31.5,"carbs_g":72,"fat_g":18,"fiber_g":11,"added_sugar_g":6,"sodium_mg":840}"#.utf8)
+        let estimate = try JSONDecoder().decode(EstimateResponse.self, from: data).value
+
+        XCTAssertEqual(estimate.description, "Meal")
+        XCTAssertEqual(estimate.calories, 612)
+        XCTAssertEqual(estimate.proteinGrams, 31.5)
+        XCTAssertEqual(estimate.carbohydrateGrams, 72)
+        XCTAssertEqual(estimate.fatGrams, 18)
+        XCTAssertEqual(estimate.fiberGrams, 11)
+        XCTAssertEqual(estimate.addedSugarGrams, 6)
+        XCTAssertEqual(estimate.sodiumMilligrams, 840)
+        XCTAssertEqual(estimate.confidence, 0.5)
+    }
+
     func testDefaultGoalsMealAndManualAdjustmentPersist() throws {
         let container = try KoiSchema.makeContainer(inMemory: true)
         let context = ModelContext(container)
@@ -23,12 +38,17 @@ final class KoiIntakeTests: XCTestCase {
         XCTAssertEqual(storedMeal.calories, 420)
         XCTAssertEqual(storedAdjustment.nutrientKey, "water")
         XCTAssertEqual(model.calories, 420)
+        XCTAssertEqual(model.nutrientRows.first(where: { $0.key == "protein" })?.value, 18)
         XCTAssertEqual(model.nutrientRows.first(where: { $0.key == "water" })?.value, 24)
 
         model.updateMeal(storedMeal, value: FoodEstimateValue(description: "Oat bowl", calories: 450, proteinGrams: 20, carbohydrateGrams: 56, fatGrams: 12, fiberGrams: 9, addedSugarGrams: 4, sodiumMilligrams: 210, confidence: 0.9), note: "With banana", jpegData: nil)
         XCTAssertEqual(try context.fetch(FetchDescriptor<KoiFoodEntry>()).first?.calories, 450)
+        XCTAssertEqual(model.calories, 450)
+        XCTAssertEqual(model.nutrientRows.first(where: { $0.key == "protein" })?.value, 20)
         model.deleteMeal(storedMeal)
         XCTAssertTrue(try context.fetch(FetchDescriptor<KoiFoodEntry>()).isEmpty)
+        XCTAssertEqual(model.calories, 0)
+        XCTAssertEqual(model.nutrientRows.first(where: { $0.key == "protein" })?.value, 0)
         XCTAssertEqual(model.nutrientRows.first(where: { $0.key == "water" })?.value, 24)
     }
 

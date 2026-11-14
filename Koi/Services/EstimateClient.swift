@@ -188,7 +188,7 @@ private struct WorkoutImportResponse: Decodable {
     let routines: [ImportedRoutine]
 }
 
-private struct EstimateResponse: Decodable {
+struct EstimateResponse: Decodable {
     let calories: Double
     let proteinGrams: Double
     let carbohydrateGrams: Double
@@ -207,6 +207,19 @@ private struct EstimateResponse: Decodable {
         case fiberGrams = "fiber_g"
         case addedSugarGrams = "added_sugar_g"
         case sodiumMilligrams = "sodium_mg"
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        calories = try values.decode(Double.self, forKey: .calories)
+        proteinGrams = try values.decode(Double.self, forKey: .proteinGrams)
+        carbohydrateGrams = try values.decode(Double.self, forKey: .carbohydrateGrams)
+        fatGrams = try values.decode(Double.self, forKey: .fatGrams)
+        fiberGrams = try values.decode(Double.self, forKey: .fiberGrams)
+        addedSugarGrams = try values.decode(Double.self, forKey: .addedSugarGrams)
+        sodiumMilligrams = try values.decode(Double.self, forKey: .sodiumMilligrams)
+        confidence = try values.decodeIfPresent(Double.self, forKey: .confidence) ?? 0.5
+        description = try values.decodeIfPresent(String.self, forKey: .description) ?? "Meal"
     }
 
     var value: FoodEstimateValue {

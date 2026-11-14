@@ -488,7 +488,7 @@ private struct MealComposer: View {
                             if wasAI { analyticsProvider.signal("Food.loggedWithAI") }
                             onClose()
                         }
-                    }.disabled(model.isEstimating || description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }.disabled(model.isEstimating || (description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && photoData == nil))
                     if model.estimate == nil && !isManual {
                         Button("Enter numbers yourself") { isManual = true }.font(KoiTheme.caption).frame(maxWidth: .infinity).buttonStyle(.plain)
                     }

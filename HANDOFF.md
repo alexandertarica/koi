@@ -305,6 +305,14 @@ what's partial, known issues, and the next step.
   Movement, and Intake screens on iPhone 17 Pro Simulator. Debug build succeeds
   and the full simulator suite passes all 64 tests.
 
+- Food logging reliability pass: photo-only estimates are now enabled even
+  when the meal description is blank. The estimate decoder accepts the
+  confirmed nutrient payload when optional confidence and description metadata
+  are absent. Added coverage for every returned nutrient and for saved, edited,
+  and deleted meal totals flowing into Intake rows. The simulator suite passes
+  all 65 tests. Live API use, library/camera interaction, widget routing, and
+  Smart Note network save still need direct end-to-end simulator exercise.
+
 ## Next step
 
 The analytics event-name audit found all required event names wired to feature
