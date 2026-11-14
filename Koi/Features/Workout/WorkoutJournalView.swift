@@ -686,9 +686,18 @@ private struct WorkoutModeView: View {
                         .accessibilityLabel("Plate per side")
                 }
             }.frame(height: 46)
-            Text(load.isExact ? "\(load.platesPerSide.map(formatWeight).joined(separator: " + ")) each side" : "Use \(formatWeight(load.usableWeight)) lb")
+            Text(plateSummary(for: load))
                 .font(KoiTheme.caption).opacity(0.7)
         }.padding(KoiTheme.space.s13).background(.ultraThinMaterial.opacity(0.18), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func plateSummary(for load: PlateLoad) -> String {
+        guard !load.platesPerSide.isEmpty else {
+            return load.isExact ? "No plates needed" : "Use \(formatWeight(load.usableWeight)) lb"
+        }
+        return load.isExact
+            ? "\(load.platesPerSide.map(formatWeight).joined(separator: " + ")) each side"
+            : "Use \(formatWeight(load.usableWeight)) lb"
     }
 
     private func isBarbell(_ name: String) -> Bool {

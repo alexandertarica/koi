@@ -401,6 +401,9 @@ what's partial, known issues, and the next step.
 - The four app targets currently resolve to version 1.0 build 1. Set the next
   release build number to 2 before TestFlight upload; marketing version stays
   1.0.
+- Workout mode now labels an exact empty-bar load “No plates needed” instead of
+  showing an empty per-side breakdown. Plate math and the empty-load case were
+  checked in the simulator; the 67-test suite passes.
 
 ## Remaining work
 
