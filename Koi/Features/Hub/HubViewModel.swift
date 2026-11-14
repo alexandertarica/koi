@@ -106,7 +106,7 @@ final class HubViewModel {
     func closeInPlace() { isProfileOpen = false; isProgressOpen = false }
 
     var dateLabel: String {
-        selectedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+        selectedDate.formatted(.dateTime.weekday(.wide).month(.wide).day())
     }
 
     var formattedBalance: String { "\(Int((balance.score * 100).rounded()))%" }

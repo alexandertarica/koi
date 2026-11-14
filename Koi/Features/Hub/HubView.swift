@@ -28,13 +28,6 @@ struct HubView: View {
             }
             .scrollClipDisabled()
             .contentMargins(.bottom, 18)
-            .mask {
-                VStack(spacing: 0) {
-                    Rectangle().fill(.black)
-                    LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 89)
-                }
-            }
         }
         .onAppear {
             model.refresh(using: modelContext)
