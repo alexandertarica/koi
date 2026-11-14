@@ -85,7 +85,7 @@ struct TodoView: View {
                 .accessibilityLabel(model.showingArchive || model.showingNewTask || model.showingNewHabit ? "Close" : "Archive")
             }
             VStack(alignment: .leading, spacing: 0) {
-                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()).uppercased())
+                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased())
                     .font(KoiTheme.section).tracking(2.7).foregroundStyle(KoiTheme.onBase.opacity(0.8))
                     .padding(.top, 7)
                 Text(model.showingArchive ? "Archive" : (model.showingNewTask ? (model.editingTaskID == nil ? "New to-do" : "Edit to-do") : model.showingNewHabit ? (model.editingHabitID == nil ? "New habit" : "Edit habit") : "Practice"))

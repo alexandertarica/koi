@@ -104,6 +104,20 @@ final class KoiTodoTests: XCTestCase {
         XCTAssertFalse(model.tasksMarkedUrgent.contains(task.id))
     }
 
+    func testStartupAutoUrgencyDoesNotShowUndoToast() throws {
+        let context = try makeContext()
+        let dueDate = Calendar.current.date(byAdding: .day, value: 1, to: .now)
+        let task = KoiTask(title: "Finish draft", dueAt: dueDate, quadrant: TodoSection.notUrgentImportant.quadrant)
+        context.insert(task)
+        try context.save()
+
+        let model = TodoViewModel()
+        model.load(context)
+
+        XCTAssertEqual(task.quadrant, TodoSection.urgentImportant.quadrant)
+        XCTAssertNil(model.toast)
+    }
+
     private func makeContext() throws -> ModelContext {
         let container = try KoiSchema.makeContainer(inMemory: true)
         return ModelContext(container)

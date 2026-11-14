@@ -75,7 +75,10 @@ what's partial, known issues, and the next step.
   finished tasks behind a count row. Task and habit composers now open in place;
   archive rows include restore and delete actions. Added swipe-to-complete and
   swipe-to-reveal-delete behavior, plus placement analytics and completion
-  feedback. All 55 simulator tests pass, and the seeded To-Do screen was captured.
+  feedback. Startup urgency now updates dated tasks without showing an undo
+  toast; user-driven urgency changes retain the undo action. The screen header
+  uses the full month name. The seeded To-Do screen was captured on two iPhone
+  17 Pro simulators; all 62 simulator tests pass.
 - Intake visual pass: changed the calorie indicator to a full-height left-edge
   semicircle with a calorie hero and segmented nutrient tracks and labels inside
   the curve. Added single-row nutrient expansion with preset additions, moved
@@ -253,11 +256,10 @@ what's partial, known issues, and the next step.
   state review was completed in earlier phases; this pass did not repeat every
   screen in both appearances. The root currently requests light system
   appearance for the intended glass and status-bar treatment.
-- Paired screenshot review is still incomplete. The second iPhone 17 Pro
-  simulator launches but its captured surface remains at SpringBoard; the
-  primary simulator shows the seeded Hub, dimmed by an OS first-run overlay.
-  Host UI automation could not control Simulator, so the overlay and setup
-  flow could not be dismissed for paired screen captures.
+- Paired demo captures now cover Hub and To-Do on two iPhone 17 Pro simulators.
+  Simulator preferences were used to dismiss the daily check-in and guided tour
+  overlays for the captures. Other screen pairs and paired empty-state captures
+  are still outstanding.
 - The haptic engine and intro reveal are wired into primary tab interactions;
   the remaining screen-specific interaction audit is still in progress.
 - Intake's second-device paired visual review remains unavailable because that

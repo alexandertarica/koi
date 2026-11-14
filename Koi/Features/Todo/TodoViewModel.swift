@@ -140,7 +140,7 @@ final class TodoViewModel {
             dailyCheckInHour = settings?.dailyCheckInHour ?? 9
             var changed = false
             for task in tasks where !task.isComplete && !isArchived(task) {
-                if applyAutoUrgency(for: task) { changed = true }
+                if applyAutoUrgency(for: task, showsUndoToast: false) { changed = true }
             }
             if changed { try context.save() }
             refreshHabitCoach()
@@ -434,14 +434,14 @@ final class TodoViewModel {
         calendar.dateComponents([.day], from: calendar.startOfDay(for: .now), to: calendar.startOfDay(for: date)).day ?? Int.max
     }
     @discardableResult
-    private func applyAutoUrgency(for task: KoiTask) -> Bool {
+    private func applyAutoUrgency(for task: KoiTask, showsUndoToast: Bool = true) -> Bool {
         guard task.urgentOverride != false,
               let dueAt = task.dueAt,
               daysUntil(dueAt) <= 1,
               task.quadrant == TodoSection.notUrgentImportant.quadrant || task.quadrant == TodoSection.someday.quadrant else { return false }
         task.quadrant = quadrant(urgent: true, important: task.important)
         tasksMarkedUrgent.insert(task.id)
-        showAutoUrgent(task)
+        if showsUndoToast { showAutoUrgent(task) }
         return true
     }
     private func showAutoUrgent(_ task: KoiTask) { toast = "Due soon · marked urgent"; toastTaskID = task.id; tasksMarkedUrgent.insert(task.id) }
