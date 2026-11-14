@@ -366,6 +366,14 @@ what's partial, known issues, and the next step.
 
 ## Final pass status (2026-11-14)
 
+- Release configuration: the Release app and widget build successfully for the
+  iPhone 17 Pro simulator. A clean install launches directly to the empty
+  three-step Welcome screen with no launch arguments. Bundle/version metadata is
+  com.alexandertarica.koi, 1.0 (2). The compiled Release executable contains
+  no demo seed or debug screen/tab routing flags. The CLI-only simulator pass
+  cannot tap Next/Start, so the remainder of the Release onboarding path and
+  post-onboarding flows have not been interaction-tested in Release.
+
 - Food flow: typed estimate returned all seven nutrient values; save updated
   Intake totals and the day's meal list, edit changed the totals, and delete
   restored them. A library photo was selected and previewed. Smart Note saved a
