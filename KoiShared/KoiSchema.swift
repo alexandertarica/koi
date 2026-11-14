@@ -12,6 +12,7 @@ public enum KoiSchema {
         KoiHabitLog.self,
         KoiTask.self,
         KoiFoodEntry.self,
+        KoiQuickNote.self,
         KoiNutrientGoal.self,
         KoiNutrientEntry.self,
         KoiSupplement.self,

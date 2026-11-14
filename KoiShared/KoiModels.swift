@@ -300,6 +300,21 @@ public final class KoiFoodEntry {
 }
 
 @Model
+public final class KoiQuickNote {
+    @Attribute(.unique) public var id: UUID
+    public var text: String
+    public var action: String
+    public var createdAt: Date
+
+    public init(text: String, action: String, createdAt: Date = .now) {
+        self.id = UUID()
+        self.text = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(4_000))
+        self.action = String(action.prefix(40))
+        self.createdAt = createdAt
+    }
+}
+
+@Model
 public final class KoiNutrientGoal {
     @Attribute(.unique) public var key: String
     public var name: String

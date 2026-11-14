@@ -292,6 +292,8 @@ private struct SmartNoteSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
     @State private var isSaving = false
+    @State private var isSaved = false
+    @State private var noteIsPersisted = false
     @State private var error: String?
     @State private var confirmation: String?
     @State private var aiAction: SmartNoteAction?
@@ -315,9 +317,18 @@ private struct SmartNoteSheet: View {
                 if isClassifying { Text("Reading on device…").font(KoiTheme.caption).opacity(0.62) }
                 if let confirmation { Text(confirmation).font(KoiTheme.caption).opacity(0.76) }
                 if let error { Text(error).font(KoiTheme.caption).foregroundStyle(.orange) }
+                if isSaved {
+                    ShareLink(item: appleNotesText, subject: Text("Koi quick note")) {
+                        Label("Send to Apple Notes", systemImage: "square.and.arrow.up").font(KoiTheme.caption)
+                    }
+                    .tint(KoiTheme.onBase)
+                }
                 Spacer(minLength: 0)
-                KoiPrimaryButton(title: isSaving ? "Saving…" : "Save") { Task { await save() } }
-                    .disabled(action == nil || isSaving)
+                KoiPrimaryButton(title: isSaved ? "Saved" : (isSaving ? "Saving…" : "Save")) {
+                    if isSaved { dismiss() }
+                    else { Task { await save() } }
+                }
+                .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
             }
             .padding(KoiTheme.space.s21)
             .background(KoiBackground().ignoresSafeArea())
@@ -337,10 +348,16 @@ private struct SmartNoteSheet: View {
     }
 
     @MainActor private func save() async {
-        guard let action else { return }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         isSaving = true
         defer { isSaving = false }
         do {
+            if !noteIsPersisted {
+                context.insert(KoiQuickNote(text: text, action: action.map(actionKind) ?? "reflection"))
+                try context.save()
+                noteIsPersisted = true
+            }
+            if let action {
             switch action {
             case .food(let description):
                 let estimate = try await estimator.estimate(text: description, jpegData: nil)
@@ -382,9 +399,10 @@ private struct SmartNoteSheet: View {
                 context.insert(KoiRoutineLift(routineID: routine.id, name: name, muscleGroup: WorkoutNameRules.guessGroup(name)))
                 confirmation = "Added to today’s plan."
             }
+            }
             try context.save()
             analyticsProvider.signal("Note.saved")
-            dismiss()
+            isSaved = true
         } catch let error as LocalizedError {
             self.error = error.errorDescription ?? "Couldn't save that note. Try again."
         } catch { self.error = "Couldn't save that note. Try again." }
@@ -399,6 +417,22 @@ private struct SmartNoteSheet: View {
         case .workout(let name, let weight, let reps, let sets): "Log \(name) · \(weight.formatted()) × \(reps) × \(sets)"
         case .planLift(let value): "Plan \(value) for today"
         }
+    }
+
+    private func actionKind(_ action: SmartNoteAction) -> String {
+        switch action {
+        case .food: "food"
+        case .water: "water"
+        case .habit: "habit"
+        case .task: "task"
+        case .workout: "workout"
+        case .planLift: "planned_lift"
+        }
+    }
+
+    private var appleNotesText: String {
+        let date = Date.now.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+        return "Koi · \(date)\n\n\(text.trimmingCharacters(in: .whitespacesAndNewlines))"
     }
 }
 

@@ -186,8 +186,14 @@ what's partial, known issues, and the next step.
   reviewed with seeded data. Onboarding now spotlights app regions, selects the
   corresponding tab during the tour, and opens Smart Note after the hands-on
   swipe step. Skip and completion have separate analytics signals. A serial
-  simulator run passes all 55 tests; one later parallel test-runner session
-  stalled while Xcode waited for its test worker to finish cleanup.
+  simulator run passes all 58 tests; a parallel test-runner session stalled
+  while Xcode waited for its test worker to finish cleanup.
+- System pass: added discoverable App Intents and Siri shortcuts for water,
+  protein, meals, workouts, habits, and the meal camera, with shared-store
+  persistence and tests. Smart Note now saves the original text as a durable,
+  backed-up record before applying its detected action. A native share sheet
+  sends saved notes to Apple Notes, and Profile lists the saved note history.
+  The system build succeeds and all 58 simulator tests pass.
 
 ## Partial / known issues
 

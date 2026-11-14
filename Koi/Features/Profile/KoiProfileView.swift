@@ -11,6 +11,7 @@ struct KoiProfileView: View {
     @Environment(\.calendarProvider) private var calendarProvider
     @Environment(\.backupProvider) private var backupProvider
     @State private var model = ProfileViewModel()
+    @Query(sort: \KoiQuickNote.createdAt, order: .reverse) private var savedNotes: [KoiQuickNote]
     @State private var openSection: String? = "Body weight"
     @State private var photoItem: PhotosPickerItem?
     @State private var presentsTour = false
@@ -48,6 +49,25 @@ struct KoiProfileView: View {
                     fold("Smart notes", summary: "Write freely from the tab bar") {
                         Text("Turn a short note into a meal estimate, water log, habit check, to-do or workout.")
                             .font(KoiTheme.caption).opacity(0.72)
+                    }
+                    fold("Saved notes", summary: savedNotes.isEmpty ? "None yet" : "\(savedNotes.count) saved") {
+                        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+                            ForEach(savedNotes, id: \.id) { note in
+                                VStack(alignment: .leading, spacing: KoiTheme.space.s5) {
+                                    Text(note.text).font(KoiTheme.body).lineLimit(4)
+                                    HStack {
+                                        Text(note.createdAt.formatted(.dateTime.month(.abbreviated).day()))
+                                            .font(KoiTheme.caption).opacity(0.62)
+                                        Spacer()
+                                        ShareLink(item: note.text, subject: Text("Koi quick note")) {
+                                            Label("Share", systemImage: "square.and.arrow.up").font(KoiTheme.caption)
+                                        }
+                                    }
+                                }
+                                .padding(.vertical, KoiTheme.space.s8)
+                                .overlay(alignment: .bottom) { Rectangle().fill(KoiTheme.divider).frame(height: 0.5) }
+                            }
+                        }
                     }
                     fold("iCloud backup", summary: backupSummary) { backupSection }
                     fold("Tips & gestures", summary: "A few quiet shortcuts") { tipsSection }

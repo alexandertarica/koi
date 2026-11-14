@@ -5,6 +5,46 @@ import KoiShared
 
 @MainActor
 final class KoiBackupTests: XCTestCase {
+    func testIntentActionsPersistWaterProteinMealAndWorkout() throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        try KoiIntentStore.addNutrient("water", amount: 12, context: context)
+        try KoiIntentStore.addNutrient("water", amount: 8, context: context)
+        try KoiIntentStore.addNutrient("protein", amount: 24, context: context)
+        try KoiIntentStore.addMeal(name: "Lunch", calories: 540, protein: 32, context: context)
+        try KoiIntentStore.logWorkout(name: "Strength", minutes: 45, context: context)
+
+        let nutrients = try context.fetch(FetchDescriptor<KoiNutrientEntry>())
+        XCTAssertEqual(nutrients.first(where: { $0.nutrientKey == "water" })?.value, 20)
+        XCTAssertEqual(nutrients.first(where: { $0.nutrientKey == "protein" })?.value, 24)
+        let meals = try context.fetch(FetchDescriptor<KoiFoodEntry>())
+        XCTAssertEqual(meals.first?.name, "Lunch")
+        XCTAssertEqual(meals.first?.calories, 540)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiWorkoutSession>()).first?.isComplete, true)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<KoiWorkoutSet>()).isEmpty)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiMovementDay>()).first?.didManuallyTrain, true)
+    }
+
+    func testCompleteHabitIntentMatchesAndChecksOffAnActiveHabit() throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let habit = KoiHabit(title: "Take a walk")
+        context.insert(habit)
+        XCTAssertTrue(try KoiIntentStore.completeHabit(named: "Take a walk", context: context))
+        XCTAssertFalse(try KoiIntentStore.completeHabit(named: "Read", context: context))
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiHabitLog>()).first?.completion, 2)
+    }
+
+    func testIntentActionsRejectInvalidNutritionInputs() throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        XCTAssertThrowsError(try KoiIntentStore.addNutrient("water", amount: -1, context: context))
+        XCTAssertThrowsError(try KoiIntentStore.addNutrient("water", amount: 129, context: context))
+        XCTAssertThrowsError(try KoiIntentStore.addMeal(name: "", calories: 200, protein: 10, context: context))
+        XCTAssertTrue(try context.fetch(FetchDescriptor<KoiNutrientEntry>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<KoiFoodEntry>()).isEmpty)
+    }
+
     func testArchiveRoundTripRestoresCompleteUserSchemaAndReplacesLocalData() throws {
         let source = try KoiSchema.makeContainer(inMemory: true)
         let sourceContext = ModelContext(source)
@@ -33,6 +73,7 @@ final class KoiBackupTests: XCTestCase {
         sourceContext.insert(KoiHabitLog(habitID: habit.id, date: day, completion: 1))
         sourceContext.insert(task)
         sourceContext.insert(food)
+        sourceContext.insert(KoiQuickNote(text: "A quiet morning, then a short walk.", action: "reflection", createdAt: day))
         sourceContext.insert(KoiNutrientGoal(key: "protein", name: "Protein", unit: "g", goal: 140, step: 5))
         sourceContext.insert(KoiNutrientEntry(date: day, nutrientKey: "protein", value: 12))
         let supplement = KoiSupplement(name: "Vitamin D")
@@ -50,7 +91,7 @@ final class KoiBackupTests: XCTestCase {
 
         let archiveData = try JSONEncoder().encode(KoiBackupArchive.capture(sourceContext, createdAt: day))
         let archive = try JSONDecoder().decode(KoiBackupArchive.self, from: archiveData)
-        XCTAssertEqual(archive.rows.count, 20)
+        XCTAssertEqual(archive.rows.count, 21)
         let destination = try KoiSchema.makeContainer(inMemory: true)
         let destinationContext = ModelContext(destination)
         destinationContext.insert(KoiHabit(title: "Local-only"))
@@ -65,6 +106,7 @@ final class KoiBackupTests: XCTestCase {
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiTask>()).first?.calendarEventID, "event-1")
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiTask>()).first?.hasTime, true)
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiFoodEntry>()).first?.imageJPEG, Data([9]))
+        XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiQuickNote>()).first?.text, "A quiet morning, then a short walk.")
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiMovementDay>()).first?.steps, 7_700)
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiWorkoutLift>()).first?.sessionID, session.id)
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiCardioSession>()).first?.routeData, Data([4, 5]))
