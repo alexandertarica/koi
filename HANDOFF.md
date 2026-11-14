@@ -364,102 +364,52 @@ what's partial, known issues, and the next step.
   nutrient tracks within their rows and restored the broader filled track and
   marker sizing. Debug build succeeds; all 67 simulator tests pass.
 
-## Final pass status (2026-11-14)
+## Final validation (2026-11-14)
 
-- Release configuration: the Release app and widget build successfully for the
-  iPhone 17 Pro simulator. A clean install launches directly to the empty
-  three-step Welcome screen with no launch arguments. Bundle/version metadata is
-  com.alexandertarica.koi, 1.0 (2). The compiled Release executable contains
-  no demo seed or debug screen/tab routing flags. The CLI-only simulator pass
-  cannot tap Next/Start, so the remainder of the Release onboarding path and
-  post-onboarding flows have not been interaction-tested in Release.
-- Haptic and animation audit: the dial sweep, completion tick, and save-success
-  feedback are wired in code. Workout logging now uses the success haptic when
-  a set establishes a new best, and the ordinary check haptic for other sets.
-  The 67-test simulator suite passes after this change. Simulator screenshots
-  cannot verify physical vibration strength or timing; confirm those on an
-  iPhone before judging the haptic feel.
-- Remaining screen review: direct simulator launches and screenshots reviewed
-  workout journal, workout mode, routine builder, run mode, new to-do, new
-  habit, Smart Note, Profile, Progress, and the inline food composer. The empty
-  workout state offers “Add a lift when you're ready”; run mode offers the
-  start action; the routine form and food pane fit within their scroll views.
-  New to-do and habit focus the title field, so the keyboard covers lower form
-  choices until the user scrolls or dismisses it. The CLI capture pass cannot
-  tap through these lower controls or replay the full flows. No additional
-  source change was indicated by the static captures.
-- Error and permission states: a Debug-only launch route now presents the meal
-  composer with the camera-unavailable state; its screenshot confirms the
-  friendly simulator message and “Enter manually” action with no clipping.
-  Calendar and motion permission access were revoked through `simctl privacy`
-  on the audit simulator. The onboarding rows catch denied authorization and
-  show recovery copy, but a tap-driven denial/retry was not possible through
-  the command-line-only capture. A forced offline estimator response likewise
-  remains unverified; its friendly error and manual-entry branch are present.
+### Verified
 
-- Food flow: typed estimate returned all seven nutrient values; save updated
-  Intake totals and the day's meal list, edit changed the totals, and delete
-  restored them. A library photo was selected and previewed. Smart Note saved a
-  meal once. Simulator camera fallback explains the limitation and offers the
-  library picker. Widget meal links are registered; opening the URL on a fresh
-  simulator install reached iOS's first-open confirmation, so the widget and
-  Control Center launch action still need direct device interaction. Friendly
-  service-error/manual-entry behavior is implemented, but a forced network
-  failure was not exercised end to end. The phrase “Walked to coffee” was
-  classified as a meal; it produced an empty estimate. That test entry was
-  deleted. Smart Note now treats movement-only notes as reflections instead of
-  sending them to food estimation; parser tests cover movement notes with and
-  without a food-consumption phrase.
-- Onboarding: a clean install showed all three steps, optional Health and
-  Calendar connections, four focus choices, Start, the demo-free Hub, and the
-  optional tour chip. Calendar permission was granted in Simulator; Health
-  remains optional. Defaults are 2,200 kcal, 140 g protein, 8,000 steps, and
-  four workouts per week.
-- Tab and screen pass: seeded Hub, To-Do, Movement, and Intake were captured on
-  the same iPhone 17 Pro simulator. Workout set logging, PR feedback, rest timer,
-  plate math, workout finish/history, routine creation, treadmill logging, class
-  logging, new to-do, new habit, and Smart Note save were exercised. Progress,
-  Profile, onboarding, tour, meal composer, and other sub-screens were launched
-  and visually reviewed. Treadmill/class paths work in Simulator; GPS accuracy,
-  physical haptics, camera capture, notification delivery, HealthKit data,
-  CloudKit account/restore, widget placement/actions, Live Activity and Control
-  Center actions still need a physical device or system UI interaction.
-- Stability: the app was launched with an empty store and with `-koiDemo` on the
-  same booted iPhone 17 Pro. The principal screens and create/log flows above
-  completed without a crash. The latest full simulator suite passes all 67
-  tests. A configured-network workout import and deliberately induced estimator
-  failure remain unverified.
-- The app, widget, shared framework, and test configurations now resolve to
-  version 1.0 build 2. Marketing version stays 1.0.
-- Workout mode now labels an exact empty-bar load “No plates needed” instead of
-  showing an empty per-side breakdown. Plate math and the empty-load case were
-  checked in the simulator; the 67-test suite passes.
-- Judge-path food pane pass: on a clean iPhone 17 Pro install without demo
-  seeding, Welcome → Connect → Focus reached the empty Hub; creating and
-  checking a habit and saving a to-do worked. A typed meal reached the live
-  estimator, returned all seven nutrients, saved once, and updated the Intake
-  totals and Hub Balance. The current meal composer is an inline, scrollable
-  pane with a quiet description field and dashed camera/library rows; a new
-  screenshot shows the pane without the old glass box or clipping. Photo
-  selection was confirmed in Photos before the composer rewrite; the new
-  auto-estimate-on-photo callback still needs end-to-end activation. Profile and
-  Progress rendered from direct launch routes. A step/workout action was not
-  repeated in this pass. The simulator's first-open URL confirmation prevents
-  shell-only tapping of that prompt; the widget action still needs device UI.
-- Removed the top status-bar wash that appeared as a separate dark band.
-  “Show me around” is now limited to the Hub and is dismissed permanently when
-  tapped, dismissed with its close control, or after the first item is logged.
-  The Hub and meal-pane screenshots show the new background treatment and the
-  offer absent after an item was logged. The serial simulator suite passes all
-  67 tests after these changes.
+- The latest Debug simulator test run passes all 67 tests. This includes
+  estimate response decoding and meal persistence through save, edit, and
+  delete.
+- The Release app and widget build successfully. A clean install on the iPhone
+  17 Pro simulator, launched with no arguments, displays the first onboarding
+  screen and no demo data. The bundle is `com.alexandertarica.koi`, version
+  1.0 (2); the app and widget retain Koi's App Group and iCloud container.
+- The Release executable contains no `-koiDemo`, `-koiScreen`, `-koiTab`, or
+  `-koiShowMealComposer` routes. No external analytics package is configured.
+  `LocalAnalytics` records event names and private parameters to on-device
+  unified logging.
+- A live text estimate returned all seven nutrients in the earlier simulator
+  path, saved once, and updated Intake totals and Hub Balance. Meal save/edit/
+  delete behavior is covered by model tests. The current composer screenshot
+  shows the in-place scrollable layout without the old panel, clipping, or
+  off-Hub tour chip. A Debug camera route screenshot confirms the friendly
+  Simulator camera fallback and manual-entry option.
+- Direct simulator screenshots reviewed the workout journal and mode, routine
+  builder, run screen, new to-do and habit forms, Smart Note, Profile, Progress,
+  and meal composer. The workout PR path now uses success feedback; the other
+  dial, check-off, and save feedback paths remain wired.
+- The simulator has Calendar and motion permissions revoked for denial-state
+  coverage. The clean Release screenshot and screenshots of the updated food
+  and camera-fallback views were inspected.
 
-## Remaining work
+### Still unverified
 
-Keep analytics on device through `LocalAnalytics`. A Koi-owned signup endpoint
-is not configured, and HealthKit writes are not implemented. Physical-device
-verification remains for HealthKit data and writes, CloudKit account/restore,
-GPS accuracy, camera capture, notification delivery, widget placement and
-actions, Live Activity, Control Center actions, and configured-network workout
-imports. Simulator tests require ad-hoc signing to retain the App Group
-entitlement; `CODE_SIGNING_ALLOWED=NO` crashes during app startup before tests
-bootstrap.
+- The CLI-only simulator control path cannot tap through onboarding, the photo
+  picker, meal result/edit controls, task/habit save controls, permission
+  toggles, or workout/run actions. The current clean Release run therefore
+  stops visually at Welcome; prior Debug interaction runs reached the Hub and
+  exercised the core task, habit, and typed-food paths.
+- The rewritten photo-picker auto-estimate path has not been activated end to
+  end. The earlier photo test selected and previewed a library image before the
+  composer rewrite. A forced offline estimator response, denied-permission
+  retry interaction, and the complete fresh-install path in Release have not
+  been driven in this pass.
+- A physical iPhone is still needed to verify camera capture, GPS accuracy,
+  physical haptic strength/timing, HealthKit data and authorization behavior,
+  notification delivery, CloudKit account/restore, widget placement/actions,
+  Live Activity visibility/actions, and Control Center actions.
+- HealthKit writes are not implemented, and a Koi-owned signup endpoint is not
+  configured. Configured-network workout import has not been exercised in this
+  final pass.
+

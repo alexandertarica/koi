@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import OSLog
 
 protocol AnalyticsProviding: Sendable {
     func signal(_ name: String)
@@ -8,14 +9,14 @@ protocol AnalyticsProviding: Sendable {
 
 /// Records product events locally in debug builds. Nothing leaves the device.
 struct LocalAnalytics: AnalyticsProviding {
+    private let logger = Logger(subsystem: "com.alexandertarica.koi", category: "Analytics")
+
     func signal(_ name: String) {
         signal(name, parameters: [:])
     }
 
     func signal(_ name: String, parameters: [String: String] = [:]) {
-        #if DEBUG
-        print("[event]", name, parameters)
-        #endif
+        logger.info("\(name, privacy: .public) \(String(describing: parameters), privacy: .private)")
     }
 }
 
