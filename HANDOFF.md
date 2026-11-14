@@ -8,7 +8,7 @@ what's partial, known issues, and the next step.
 | # | Phase | Status |
 |---|---|---|
 | 0 | Project, targets, identifiers, App Group, SwiftData container, design system, background | ✅ |
-| 1 | Engine: Balance, streak + freezes, habit rules, date parsing (tests) | ☐ |
+| 1 | Engine: Balance, streak + freezes, habit rules, date parsing (tests) | ✅ |
 | 2 | Hub: dial, scrub, pillar lines, Today list, trend chip | ☐ |
 | 3 | To-Do: habits + to-dos, list + matrix, new to-do, new habit, archive, auto-urgent | ☐ |
 | 4 | Intake: dial, quiet rows, food log with AI, meals, supplements, edit mode | ☐ |
@@ -34,6 +34,11 @@ what's partial, known issues, and the next step.
   tokens, glass components and four-tab shell. The iPhone 17 Pro simulator build
   succeeded, the SwiftData persistence test passed, and the app launched for a
   visual check.
+- Phase 1: added pure Balance weighting/capping, never-miss-twice and minimum
+  habit credit, rolling counting-day streaks with two-bank freeze rules, and
+  calendar-aware title date/time parsing. Fifteen engine tests cover thresholds,
+  gaps, freeze earn/spend, graduated habits, invalid inputs and clock rollover.
+  The simulator build and launch succeeded.
 
 ## Partial / known issues
 
@@ -43,4 +48,4 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Phase 1: implement and test Balance, streak/freezes, habit rules and date parsing.
+Phase 2: build the Hub dial, historical scrub, pillar details, Today list and trend.
