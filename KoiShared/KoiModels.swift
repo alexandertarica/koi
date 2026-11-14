@@ -45,6 +45,22 @@ public final class KoiHabit {
 }
 
 @Model
+public final class KoiHabitLog {
+    @Attribute(.unique) public var id: UUID
+    public var habitID: UUID
+    public var date: Date
+    /// 0 is not done, 1 is the two-minute minimum, and 2 is complete.
+    public var completion: Int
+
+    public init(habitID: UUID, date: Date = .now, completion: Int = 0) {
+        self.id = UUID()
+        self.habitID = habitID
+        self.date = date
+        self.completion = min(max(completion, 0), 2)
+    }
+}
+
+@Model
 public final class KoiTask {
     @Attribute(.unique) public var id: UUID
     public var title: String

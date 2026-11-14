@@ -6,6 +6,7 @@ public enum KoiSchema {
     public static let models: [any PersistentModel.Type] = [
         KoiDay.self,
         KoiHabit.self,
+        KoiHabitLog.self,
         KoiTask.self,
         KoiFoodEntry.self
     ]

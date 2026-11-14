@@ -9,7 +9,7 @@ what's partial, known issues, and the next step.
 |---|---|---|
 | 0 | Project, targets, identifiers, App Group, SwiftData container, design system, background | ✅ |
 | 1 | Engine: Balance, streak + freezes, habit rules, date parsing (tests) | ✅ |
-| 2 | Hub: dial, scrub, pillar lines, Today list, trend chip | ☐ |
+| 2 | Hub: dial, scrub, pillar lines, Today list, trend chip | ✅ |
 | 3 | To-Do: habits + to-dos, list + matrix, new to-do, new habit, archive, auto-urgent | ☐ |
 | 4 | Intake: dial, quiet rows, food log with AI, meals, supplements, edit mode | ☐ |
 | 5 | Movement: dial, steps, Health sync | ☐ |
@@ -39,13 +39,20 @@ what's partial, known issues, and the next step.
   calendar-aware title date/time parsing. Fifteen engine tests cover thresholds,
   gaps, freeze earn/spend, graduated habits, invalid inputs and clock rollover.
   The simulator build and launch succeeded.
+- Phase 2: added the animated 72-tick Balance dial, seven-day hold/slide review,
+  pillar detail folds, streak/trend summaries and the two-item Today list with
+  persistent task completion and habit check-ins. Eighteen simulator tests pass;
+  the iPhone 17 Pro build and empty-state launch were visually checked.
 
 ## Partial / known issues
 
-- The four tabs are foundation placeholders; feature behavior begins in Phase 1.
+- Intake and Movement pillar values currently come from daily score records;
+  Phases 4 and 5 add event-level food and activity data.
+- To-Do, Movement and Intake remain placeholders pending their phases. The Hub's
+  Profile and Progress sheets are previews; Phase 8 replaces them with full views.
 - Simulator target is iOS 26.5. The widget and shared schema framework retain an
   iOS 18 deployment target.
 
 ## Next step
 
-Phase 2: build the Hub dial, historical scrub, pillar details, Today list and trend.
+Phase 3: build To-Do habits/tasks, list/matrix, creation flows, archive and urgency.
