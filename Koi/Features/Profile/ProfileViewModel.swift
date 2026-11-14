@@ -35,6 +35,7 @@ final class ProfileViewModel {
     var focus: BalanceFocus { BalanceFocus(rawValue: profile?.focusKey ?? "") ?? .allRounder }
     var hasWeightToday: Bool { weightEntries.contains { calendar.isDateInToday($0.date) } }
     var currentWeight: Double? { weightEntries.last?.weightLB }
+    var previousWeight: Double? { weightEntries.last(where: { !calendar.isDateInToday($0.date) })?.weightLB }
     var weightTrendText: String {
         guard weightEntries.count > 1 else { return "A steady place to begin." }
         let recent = weightEntries.last?.weightLB ?? 0
@@ -122,6 +123,20 @@ final class ProfileViewModel {
         } catch {
             logger.error("Unable to save body weight.")
             errorMessage = "Couldn't save today's weight. Try again."
+        }
+    }
+
+    func deleteWeight(_ entry: KoiBodyWeightEntry) {
+        guard let context else { return }
+        context.delete(entry)
+        do {
+            try context.save()
+            weightEntries = try context.fetch(FetchDescriptor<KoiBodyWeightEntry>(sortBy: [SortDescriptor(\.date)]))
+            weightDraft = weightEntries.first(where: { calendar.isDateInToday($0.date) })?.weightLB ?? weightEntries.last?.weightLB ?? 150
+            savedWeight = weightEntries.first(where: { calendar.isDateInToday($0.date) })?.weightLB
+        } catch {
+            logger.error("Unable to delete body weight entry.")
+            errorMessage = "Couldn't remove that weigh-in. Try again."
         }
     }
 

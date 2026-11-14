@@ -120,6 +120,14 @@ what's partial, known issues, and the next step.
   body weight history, nutrition goals and movement targets; Hub greeting and
   Balance weighting follow the saved profile. Forty simulator tests pass, and
   Progress and Profile flows were reviewed on iPhone 17 Pro.
+- Progress/Profile visual pass: made month and week periods navigable, added
+  miniature Balance arcs in calendar cells, and restored historical period data.
+  Progress and Profile now render directly inside the Hub's in-place panels
+  without nested scroll/navigation containers. Replaced the weight slider with
+  an accessible drag ruler, added same-as-last and history controls, and added a
+  full trend/history sheet with deletion. DEBUG demo launches skip the splash so
+  panel captures show content. Seeded Progress and Profile panels were captured;
+  all 55 simulator tests pass.
 - Phase 9: added a persistent seven-step first-launch setup with editable starter
   habits, focus, optional body details, goal targets, Health access, notification
   preference, and optional email fields. Completion saves the profile, goals,
@@ -217,11 +225,14 @@ what's partial, known issues, and the next step.
 - Movement's second-device paired visual review remains unavailable for the
   same first-run setup behavior. Its seeded screen was reviewed on the primary
   iPhone 17 Pro simulator.
+- Progress and Profile paired visual review remains unavailable because the
+  second simulator stays in first-run setup. Both seeded panels were captured on
+  the primary iPhone 17 Pro simulator.
 
 ## Next step
 
-Continue the visual and interaction pass in order with Progress/Profile,
-onboarding, and system integrations. Physical-device
+Continue the visual and interaction pass in order with onboarding and system
+integrations. Physical-device
 verification remains for HealthKit, CloudKit, GPS accuracy, notification
 delivery, widgets, Control Center actions, and configured-network workout
 imports.

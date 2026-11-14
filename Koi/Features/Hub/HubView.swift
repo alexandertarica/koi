@@ -34,7 +34,19 @@ struct HubView: View {
                 }
             }
         }
-        .onAppear { model.refresh(using: modelContext) }
+        .onAppear {
+            model.refresh(using: modelContext)
+            #if DEBUG
+            if let marker = ProcessInfo.processInfo.arguments.firstIndex(of: "-koiHubPanel"),
+               ProcessInfo.processInfo.arguments.indices.contains(marker + 1) {
+                switch ProcessInfo.processInfo.arguments[marker + 1].lowercased() {
+                case "progress": model.toggleProgress()
+                case "profile": model.toggleProfile()
+                default: break
+                }
+            }
+            #endif
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { model.refresh(using: modelContext) }
         }

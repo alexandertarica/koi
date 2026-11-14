@@ -3,30 +3,19 @@ import SwiftUI
 
 struct KoiProgressView: View {
     @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
     @State private var model = ProgressViewModel()
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 5), count: 8)
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
-                    header
-                    periodSummary
-                    if model.scope == .month { monthGrid } else { weekRow }
-                    Text("Balance uses \(model.focusLabel.lowercased()) weights. Tap a day to see its detail.")
-                        .font(KoiTheme.caption).opacity(0.66)
-                }
-                .padding(.horizontal, KoiTheme.space.s21)
-                .padding(.top, KoiTheme.space.s13)
-                .padding(.bottom, KoiTheme.space.s55)
-            }
-            .background(KoiBackground().ignoresSafeArea())
-            .foregroundStyle(KoiTheme.onBase)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() }.font(KoiTheme.caption) } }
+        VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
+            header
+            periodSummary
+            if model.scope == .month { monthGrid } else { weekRow }
+            Text("Balance uses \(model.focusLabel.lowercased()) weights. Tap a day to see its detail.")
+                .font(KoiTheme.caption).opacity(0.66)
         }
-        .preferredColorScheme(.dark)
+        .foregroundStyle(KoiTheme.onBase)
         .task { model.load(context) }
         .alert("Progress", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.clearError() } })) {
             Button("OK", role: .cancel) { model.clearError() }
@@ -52,8 +41,16 @@ struct KoiProgressView: View {
                     }
                 }
             }
-            Text(model.scope == .month ? model.monthLabel.uppercased() : model.weekMetrics.first?.date.formatted(.dateTime.month(.wide).day()).uppercased() ?? "THIS WEEK")
-                .font(KoiTheme.caption).tracking(1.5).opacity(0.7)
+            HStack(spacing: KoiTheme.space.s13) {
+                Button { model.movePeriod(by: -1); KoiHaptics.change() } label: { Image(systemName: "chevron.left").frame(width: 36, height: 36) }.buttonStyle(.plain).accessibilityLabel("Previous \(model.scope.rawValue.lowercased())")
+                Text(model.scope == .month ? model.monthLabel.uppercased() : model.weekMetrics.first?.date.formatted(.dateTime.month(.wide).day()).uppercased() ?? "THIS WEEK")
+                    .font(KoiTheme.caption).tracking(1.5).opacity(0.78)
+                Button { model.movePeriod(by: 1); KoiHaptics.change() } label: { Image(systemName: "chevron.right").frame(width: 36, height: 36) }.buttonStyle(.plain).accessibilityLabel("Next \(model.scope.rawValue.lowercased())")
+                if !model.isCurrentPeriod {
+                    Button("Today") { model.goToCurrentPeriod() }.font(KoiTheme.caption).buttonStyle(.plain)
+                }
+                Spacer(minLength: 0)
+            }
         }
     }
 
@@ -88,12 +85,12 @@ struct KoiProgressView: View {
 
     private var monthGrid: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
-            Text("DAILY BALANCE").font(KoiTheme.section).tracking(1.7)
+            HStack { Text("DAILY BALANCE").font(KoiTheme.section).tracking(1.7); Spacer(); Text("AVG").font(.system(size: 9, design: .monospaced)).opacity(0.55) }
             LazyVGrid(columns: columns, spacing: KoiTheme.space.s8) {
                 ForEach(model.weekdayLabels.indices, id: \.self) { index in
                     Text(model.weekdayLabels[index].uppercased()).font(KoiTheme.caption).opacity(0.55).frame(maxWidth: .infinity)
                 }
-                Text("AVG").font(.system(size: 9, design: .monospaced)).opacity(0.55).frame(maxWidth: .infinity)
+                Color.clear.frame(width: 30, height: 1)
                 ForEach(model.monthWeeks) { week in
                     ForEach(week.days.indices, id: \.self) { index in
                         if let day = week.days[index] { dayButton(day) }
@@ -122,14 +119,18 @@ struct KoiProgressView: View {
     private func dayButton(_ day: ProgressDayMetric) -> some View {
         let selected = model.focusedDate.map { Calendar.current.isDate($0, inSameDayAs: day.date) } ?? false
         let scoreText = Int((day.balance * 100).rounded())
-        return Button { model.select(day.date) } label: {
+        return Button { model.select(day.date); KoiHaptics.tap() } label: {
             VStack(spacing: 4) {
                 Text("\(day.dayNumber)").font(.system(size: 10, weight: selected ? .semibold : .regular, design: .rounded))
-                Circle().fill(KoiTheme.onBase.opacity(0.14 + day.balance * 0.82))
-                    .frame(width: 18, height: 18).overlay(Circle().stroke(selected ? KoiTheme.onBase : Color.clear, lineWidth: 1.4))
+                ZStack {
+                    Circle().trim(from: 0, to: 0.75).stroke(KoiTheme.onBase.opacity(0.2), style: StrokeStyle(lineWidth: 1.5, lineCap: .round)).rotationEffect(.degrees(135))
+                    Circle().trim(from: 0, to: 0.75 * day.balance).stroke(KoiTheme.onBase.opacity(0.9), style: StrokeStyle(lineWidth: 1.8, lineCap: .round)).rotationEffect(.degrees(135))
+                    if selected { Circle().fill(.ultraThinMaterial).frame(width: 24, height: 24) }
+                }.frame(width: 28, height: 28).overlay(Circle().stroke(selected ? KoiTheme.onBase.opacity(0.85) : Color.clear, lineWidth: 1))
             }.frame(maxWidth: .infinity, minHeight: 34)
         }
         .buttonStyle(.plain)
+        .disabled(day.date > Date.now)
         .accessibilityLabel("\(day.date.formatted(.dateTime.month(.wide).day())), Balance \(scoreText) percent, Habits \(Int((day.habits * 100).rounded())) percent, Intake \(Int((day.nutrition * 100).rounded())) percent, Movement \(Int((day.exercise * 100).rounded())) percent")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }

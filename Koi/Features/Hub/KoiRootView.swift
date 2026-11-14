@@ -56,7 +56,13 @@ struct KoiRootView: View {
     @State private var presentsMealComposer = false
     @State private var startsMealCamera = false
     @State private var presentsSmartNote = false
-    @State private var launchVisible = true
+    @State private var launchVisible: Bool = {
+        #if DEBUG
+        !ProcessInfo.processInfo.arguments.contains("-koiDemo")
+        #else
+        true
+        #endif
+    }()
 
     var body: some View {
         ZStack {

@@ -3,10 +3,10 @@ import SwiftData
 import SwiftUI
 import UIKit
 import KoiShared
+import Charts
 
 struct KoiProfileView: View {
     @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.notificationProvider) private var notificationProvider
     @Environment(\.calendarProvider) private var calendarProvider
     @Environment(\.backupProvider) private var backupProvider
@@ -15,12 +15,11 @@ struct KoiProfileView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var presentsTour = false
     @State private var confirmsRestore = false
+    @State private var showsWeightHistory = false
     let onSelectTab: (KoiTab) -> Void
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
                     profileHeader
                     Button { presentsTour = true } label: {
                         HStack(spacing: KoiTheme.space.s8) {
@@ -38,7 +37,7 @@ struct KoiProfileView: View {
                     fold("Nutrition goals", summary: model.nutritionGoalSummary) {
                         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
                             Text("Every meal shapes your daily target.").font(KoiTheme.caption).opacity(0.75)
-                            Button("Open Intake") { dismiss(); onSelectTab(.intake) }.font(KoiTheme.caption).buttonStyle(.plain)
+                            Button("Open Intake") { onSelectTab(.intake) }.font(KoiTheme.caption).buttonStyle(.plain)
                         }
                     }
                     fold("Exercise goals", summary: model.exerciseGoalSummary) { exerciseSection }
@@ -51,16 +50,8 @@ struct KoiProfileView: View {
                     }
                     fold("iCloud backup", summary: backupSummary) { backupSection }
                     fold("Tips & gestures", summary: "A few quiet shortcuts") { tipsSection }
-                }
-                .padding(.horizontal, KoiTheme.space.s21)
-                .padding(.top, KoiTheme.space.s13)
-                .padding(.bottom, KoiTheme.space.s55)
-            }
-            .background(KoiBackground().ignoresSafeArea())
-            .foregroundStyle(KoiTheme.onBase)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() }.font(KoiTheme.caption) } }
         }
-        .preferredColorScheme(.dark)
+        .foregroundStyle(KoiTheme.onBase)
         .task { model.load(context) }
         .fullScreenCover(isPresented: $presentsTour) {
             KoiTourView(onFinish: { presentsTour = false })
@@ -81,6 +72,10 @@ struct KoiProfileView: View {
             Button("Replace this phone's Koi data", role: .destructive) { Task { await model.restoreBackup(using: backupProvider) } }
             Button("Cancel", role: .cancel) {}
         } message: { Text("This replaces the data on this phone with your latest private iCloud backup.") }
+        .sheet(isPresented: $showsWeightHistory) {
+            WeightHistorySheet(entries: Array(model.weightEntries.reversed()), onDelete: model.deleteWeight)
+                .presentationDetents([.large])
+        }
         .alert("iCloud backup", isPresented: Binding(get: { model.backupMessage != nil }, set: { if !$0 { model.clearBackupMessage() } })) {
             Button("OK", role: .cancel) { model.clearBackupMessage() }
         } message: { Text(model.backupMessage ?? "") }
@@ -119,13 +114,15 @@ struct KoiProfileView: View {
                 Spacer()
                 if model.hasWeightToday { Text("LOGGED TODAY").font(KoiTheme.caption).tracking(1).opacity(0.7) }
             }
-            Slider(value: Binding(get: { model.weightDraft }, set: { model.setWeight($0) }), in: 50...600, step: 0.1).tint(KoiTheme.onBase)
-                .accessibilityLabel("Body weight in pounds")
-            HStack { Text("50 lb"); Spacer(); Text("300 lb"); Spacer(); Text("600 lb") }.font(KoiTheme.caption).opacity(0.56)
+            ProfileWeightRuler(value: model.weightDraft) { model.setWeight($0) }
             HStack {
                 Text(model.weightTrendText).font(KoiTheme.caption).opacity(0.76)
                 Spacer()
-                Button(model.hasWeightToday ? "Update today" : "Log today") { model.saveWeightToday() }.font(KoiTheme.caption).buttonStyle(.plain)
+                Button { showsWeightHistory = true; KoiHaptics.tap() } label: { Label("History", systemImage: "chart.xyaxis.line").font(KoiTheme.caption) }.buttonStyle(.plain)
+                if let previousWeight = model.previousWeight {
+                    Button("Same as last") { model.setWeight(previousWeight); KoiHaptics.change() }.font(KoiTheme.caption).buttonStyle(.plain).padding(.leading, KoiTheme.space.s8)
+                }
+                Button(model.hasWeightToday ? "Update today" : "Log today") { model.saveWeightToday(); KoiHaptics.success() }.font(KoiTheme.caption).buttonStyle(.plain).padding(.leading, KoiTheme.space.s8)
             }
             if model.weightChart.count > 1 {
                 WeightTrendChart(entries: model.weightChart).frame(height: 76).padding(.top, KoiTheme.space.s8)
@@ -133,13 +130,6 @@ struct KoiProfileView: View {
                     .font(KoiTheme.caption).opacity(0.56)
             } else {
                 Text("Your history will grow with each entry.").font(KoiTheme.caption).opacity(0.64)
-            }
-            if !model.weightChart.isEmpty {
-                Text("HISTORY").font(KoiTheme.section).tracking(1.5).padding(.top, KoiTheme.space.s8)
-                ForEach(model.weightChart.suffix(4).reversed()) { entry in
-                    HStack { Text(entry.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())); Spacer(); Text(String(format: "%.1f lb", entry.weightLB)) }
-                        .font(KoiTheme.caption).padding(.vertical, 4)
-                }
             }
         }
     }
@@ -205,7 +195,7 @@ struct KoiProfileView: View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
             Text(model.healthConnected ? "Steps and workouts can appear in Movement." : "Connect Health to read steps and workouts.")
                 .font(KoiTheme.caption).opacity(0.72)
-            Button("Open Movement") { dismiss(); onSelectTab(.movement) }.font(KoiTheme.caption).buttonStyle(.plain)
+            Button("Open Movement") { onSelectTab(.movement) }.font(KoiTheme.caption).buttonStyle(.plain)
         }
     }
 
@@ -255,7 +245,7 @@ struct KoiProfileView: View {
     private func fold<Content: View>(_ title: String, summary: String, @ViewBuilder content: () -> Content) -> some View {
         let isOpen = openSection == title
         return VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
-            Button { withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) { openSection = isOpen ? nil : title } } label: {
+            Button { KoiHaptics.tap(); withAnimation(KoiTheme.morph) { openSection = isOpen ? nil : title } } label: {
                 HStack {
                     VStack(alignment: .leading, spacing: 5) {
                         Text(title.uppercased()).font(KoiTheme.section).tracking(1.7)
@@ -307,5 +297,125 @@ private struct WeightTrendChart: View {
                 if index == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
             }
         }
+    }
+}
+
+private struct ProfileWeightRuler: View {
+    let value: Double
+    let onChange: (Double) -> Void
+    @State private var active = false
+    @State private var dragStart: Double?
+    private let pitch: CGFloat = 9
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            let middle = width / 2
+            Canvas { context, size in
+                let count = Int(width / pitch) + 4
+                let centerValue = (value * 5).rounded()
+                let fractionalOffset = CGFloat(value * 5 - centerValue) * pitch
+                for index in -count / 2...count / 2 {
+                    let tickValue = centerValue + Double(index)
+                    let x = middle + CGFloat(index) * pitch - fractionalOffset
+                    let major = Int(tickValue).isMultiple(of: 5)
+                    let distance = abs(x - middle) / max(middle, 1)
+                    let fade = max(0, 1 - pow(distance, 1.6))
+                    var tick = Path()
+                    tick.move(to: CGPoint(x: x, y: size.height - 8 - (major ? 18 : 9) * (active ? 1.25 : 1)))
+                    tick.addLine(to: CGPoint(x: x, y: size.height - 8))
+                    context.stroke(tick, with: .color(KoiTheme.onBase.opacity((major ? 0.78 : 0.4) * fade)), style: StrokeStyle(lineWidth: major ? 1.4 : 1, lineCap: .round))
+                }
+                var marker = Path(); marker.move(to: CGPoint(x: middle, y: size.height - 38)); marker.addLine(to: CGPoint(x: middle, y: size.height - 2))
+                context.stroke(marker, with: .color(KoiTheme.onBase), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                let bead = CGRect(x: middle - (active ? 9 : 7), y: size.height - 49 - (active ? 2 : 0), width: (active ? 18 : 14), height: (active ? 18 : 14))
+                context.fill(Path(ellipseIn: bead), with: .radialGradient(Gradient(colors: [.white.opacity(0.42), .white.opacity(0.12)]), center: CGPoint(x: middle - 3, y: bead.minY + 3), startRadius: 0, endRadius: 11))
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                LongPressGesture(minimumDuration: 0.3)
+                    .sequenced(before: DragGesture(minimumDistance: 0))
+                    .onChanged { state in
+                        guard case .second(true, let drag?) = state else { return }
+                        if !active { KoiHaptics.land(); active = true; dragStart = value }
+                        let raw = (dragStart ?? value) - Double(drag.translation.width / pitch) * 0.2
+                        let adjusted = (raw * 5).rounded() / 5
+                        guard abs(adjusted - value) >= 0.19 else { return }
+                        KoiHaptics.tick()
+                        onChange(min(max(adjusted, 50), 600))
+                    }
+                    .onEnded { _ in
+                        if active { KoiHaptics.tap() }
+                        withAnimation(.snappy) { active = false }
+                        dragStart = nil
+                    }
+            )
+        }
+        .frame(height: 62)
+        .accessibilityElement()
+        .accessibilityLabel("Body weight")
+        .accessibilityValue(String(format: "%.1f pounds", value))
+        .accessibilityAdjustableAction { direction in
+            onChange(min(max(value + (direction == .increment ? 0.2 : -0.2), 50), 600))
+        }
+    }
+}
+
+private struct WeightHistorySheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let entries: [KoiBodyWeightEntry]
+    let onDelete: (KoiBodyWeightEntry) -> Void
+
+    private var chronological: [KoiBodyWeightEntry] { entries.reversed() }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
+                    if chronological.count > 1 {
+                        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+                            Text("TREND").font(KoiTheme.section).tracking(1.7)
+                            Chart(chronological) { entry in
+                                AreaMark(x: .value("Date", entry.date), y: .value("Weight", entry.weightLB))
+                                    .foregroundStyle(.linearGradient(colors: [KoiTheme.onBase.opacity(0.2), .clear], startPoint: .top, endPoint: .bottom))
+                                LineMark(x: .value("Date", entry.date), y: .value("Weight", entry.weightLB))
+                                    .interpolationMethod(.catmullRom).foregroundStyle(KoiTheme.onBase)
+                                PointMark(x: .value("Date", entry.date), y: .value("Weight", entry.weightLB)).foregroundStyle(KoiTheme.onBase)
+                            }
+                            .chartYScale(domain: .automatic(includesZero: false))
+                            .frame(height: 180)
+                        }.padding(KoiTheme.space.s13).background(.ultraThinMaterial.opacity(0.2), in: RoundedRectangle(cornerRadius: 18))
+                    } else {
+                        Text(entries.isEmpty ? "No weigh-ins yet." : "Log a few days to see your trend.").font(KoiTheme.caption).opacity(0.7)
+                    }
+                    VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
+                        Text("ALL ENTRIES").font(KoiTheme.section).tracking(1.7)
+                        ForEach(Array(entries.enumerated()), id: \.element.persistentModelID) { index, entry in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(entry.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())).font(KoiTheme.body)
+                                    if index + 1 < entries.count {
+                                        let change = entry.weightLB - entries[index + 1].weightLB
+                                        Text(abs(change) < 0.05 ? "No change from previous" : "\(change > 0 ? "+" : "−")\(String(format: "%.1f", abs(change))) lb from previous")
+                                            .font(KoiTheme.caption).opacity(0.65)
+                                    }
+                                }
+                                Spacer()
+                                Text(String(format: "%.1f lb", entry.weightLB)).font(KoiTheme.body).monospacedDigit()
+                                Button { onDelete(entry) } label: { Image(systemName: "trash").frame(width: 38, height: 38) }.buttonStyle(.plain).accessibilityLabel("Delete weigh-in")
+                            }
+                            .padding(.vertical, KoiTheme.space.s5)
+                            if index + 1 < entries.count { Rectangle().fill(KoiTheme.divider).frame(height: 0.5) }
+                        }
+                    }.padding(KoiTheme.space.s13).background(.ultraThinMaterial.opacity(0.18), in: RoundedRectangle(cornerRadius: 18))
+                }.padding(KoiTheme.space.s21)
+            }
+            .background(KoiBackground().ignoresSafeArea())
+            .foregroundStyle(KoiTheme.onBase)
+            .navigationTitle("Weight history")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.font(KoiTheme.caption) } }
+        }
+        .preferredColorScheme(.dark)
     }
 }

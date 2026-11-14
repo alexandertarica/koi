@@ -55,6 +55,7 @@ final class ProgressViewModel {
     private var workoutSessions: [KoiWorkoutSession] = []
     private var cardioSessions: [KoiCardioSession] = []
     private var focus = BalanceFocus.allRounder
+    private var displayedDate: Date
 
     private(set) var scope: ProgressScope = .month
     private(set) var focusedDate: Date?
@@ -64,9 +65,10 @@ final class ProgressViewModel {
     private(set) var previousSummary = ProgressPeriodSummary(days: 0, averageBalance: 0, habitsDone: 0, habitsScheduled: 0, trainingDays: 0, nutritionAverage: 0)
     private(set) var errorMessage: String?
 
-    init(calendar: Calendar = .autoupdatingCurrent) { self.calendar = calendar }
+    init(calendar: Calendar = .autoupdatingCurrent) { self.calendar = calendar; self.displayedDate = calendar.startOfDay(for: .now) }
 
-    var monthLabel: String { calendar.monthSymbols[safe: calendar.component(.month, from: .now) - 1] ?? "Month" }
+    var monthLabel: String { calendar.monthSymbols[safe: calendar.component(.month, from: displayedDate) - 1] ?? "Month" }
+    var isCurrentPeriod: Bool { calendar.isDate(displayedDate, equalTo: .now, toGranularity: scope == .week ? .weekOfYear : .month) }
     var focusLabel: String { focusTitle(focus) }
     var weeklyWorkoutGoal: Int { movementGoal?.weeklyWorkoutGoal ?? 4 }
     var workoutGoalTarget: Int {
@@ -80,7 +82,8 @@ final class ProgressViewModel {
     }
     var scopeTitle: String {
         if let focusedDate { return focusedDate.formatted(.dateTime.month(.wide).day()) }
-        return scope == .week ? "THIS WEEK" : "THIS MONTH"
+        if scope == .week { return "WEEK OF \((calendar.dateInterval(of: .weekOfYear, for: displayedDate)?.start ?? displayedDate).formatted(.dateTime.month(.abbreviated).day()))" }
+        return calendar.isDate(displayedDate, equalTo: .now, toGranularity: .month) ? "THIS MONTH" : displayedDate.formatted(.dateTime.month(.wide).year())
     }
     var previousTitle: String {
         if let focusedDate { return calendar.date(byAdding: .day, value: -1, to: focusedDate)?.formatted(.dateTime.month(.abbreviated).day()).uppercased() ?? "PREVIOUS DAY" }
@@ -125,6 +128,20 @@ final class ProgressViewModel {
         update()
     }
 
+    func movePeriod(by amount: Int) {
+        let component: Calendar.Component = scope == .week ? .weekOfYear : .month
+        guard let shifted = calendar.date(byAdding: component, value: amount, to: displayedDate) else { return }
+        displayedDate = calendar.startOfDay(for: shifted)
+        focusedDate = nil
+        update()
+    }
+
+    func goToCurrentPeriod() {
+        displayedDate = calendar.startOfDay(for: .now)
+        focusedDate = nil
+        update()
+    }
+
     func select(_ date: Date) {
         let normalized = calendar.startOfDay(for: date)
         focusedDate = calendar.isDate(focusedDate ?? .distantPast, inSameDayAs: normalized) ? nil : normalized
@@ -135,12 +152,12 @@ final class ProgressViewModel {
 
     private func update() {
         let today = calendar.startOfDay(for: .now)
-        let monthStart = calendar.dateInterval(of: .month, for: today)?.start ?? today
-        monthMetrics = (0..<(calendar.range(of: .day, in: .month, for: today)?.count ?? 30)).compactMap { offset in
+        let monthStart = calendar.dateInterval(of: .month, for: displayedDate)?.start ?? displayedDate
+        monthMetrics = (0..<(calendar.range(of: .day, in: .month, for: displayedDate)?.count ?? 30)).compactMap { offset in
             guard let date = calendar.date(byAdding: .day, value: offset, to: monthStart), date <= today else { return nil }
             return metric(for: date)
         }
-        let weekStart = calendar.dateInterval(of: .weekOfYear, for: today)?.start ?? today
+        let weekStart = calendar.dateInterval(of: .weekOfYear, for: displayedDate)?.start ?? displayedDate
         weekMetrics = (0..<7).compactMap { offset in
             guard let date = calendar.date(byAdding: .day, value: offset, to: weekStart), date <= today else { return nil }
             return metric(for: date)
@@ -155,7 +172,9 @@ final class ProgressViewModel {
         }
 
         let currentStart = scope == .week ? weekStart : monthStart
-        let daysSoFar = max(calendar.dateComponents([.day], from: currentStart, to: today).day ?? 0, 0) + 1
+        let periodEnd = calendar.dateInterval(of: scope == .week ? .weekOfYear : .month, for: displayedDate)?.end ?? today
+        let lastDate = min(calendar.date(byAdding: .day, value: -1, to: periodEnd) ?? today, today)
+        let daysSoFar = max(calendar.dateComponents([.day], from: currentStart, to: lastDate).day ?? 0, 0) + 1
         let current = (0..<daysSoFar).compactMap { calendar.date(byAdding: .day, value: $0, to: currentStart).map(metric(for:)) }
         let previousStart = scope == .week
             ? (calendar.date(byAdding: .day, value: -7, to: currentStart) ?? currentStart)
