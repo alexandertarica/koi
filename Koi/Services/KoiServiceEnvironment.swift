@@ -21,6 +21,10 @@ private struct CalendarProvidingKey: EnvironmentKey {
     static let defaultValue: (any CalendarProviding)? = nil
 }
 
+private struct BackupProvidingKey: EnvironmentKey {
+    static let defaultValue: (any BackupProviding)? = nil
+}
+
 extension EnvironmentValues {
     var foodEstimator: any FoodEstimating {
         get { self[FoodEstimatingKey.self] }
@@ -45,5 +49,10 @@ extension EnvironmentValues {
     @MainActor var calendarProvider: any CalendarProviding {
         get { self[CalendarProvidingKey.self] ?? CalendarService() }
         set { self[CalendarProvidingKey.self] = newValue }
+    }
+
+    @MainActor var backupProvider: any BackupProviding {
+        get { self[BackupProvidingKey.self] ?? BackupService() }
+        set { self[BackupProvidingKey.self] = newValue }
     }
 }

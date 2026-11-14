@@ -32,8 +32,10 @@ public final class KoiOnboardingState {
     public var dailyCheckInHour: Int
     public var betaEmail: String
     public var launchEmail: String
+    public var backupEnabled: Bool
+    public var lastBackupAt: Date?
 
-    public init(isComplete: Bool = false, hasSeenTour: Bool = false, birthYear: Int? = nil, heightCM: Double? = nil, sexAtBirth: String? = nil, healthConnected: Bool = false, calendarConnected: Bool = false, notificationMode: String = "smart", dailyCheckInHour: Int = 9, betaEmail: String = "", launchEmail: String = "") {
+    public init(isComplete: Bool = false, hasSeenTour: Bool = false, birthYear: Int? = nil, heightCM: Double? = nil, sexAtBirth: String? = nil, healthConnected: Bool = false, calendarConnected: Bool = false, notificationMode: String = "smart", dailyCheckInHour: Int = 9, betaEmail: String = "", launchEmail: String = "", backupEnabled: Bool = true, lastBackupAt: Date? = nil) {
         self.id = "onboarding"
         self.isComplete = isComplete
         self.hasSeenTour = hasSeenTour
@@ -46,6 +48,8 @@ public final class KoiOnboardingState {
         self.dailyCheckInHour = dailyCheckInHour
         self.betaEmail = betaEmail
         self.launchEmail = launchEmail
+        self.backupEnabled = backupEnabled
+        self.lastBackupAt = lastBackupAt
     }
 }
 

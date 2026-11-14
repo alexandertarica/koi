@@ -17,7 +17,7 @@ what's partial, known issues, and the next step.
 | 7 | Cardio: GPS run, treadmill, class, stats | ✅ |
 | 8 | Progress + Profile (fold rows, body weight) | ✅ |
 | 9 | Onboarding + tour | ✅ |
-| 10 | Notifications + calendar sync + iCloud backup | ☐ |
+| 10 | Notifications + calendar sync + iCloud backup | ✅ |
 | 11 | Widgets, Live Activity (log set from lock screen), Log-a-meal control | ☐ |
 | 12 | Smart note, readiness, habit coach, trends, supersets, plate drawing, workout import | ☐ |
 | 13 | Analytics, polish pass on every screen, empty states, demo data | ☐ |
@@ -87,11 +87,16 @@ what's partial, known issues, and the next step.
   preference, and optional email fields. Completion saves the profile, goals,
   habits, and onboarding state before showing a replayable 12-step tour. Forty-three
   simulator tests pass; the welcome screen was reviewed on iPhone 17 Pro.
-- Phase 10 (in progress): added injected local-notification and EventKit services.
+- Phase 10: added injected local-notification and EventKit services.
   Profile can request Calendar access and configure Smart, Once a day, or None;
   onboarding saves the selected settings. To-Do changes refresh habit and timed
   task reminders, and timed tasks create, update, or remove linked calendar
-  events. Forty-five simulator tests pass, including preference persistence.
+  events. Added a versioned archive for every shared SwiftData model and save it
+  to Koi's private CloudKit database on app background; a fresh install is offered
+  restore when a backup exists. Profile includes backup status, manual backup,
+  restore confirmation, and automatic backup controls. Forty-six simulator tests
+  pass, including archive round-trip and replacement coverage; Profile integration
+  settings were reviewed on iPhone 17 Pro.
 
 ## Partial / known issues
 
@@ -103,9 +108,9 @@ what's partial, known issues, and the next step.
   final polish phase after those screens exist. Calendar and notification
   authorization/settings are deferred to Phase 10; onboarding stores the chosen
   daily notification preference.
-- Phase 10 still needs private iCloud backup and restore. Calendar and notification
-  prompts have not yet been visually reviewed on the simulator; their flows are
-  covered by the current test suite.
+- CloudKit account availability and a live restore need verification on a device
+  signed into an iCloud account. Calendar authorization and notification delivery
+  also need device testing; simulator review covered their settings screens.
 - To-Do reminder notifications and calendar free-time selection/sync are deferred
   to Phase 10. The `-koiDemo` full-week seed is part of Phase 13, so Phase 3 was
   visually checked with empty data and in-session task entry.
@@ -114,4 +119,4 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-Phase 10: add private iCloud backup and restore, then review integration flows.
+Phase 11: add widgets, Live Activity, and meal logging control.

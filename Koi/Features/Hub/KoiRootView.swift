@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import KoiShared
+import OSLog
 
 enum KoiTab: Int, CaseIterable, Identifiable {
     case hub
@@ -29,9 +30,14 @@ enum KoiTab: Int, CaseIterable, Identifiable {
 
 struct KoiRootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.backupProvider) private var backupProvider
     @State private var selectedTab: KoiTab = .hub
     @State private var isOnboardingPresented = false
     @State private var hasLoadedOnboarding = false
+    @State private var isRestoreOfferPresented = false
+    @State private var backupError: String?
+    @State private var rootRefreshID = UUID()
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -44,6 +50,7 @@ struct KoiRootView: View {
             IntakeView()
                 .tag(KoiTab.intake)
         }
+        .id(rootRefreshID)
         .tabViewStyle(.page(indexDisplayMode: .never))
         .safeAreaInset(edge: .bottom, spacing: 0) {
             KoiTabBar(selection: $selectedTab)
@@ -62,10 +69,54 @@ struct KoiRootView: View {
             hasLoadedOnboarding = true
             do {
                 let state = try modelContext.fetch(FetchDescriptor<KoiOnboardingState>()).first
-                if state?.isComplete != true { isOnboardingPresented = true }
+                if state?.isComplete != true {
+                    if try await backupProvider.hasBackup() { isRestoreOfferPresented = true }
+                    else { isOnboardingPresented = true }
+                }
             } catch {
                 isOnboardingPresented = true
             }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .background else { return }
+            Task { await createAutomaticBackup() }
+        }
+        .alert("A Koi backup is available", isPresented: $isRestoreOfferPresented) {
+            Button("Restore backup") { Task { await restoreStartupBackup() } }
+            Button("Set up as new", role: .cancel) { isOnboardingPresented = true }
+        } message: {
+            Text("Restore the latest private iCloud backup to this phone?")
+        }
+        .alert("iCloud backup", isPresented: Binding(get: { backupError != nil }, set: { if !$0 { backupError = nil } })) {
+            Button("Set up as new", role: .cancel) { backupError = nil; isOnboardingPresented = true }
+        } message: { Text(backupError ?? "") }
+    }
+
+    @MainActor
+    private func createAutomaticBackup() async {
+        do {
+            guard let state = try modelContext.fetch(FetchDescriptor<KoiOnboardingState>()).first,
+                  state.isComplete, state.backupEnabled else { return }
+            state.lastBackupAt = try await backupProvider.backup(using: modelContext)
+            try modelContext.save()
+        } catch {
+            Logger(subsystem: "com.alexandertarica.koi", category: "Backup").error("Automatic backup didn't finish.")
+        }
+    }
+
+    @MainActor
+    private func restoreStartupBackup() async {
+        do {
+            _ = try await backupProvider.restore(using: modelContext)
+            guard try modelContext.fetch(FetchDescriptor<KoiOnboardingState>()).first?.isComplete == true else {
+                isOnboardingPresented = true
+                return
+            }
+            rootRefreshID = UUID()
+        } catch let error as LocalizedError {
+            backupError = error.errorDescription ?? "Couldn't restore Koi. Try again."
+        } catch {
+            backupError = "Couldn't restore Koi. Try again."
         }
     }
 }

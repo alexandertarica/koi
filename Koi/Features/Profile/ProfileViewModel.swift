@@ -21,6 +21,10 @@ final class ProfileViewModel {
     private(set) var calendarConnected = false
     private(set) var healthConnected = false
     private(set) var isUpdatingIntegrations = false
+    private(set) var backupEnabled = true
+    private(set) var lastBackupAt: Date?
+    private(set) var isBackingUp = false
+    private(set) var backupMessage: String?
     private(set) var errorMessage: String?
     private(set) var savedWeight: Double?
     var weightDraft = 150.0
@@ -67,6 +71,8 @@ final class ProfileViewModel {
             dailyCheckInHour = onboardingState?.dailyCheckInHour ?? 9
             calendarConnected = onboardingState?.calendarConnected ?? false
             healthConnected = onboardingState?.healthConnected ?? false
+            backupEnabled = onboardingState?.backupEnabled ?? true
+            lastBackupAt = onboardingState?.lastBackupAt
             nameDraft = profile?.name ?? "Friend"
             weightDraft = weightEntries.first(where: { calendar.isDateInToday($0.date) })?.weightLB ?? weightEntries.last?.weightLB ?? 150
             savedWeight = weightEntries.first(where: { calendar.isDateInToday($0.date) })?.weightLB
@@ -201,6 +207,58 @@ final class ProfileViewModel {
         do { try context.save(); calendarConnected = false }
         catch { logger.error("Unable to update Calendar settings.") }
     }
+
+    func setBackupEnabled(_ enabled: Bool) {
+        guard let context else { return }
+        let state = ensureOnboardingState(in: context)
+        state.backupEnabled = enabled
+        do { try context.save(); backupEnabled = enabled }
+        catch { logger.error("Unable to update iCloud backup settings."); errorMessage = "Couldn't update backup settings. Try again." }
+    }
+
+    func createBackup(using provider: any BackupProviding) async {
+        guard let context else { return }
+        isBackingUp = true
+        defer { isBackingUp = false }
+        do {
+            let date = try await provider.backup(using: context)
+            let state = ensureOnboardingState(in: context)
+            state.lastBackupAt = date
+            try context.save()
+            lastBackupAt = date
+            backupMessage = "Your private iCloud backup is up to date."
+        } catch let error as LocalizedError {
+            backupMessage = error.errorDescription ?? "Couldn't back up Koi. Try again."
+        } catch {
+            logger.error("Unable to create iCloud backup.")
+            backupMessage = "Couldn't back up Koi. Try again."
+        }
+    }
+
+    func restoreBackup(using provider: any BackupProviding) async {
+        guard let context else { return }
+        isBackingUp = true
+        defer { isBackingUp = false }
+        do {
+            let date = try await provider.restore(using: context)
+            let state = try context.fetch(FetchDescriptor<KoiOnboardingState>()).first ?? KoiOnboardingState(isComplete: true)
+            if state.modelContext == nil { context.insert(state) }
+            state.lastBackupAt = date
+            state.backupEnabled = true
+            try context.save()
+            lastBackupAt = date
+            backupEnabled = true
+            load(context)
+            backupMessage = "Koi restored from \(date.formatted(date: .abbreviated, time: .shortened))."
+        } catch let error as LocalizedError {
+            backupMessage = error.errorDescription ?? "Couldn't restore Koi. Try again."
+        } catch {
+            logger.error("Unable to restore iCloud backup.")
+            backupMessage = "Couldn't restore Koi. Try again."
+        }
+    }
+
+    func clearBackupMessage() { backupMessage = nil }
 
     private func ensureOnboardingState(in context: ModelContext) -> KoiOnboardingState {
         if let onboardingState { return onboardingState }

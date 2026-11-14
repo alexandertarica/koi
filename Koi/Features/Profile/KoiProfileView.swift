@@ -9,10 +9,12 @@ struct KoiProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.notificationProvider) private var notificationProvider
     @Environment(\.calendarProvider) private var calendarProvider
+    @Environment(\.backupProvider) private var backupProvider
     @State private var model = ProfileViewModel()
     @State private var openSection: String? = "Body weight"
     @State private var photoItem: PhotosPickerItem?
     @State private var presentsTour = false
+    @State private var confirmsRestore = false
     let onSelectTab: (KoiTab) -> Void
 
     var body: some View {
@@ -46,9 +48,7 @@ struct KoiProfileView: View {
                     fold("Smart notes", summary: "Write freely from the tab bar") {
                         Text("Smart notes will be available in a later update.").font(KoiTheme.caption).opacity(0.72)
                     }
-                    fold("iCloud backup", summary: "Private backup settings") {
-                        Text("Backup controls are being prepared.").font(KoiTheme.caption).opacity(0.72)
-                    }
+                    fold("iCloud backup", summary: backupSummary) { backupSection }
                     fold("Tips & gestures", summary: "A few quiet shortcuts") { tipsSection }
                 }
                 .padding(.horizontal, KoiTheme.space.s21)
@@ -76,14 +76,22 @@ struct KoiProfileView: View {
         .alert("Profile", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.clearError() } })) {
             Button("OK", role: .cancel) { model.clearError() }
         } message: { Text(model.errorMessage ?? "") }
+        .confirmationDialog("Restore Koi?", isPresented: $confirmsRestore, titleVisibility: .visible) {
+            Button("Replace this phone's Koi data", role: .destructive) { Task { await model.restoreBackup(using: backupProvider) } }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("This replaces the data on this phone with your latest private iCloud backup.") }
+        .alert("iCloud backup", isPresented: Binding(get: { model.backupMessage != nil }, set: { if !$0 { model.clearBackupMessage() } })) {
+            Button("OK", role: .cancel) { model.clearBackupMessage() }
+        } message: { Text(model.backupMessage ?? "") }
     }
 
     private var profileHeader: some View {
-        HStack(spacing: KoiTheme.space.s13) {
+        let avatarJPEG = model.profile?.avatarJPEG
+        return HStack(spacing: KoiTheme.space.s13) {
             PhotosPicker(selection: $photoItem, matching: .images) {
                 ZStack {
                     Circle().fill(.ultraThinMaterial.opacity(0.35)).frame(width: 64, height: 64)
-                    if let data = model.profile?.avatarJPEG, let image = UIImage(data: data) {
+                    if let data = avatarJPEG, let image = UIImage(data: data) {
                         Image(uiImage: image).resizable().scaledToFill().frame(width: 64, height: 64).clipShape(Circle())
                     } else {
                         Image(systemName: "person.crop.circle").font(.system(size: 36, weight: .ultraLight))
@@ -214,6 +222,27 @@ struct KoiProfileView: View {
             }.buttonStyle(.plain)
             if model.isUpdatingIntegrations { ProgressView().tint(KoiTheme.onBase) }
         }
+    }
+
+    private var backupSection: some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+            Toggle("Automatic private backup", isOn: Binding(get: { model.backupEnabled }, set: { model.setBackupEnabled($0) }))
+                .font(KoiTheme.caption).tint(KoiTheme.onBase)
+            Text(model.lastBackupAt.map { "Last backup · \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "Koi backs up when you leave the app.")
+                .font(KoiTheme.caption).opacity(0.68)
+            HStack(spacing: KoiTheme.space.s21) {
+                Button("Back up now") { Task { await model.createBackup(using: backupProvider) } }.font(KoiTheme.caption).buttonStyle(.plain)
+                Button("Restore backup") { confirmsRestore = true }.font(KoiTheme.caption).buttonStyle(.plain)
+            }
+            if model.isBackingUp { ProgressView().tint(KoiTheme.onBase) }
+            Text("Only Koi can access this backup in your private iCloud account.")
+                .font(KoiTheme.caption).opacity(0.62)
+        }
+    }
+
+    private var backupSummary: String {
+        guard model.backupEnabled else { return "Off" }
+        return model.lastBackupAt.map { "Updated \($0.formatted(.dateTime.month(.abbreviated).day()))" } ?? "Private · automatic"
     }
 
     private func timeLabel(_ hour: Int) -> String {
