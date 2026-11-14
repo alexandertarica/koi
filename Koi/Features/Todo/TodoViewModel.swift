@@ -71,6 +71,7 @@ final class TodoViewModel {
     private var calendarProvider: (any CalendarProviding)?
     private var notificationProvider: (any NotificationProviding)?
     private var calendarConnected = false
+    private var remindersConnected = false
     private var notificationMode: KoiNotificationMode = .smart
     private var dailyCheckInHour = 9
     private var movementDays: [KoiMovementDay] = []
@@ -134,6 +135,7 @@ final class TodoViewModel {
             nutrientGoals = try context.fetch(FetchDescriptor<KoiNutrientGoal>())
             let settings = try context.fetch(FetchDescriptor<KoiOnboardingState>()).first
             calendarConnected = settings?.calendarConnected ?? false
+            remindersConnected = settings?.remindersConnected ?? false
             notificationMode = KoiNotificationMode(rawValue: settings?.notificationMode ?? "smart") ?? .smart
             dailyCheckInHour = settings?.dailyCheckInHour ?? 9
             var changed = false
@@ -338,6 +340,9 @@ final class TodoViewModel {
         if let eventID = task.calendarEventID, let calendarProvider {
             Task { try? await calendarProvider.deleteTaskEvent(identifier: eventID) }
         }
+        if let reminderID = task.reminderID, let calendarProvider {
+            Task { try? await calendarProvider.deleteTaskReminder(identifier: reminderID) }
+        }
         withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) { context.delete(task); tasks.removeAll { $0.id == task.id } }
         persist()
     }
@@ -503,23 +508,36 @@ final class TodoViewModel {
     }
 
     private func synchronizeCalendarEvents() async {
-        guard calendarConnected, let calendarProvider else { return }
+        guard let calendarProvider else { return }
         for task in tasks {
-            if task.isComplete || task.archivedAt != nil || !task.hasTime || task.dueAt == nil {
-                guard let identifier = task.calendarEventID else { continue }
+            let shouldSync = !task.isComplete && task.archivedAt == nil && task.hasTime && task.dueAt != nil
+            if calendarConnected, shouldSync, let start = task.dueAt {
+                let value = CalendarTaskValue(id: task.id, title: task.title, notes: task.notes, start: start, durationMinutes: task.timeMinutes, eventIdentifier: task.calendarEventID)
+                do {
+                    task.calendarEventID = try await calendarProvider.saveTaskEvent(value)
+                    try context?.save()
+                } catch { logger.error("Unable to sync a timed to-do with Calendar.") }
+            } else if let identifier = task.calendarEventID {
                 do {
                     try await calendarProvider.deleteTaskEvent(identifier: identifier)
                     task.calendarEventID = nil
                     try context?.save()
                 } catch { logger.error("Unable to remove a calendar event.") }
-                continue
             }
-            guard let start = task.dueAt else { continue }
-            let value = CalendarTaskValue(id: task.id, title: task.title, notes: task.notes, start: start, durationMinutes: task.timeMinutes, eventIdentifier: task.calendarEventID)
-            do {
-                task.calendarEventID = try await calendarProvider.saveTaskEvent(value)
-                try context?.save()
-            } catch { logger.error("Unable to sync a timed to-do with Calendar.") }
+            if remindersConnected, shouldSync, let dueAt = task.dueAt {
+                do {
+                    task.reminderID = try await calendarProvider.saveTaskReminder(ReminderTaskValue(id: task.id, title: task.title, notes: task.notes, dueAt: dueAt, reminderIdentifier: task.reminderID))
+                    try context?.save()
+                } catch { logger.error("Unable to sync a timed to-do with Apple Reminders.") }
+            } else {
+                if let identifier = task.reminderID {
+                    do {
+                        try await calendarProvider.deleteTaskReminder(identifier: identifier)
+                        task.reminderID = nil
+                        try context?.save()
+                    } catch { logger.error("Unable to remove an Apple Reminder.") }
+                }
+            }
         }
     }
 

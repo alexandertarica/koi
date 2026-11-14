@@ -19,6 +19,7 @@ final class ProfileViewModel {
     private(set) var notificationMode: KoiNotificationMode = .smart
     private(set) var dailyCheckInHour = 9
     private(set) var calendarConnected = false
+    private(set) var remindersConnected = false
     private(set) var healthConnected = false
     private(set) var isUpdatingIntegrations = false
     private(set) var backupEnabled = true
@@ -71,6 +72,7 @@ final class ProfileViewModel {
             notificationMode = KoiNotificationMode(rawValue: onboardingState?.notificationMode ?? "smart") ?? .smart
             dailyCheckInHour = onboardingState?.dailyCheckInHour ?? 9
             calendarConnected = onboardingState?.calendarConnected ?? false
+            remindersConnected = onboardingState?.remindersConnected ?? false
             healthConnected = onboardingState?.healthConnected ?? false
             backupEnabled = onboardingState?.backupEnabled ?? true
             lastBackupAt = onboardingState?.lastBackupAt
@@ -213,6 +215,33 @@ final class ProfileViewModel {
         } catch {
             logger.error("Unable to connect Calendar.")
             errorMessage = "Couldn't connect Apple Calendar. Try again."
+        }
+    }
+
+    func setRemindersConnected(_ shouldConnect: Bool, using provider: any CalendarProviding) async {
+        guard let context else { return }
+        isUpdatingIntegrations = true
+        defer { isUpdatingIntegrations = false }
+        do {
+            if shouldConnect { try await provider.requestReminderAccess() }
+            let state = ensureOnboardingState(in: context)
+            let tasks = try context.fetch(FetchDescriptor<KoiTask>())
+            for task in tasks {
+                if shouldConnect, !task.isComplete, task.archivedAt == nil, task.hasTime, let dueAt = task.dueAt {
+                    task.reminderID = try await provider.saveTaskReminder(ReminderTaskValue(id: task.id, title: task.title, notes: task.notes, dueAt: dueAt, reminderIdentifier: task.reminderID))
+                } else if let identifier = task.reminderID {
+                    try await provider.deleteTaskReminder(identifier: identifier)
+                    task.reminderID = nil
+                }
+            }
+            state.remindersConnected = shouldConnect
+            try context.save()
+            remindersConnected = shouldConnect
+        } catch let error as LocalizedError {
+            errorMessage = error.errorDescription ?? "Couldn't update Apple Reminders. Try again."
+        } catch {
+            logger.error("Unable to update Apple Reminders.")
+            errorMessage = "Couldn't update Apple Reminders. Try again."
         }
     }
 

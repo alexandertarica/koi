@@ -18,6 +18,7 @@
     <key>NSLocationWhenInUseUsageDescription</key><string>Koi uses your location to map outdoor runs.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key><string>Koi keeps recording your route while an outdoor run is in progress.</string>
     <key>NSCalendarsFullAccessUsageDescription</key><string>Koi adds timed to-dos to your calendar when you choose.</string>
+    <key>NSRemindersFullAccessUsageDescription</key><string>Koi adds timed to-dos to Apple Reminders when you choose.</string>
     <key>NSSupportsLiveActivities</key><true/>
     <key>UIBackgroundModes</key><array><string>location</string></array>
     <key>BGTaskSchedulerPermittedIdentifiers</key><array><string>com.alexandertarica.koi.backup</string></array>

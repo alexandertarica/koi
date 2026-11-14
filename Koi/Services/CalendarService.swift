@@ -11,23 +11,42 @@ struct CalendarTaskValue: Sendable {
     let eventIdentifier: String?
 }
 
+struct ReminderTaskValue: Sendable {
+    let id: UUID
+    let title: String
+    let notes: String
+    let dueAt: Date
+    let reminderIdentifier: String?
+}
+
 @MainActor
 protocol CalendarProviding: Sendable {
     var isAvailable: Bool { get }
     func requestAccess() async throws
     func saveTaskEvent(_ task: CalendarTaskValue) async throws -> String
     func deleteTaskEvent(identifier: String) async throws
+    func requestReminderAccess() async throws
+    func saveTaskReminder(_ task: ReminderTaskValue) async throws -> String
+    func deleteTaskReminder(identifier: String) async throws
+}
+
+extension CalendarProviding {
+    func requestReminderAccess() async throws { throw CalendarServiceError.unavailable }
+    func saveTaskReminder(_ task: ReminderTaskValue) async throws -> String { throw CalendarServiceError.unavailable }
+    func deleteTaskReminder(identifier: String) async throws {}
 }
 
 enum CalendarServiceError: LocalizedError {
     case unavailable
     case accessDenied
     case eventMissing
+    case reminderMissing
     var errorDescription: String? {
         switch self {
         case .unavailable: "Apple Calendar isn't available on this device."
         case .accessDenied: "Allow Koi to use Calendar in Settings, then try again."
         case .eventMissing: "Couldn't find that calendar event."
+        case .reminderMissing: "Couldn't save that Apple Reminder."
         }
     }
 }
@@ -63,5 +82,30 @@ final class CalendarService: CalendarProviding {
         try await requestAccess()
         guard let event = store.event(withIdentifier: identifier) else { return }
         try store.remove(event, span: .thisEvent, commit: true)
+    }
+
+    func requestReminderAccess() async throws {
+        guard EKEventStore.authorizationStatus(for: .reminder) != .restricted else { throw CalendarServiceError.unavailable }
+        let status = EKEventStore.authorizationStatus(for: .reminder)
+        if status == .fullAccess { return }
+        guard try await store.requestFullAccessToReminders() else { throw CalendarServiceError.accessDenied }
+    }
+
+    func saveTaskReminder(_ task: ReminderTaskValue) async throws -> String {
+        try await requestReminderAccess()
+        let reminder = task.reminderIdentifier.flatMap(store.calendarItem(withIdentifier:)) as? EKReminder ?? EKReminder(eventStore: store)
+        reminder.calendar = store.defaultCalendarForNewReminders()
+        reminder.title = task.title
+        reminder.notes = task.notes.isEmpty ? nil : task.notes
+        reminder.dueDateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: task.dueAt)
+        try store.save(reminder, commit: true)
+        guard let identifier = reminder.calendarItemIdentifier as String? else { throw CalendarServiceError.reminderMissing }
+        return identifier
+    }
+
+    func deleteTaskReminder(identifier: String) async throws {
+        try await requestReminderAccess()
+        guard let reminder = store.calendarItem(withIdentifier: identifier) as? EKReminder else { return }
+        try store.remove(reminder, commit: true)
     }
 }

@@ -114,6 +114,7 @@ public final class KoiOnboardingState {
     public var sexAtBirth: String?
     public var healthConnected: Bool
     public var calendarConnected: Bool
+    public var remindersConnected: Bool = false
     public var notificationMode: String
     public var dailyCheckInHour: Int
     public var betaEmail: String
@@ -246,6 +247,7 @@ public final class KoiTask {
     public var lastTouchedAt: Date = Date.now
     public var timeMinutes: Int = 30
     public var calendarEventID: String?
+    public var reminderID: String? = nil
     public var hasTime: Bool = false
 
     public init(title: String, notes: String = "", dueAt: Date? = nil, quadrant: Int = 1, isComplete: Bool = false, createdAt: Date = .now, important: Bool? = nil, urgentOverride: Bool? = nil, timeMinutes: Int = 30, hasTime: Bool = false) {

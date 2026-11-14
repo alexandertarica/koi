@@ -212,6 +212,12 @@ what's partial, known issues, and the next step.
   app and widget build succeeds; the test runner again stalled before XCTest
   launch, so this observer change has build verification only. Health sample
   delivery and background scheduling need a device with Apple Health data.
+- Reminders pass: Profile now has a separate Apple Reminders connection. Timed
+  to-dos create, update and remove EventKit reminders independently from Apple
+  Calendar events; both integration preferences and item identifiers survive
+  backup restore. Added lifecycle and archive round-trip tests. The iPhone 17
+  Pro simulator build succeeds and all 61 tests pass. EventKit authorization
+  and delivery still need a device with a configured Reminders account.
 
 ## Partial / known issues
 

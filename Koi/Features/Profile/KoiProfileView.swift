@@ -46,6 +46,7 @@ struct KoiProfileView: View {
                     fold("Notifications", summary: model.notificationMode.title) { notificationSection }
                     fold("Apple Health", summary: model.healthConnected ? "Connected" : "Not connected") { healthSection }
                     fold("Apple Calendar", summary: model.calendarConnected ? "Connected" : "Not connected") { calendarSection }
+                    fold("Apple Reminders", summary: model.remindersConnected ? "Connected" : "Not connected") { remindersSection }
                     fold("Smart notes", summary: "Write freely from the tab bar") {
                         Text("Turn a short note into a meal estimate, water log, habit check, to-do or workout.")
                             .font(KoiTheme.caption).opacity(0.72)
@@ -231,6 +232,19 @@ struct KoiProfileView: View {
                 }
             } label: {
                 Text(model.calendarConnected ? "Disconnect Calendar" : "Connect Calendar").font(KoiTheme.caption)
+            }.buttonStyle(.plain)
+            if model.isUpdatingIntegrations { ProgressView().tint(KoiTheme.onBase) }
+        }
+    }
+
+    private var remindersSection: some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+            Text(model.remindersConnected ? "Timed to-dos are mirrored to Apple Reminders." : "Allow Koi to add and update timed to-dos in Apple Reminders.")
+                .font(KoiTheme.caption).opacity(0.72)
+            Button {
+                Task { await model.setRemindersConnected(!model.remindersConnected, using: calendarProvider) }
+            } label: {
+                Text(model.remindersConnected ? "Disconnect Reminders" : "Connect Reminders").font(KoiTheme.caption)
             }.buttonStyle(.plain)
             if model.isUpdatingIntegrations { ProgressView().tint(KoiTheme.onBase) }
         }

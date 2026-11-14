@@ -132,6 +132,31 @@ final class KoiProgressProfileTests: XCTestCase {
         XCTAssertTrue(model.calendarConnected)
         XCTAssertTrue(try XCTUnwrap(context.fetch(FetchDescriptor<KoiOnboardingState>()).first).calendarConnected)
     }
+
+    func testAppleReminderSyncTracksTimedTasksAndDisconnects() async throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let due = Date.now.addingTimeInterval(3_600)
+        let task = KoiTask(title: "Call the studio", dueAt: due, hasTime: true)
+        context.insert(task)
+        try context.save()
+        let model = ProfileViewModel()
+        model.load(context)
+        let provider = FakeCalendarProvider()
+
+        await model.setRemindersConnected(true, using: provider)
+
+        XCTAssertTrue(model.remindersConnected)
+        XCTAssertEqual(task.reminderID, "reminder-\(task.id.uuidString)")
+        XCTAssertEqual(provider.savedReminders.count, 1)
+        XCTAssertTrue(try XCTUnwrap(context.fetch(FetchDescriptor<KoiOnboardingState>()).first).remindersConnected)
+
+        await model.setRemindersConnected(false, using: provider)
+
+        XCTAssertFalse(model.remindersConnected)
+        XCTAssertNil(task.reminderID)
+        XCTAssertEqual(provider.deletedReminderIDs, ["reminder-\(task.id.uuidString)"])
+    }
 }
 
 @MainActor
@@ -152,7 +177,12 @@ private final class FakeNotificationProvider: NotificationProviding {
 @MainActor
 private final class FakeCalendarProvider: CalendarProviding {
     var isAvailable = true
+    var savedReminders: [ReminderTaskValue] = []
+    var deletedReminderIDs: [String] = []
     func requestAccess() async throws {}
     func saveTaskEvent(_ task: CalendarTaskValue) async throws -> String { "event-\(task.id.uuidString)" }
     func deleteTaskEvent(identifier: String) async throws {}
+    func requestReminderAccess() async throws {}
+    func saveTaskReminder(_ task: ReminderTaskValue) async throws -> String { savedReminders.append(task); return "reminder-\(task.id.uuidString)" }
+    func deleteTaskReminder(identifier: String) async throws { deletedReminderIDs.append(identifier) }
 }

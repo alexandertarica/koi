@@ -56,6 +56,8 @@ final class KoiBackupTests: XCTestCase {
         habit.graduatedAt = day
         let task = KoiTask(title: "Call", notes: "After lunch", dueAt: day.addingTimeInterval(50_000), quadrant: 2, createdAt: day, urgentOverride: false, timeMinutes: 45, hasTime: true)
         task.calendarEventID = "event-1"
+        task.reminderID = "reminder-1"
+        onboarding.remindersConnected = true
         task.completedAt = day
         task.archivedAt = day
         let food = KoiFoodEntry(name: "Lunch", loggedAt: day, calories: 500, proteinGrams: 40, imageJPEG: Data([9]), notes: "Saved")
@@ -100,10 +102,12 @@ final class KoiBackupTests: XCTestCase {
 
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiProfile>()).first?.name, "Sam")
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiOnboardingState>()).first?.dailyCheckInHour, 7)
+        XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiOnboardingState>()).first?.remindersConnected, true)
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiHabit>()).first?.weekdays, [2, 4])
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiHabit>()).first?.pausedAt, day)
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiHabit>()).first?.graduatedAt, day)
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiTask>()).first?.calendarEventID, "event-1")
+        XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiTask>()).first?.reminderID, "reminder-1")
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiTask>()).first?.hasTime, true)
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiFoodEntry>()).first?.imageJPEG, Data([9]))
         XCTAssertEqual(try destinationContext.fetch(FetchDescriptor<KoiQuickNote>()).first?.text, "A quiet morning, then a short walk.")
