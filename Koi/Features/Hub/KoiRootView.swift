@@ -132,6 +132,9 @@ struct KoiRootView: View {
             if phase == .active { Task { await notificationProvider.refreshPlan(using: modelContext) } }
             if phase == .background { Task { await createAutomaticBackup() } }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .koiHealthMovementDidChange)) { _ in
+            Task { await notificationProvider.refreshPlan(using: modelContext) }
+        }
         .onOpenURL { url in
             guard url.scheme == "koi" else { return }
             switch url.host {

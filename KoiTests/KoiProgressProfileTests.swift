@@ -122,6 +122,28 @@ final class KoiProgressProfileTests: XCTestCase {
         XCTAssertTrue(NotificationPlanner.habitReminders(habits: [habit], logs: [completed], now: now, calendar: calendar).isEmpty)
     }
 
+    func testSmartNudgesPlanFromCurrentBalanceAtAppLaunch() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        let now = calendar.date(from: DateComponents(year: 2026, month: 11, day: 14, hour: 10)) ?? .now
+
+        let reminders = NotificationPlanner.smartNudges(
+            now: now,
+            calendar: calendar,
+            movementDays: [],
+            movementGoal: KoiMovementGoal(),
+            nutrientEntries: [],
+            foodEntries: [],
+            nutrientGoals: [],
+            habits: [],
+            logs: []
+        )
+
+        XCTAssertEqual(reminders.map(\.id), ["nudge-catch-up"])
+        XCTAssertEqual(reminders.first?.date, calendar.date(bySettingHour: 15, minute: 0, second: 0, of: now))
+        XCTAssertEqual(reminders.first?.tab, 1)
+    }
+
     func testCalendarConnectionPreferencePersistsAfterAuthorization() async throws {
         let container = try KoiSchema.makeContainer(inMemory: true)
         let context = ModelContext(container)

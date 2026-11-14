@@ -213,6 +213,11 @@ what's partial, known issues, and the next step.
   A clean serial iPhone 17 Pro simulator run passes all 60 tests. Earlier Xcode
   attempts stalled before XCTest launch; shutting down and booting the simulator
   cleared the runner state.
+- Notification refresh pass: score-based catch-up, protein and step nudges now
+  share one planner between the app launch refresh and To-Do. HealthKit movement
+  updates replan notifications with the latest samples. Added deterministic
+  coverage for the low-balance catch-up reminder. The latest serial simulator
+  run passes all 63 tests.
 - HealthKit pass: the service now observes step and workout changes and requests
   hourly background delivery, then posts a refresh event so Movement and
   readiness can reload current samples. This remains read-only. The app and
@@ -279,10 +284,10 @@ what's partial, known issues, and the next step.
 
 ## Next step
 
-The requested analytics event-name audit found all required event names wired
-to feature actions; TelemetryDeck initializes and signals only in Release.
+The analytics event-name audit found all required event names wired to feature
+actions; TelemetryDeck initializes and signals only in Release.
 Calendar and Reminders sync, Apple Notes handoff, and CloudKit backup/restore
-are implemented. A final serial iPhone 17 Pro simulator test run passes all 61
+are implemented. A final serial iPhone 17 Pro simulator test run passes all 63
 tests. Continue the remaining visual and interaction audit in checklist order;
 paired screenshots and screen-specific haptics/animations are not yet fully
 verified. A Koi-owned signup endpoint is not configured, and HealthKit writes
