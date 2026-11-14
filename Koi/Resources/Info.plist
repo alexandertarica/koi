@@ -1,25 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-    <key>CFBundleDisplayName</key><string>Koi</string>
-    <key>CFBundleURLTypes</key><array><dict>
-        <key>CFBundleURLName</key><string>com.alexandertarica.koi</string>
-        <key>CFBundleURLSchemes</key><array><string>koi</string></array>
-    </dict></array>
-    <key>UILaunchScreen</key><dict><key>UIColorName</key><string>LaunchBackground</string></dict>
-    <key>UIAppFonts</key><array>
-        <string>RobotoMono-Light.ttf</string>
-        <string>RobotoMono-Regular.ttf</string>
-        <string>KOI-Numerals.ttf</string>
-    </array>
-    <key>NSHealthShareUsageDescription</key><string>Koi reads your steps and workouts to reflect your movement.</string>
-    <key>NSHealthUpdateUsageDescription</key><string>Koi can save workouts and body weight you choose to log.</string>
-    <key>NSCameraUsageDescription</key><string>Koi uses the camera when you choose to photograph a meal.</string>
-    <key>NSLocationWhenInUseUsageDescription</key><string>Koi uses your location to map outdoor runs.</string>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key><string>Koi keeps recording your route while an outdoor run is in progress.</string>
-    <key>NSCalendarsFullAccessUsageDescription</key><string>Koi adds timed to-dos to your calendar when you choose.</string>
-    <key>NSRemindersFullAccessUsageDescription</key><string>Koi adds timed to-dos to Apple Reminders when you choose.</string>
-    <key>NSSupportsLiveActivities</key><true/>
-    <key>UIBackgroundModes</key><array><string>location</string></array>
-    <key>BGTaskSchedulerPermittedIdentifiers</key><array><string>com.alexandertarica.koi.backup</string></array>
-</dict></plist>
+<plist version="1.0">
+<dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.alexandertarica.koi.backup</string>
+	</array>
+	<key>CFBundleDisplayName</key>
+	<string>Koi</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.alexandertarica.koi</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>koi</string>
+			</array>
+		</dict>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Koi adds timed to-dos to your calendar when you choose.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Koi uses the camera when you choose to photograph a meal.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Koi reads your steps and workouts to reflect your movement.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Koi can save workouts and body weight you choose to log.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Koi keeps recording your route while an outdoor run is in progress.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Koi uses your location to map outdoor runs.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Koi adds timed to-dos to Apple Reminders when you choose.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>RobotoMono-Light.ttf</string>
+		<string>RobotoMono-Regular.ttf</string>
+		<string>KOI-Numerals.ttf</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
+</dict>
+</plist>
