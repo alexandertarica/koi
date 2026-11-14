@@ -61,6 +61,19 @@ final class KoiFoundationTests: XCTestCase {
         XCTAssertEqual(try context.fetch(FetchDescriptor<KoiWorkoutSession>()).count, 3)
     }
 
+    func testDemoHubHasScoredNutritionAndAContinuousWeekStreak() throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        try KoiDemoSeeder.seedIfEmpty(context)
+
+        let model = HubViewModel(calendar: .current, publishesWidgetSnapshot: false)
+        model.refresh(using: context)
+
+        XCTAssertGreaterThan(model.balance.nutrition, 0.7)
+        XCTAssertEqual(model.streak.current, 7)
+        XCTAssertGreaterThanOrEqual(model.streak.best, model.streak.current)
+    }
+
     func testDemoSeedDoesNotRunWhenAnySavedModelExists() throws {
         let container = try KoiSchema.makeContainer(inMemory: true)
         let context = ModelContext(container)

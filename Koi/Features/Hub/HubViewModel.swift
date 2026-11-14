@@ -58,13 +58,25 @@ final class HubViewModel {
     private(set) var items: [HubTodayItem] = []
     private(set) var streak = StreakResult(current: 0, best: 0, freezes: 0)
     private(set) var trendText = "See progress"
+    private(set) var trendIsPositive = true
     private(set) var hasWeekOfHistory = false
     private(set) var selectedDayOffset = 0
     private(set) var expandedItems = false
     private(set) var selectedItemID: UUID?
     private(set) var selectedPillar: HubPillar?
-    var presentsProgress = false
-    var presentsProfile = false
+    private(set) var isScrubbing = false
+    private var scrubStartOffset = 0
+    private(set) var habitsDone = 0
+    private(set) var habitsScheduled = 0
+    private(set) var caloriesText = "0"
+    private(set) var caloriesGoalText = "2,200"
+    private(set) var proteinText = "0"
+    private(set) var proteinGoalText = "140"
+    private(set) var stepsText = "0"
+    private(set) var stepGoalText = "8,000"
+    private(set) var workoutsText = "0 of 4"
+    private(set) var isProfileOpen = false
+    private(set) var isProgressOpen = false
 
     init(calendar: Calendar = .autoupdatingCurrent, publishesWidgetSnapshot: Bool = true) {
         self.calendar = calendar
@@ -81,19 +93,24 @@ final class HubViewModel {
     var greeting: String {
         let hour = calendar.component(.hour, from: .now)
         let salutation: String = switch hour {
-        case 5..<12: "Good morning."
-        case 12..<17: "Good afternoon."
-        default: "Good evening."
+        case 5..<12: "Good morning"
+        case 12..<17: "Good afternoon"
+        case 17..<22: "Good evening"
+        default: "Still water"
         }
-        let prefix = salutation.replacingOccurrences(of: ".", with: "")
-        return "\(prefix), \(profile?.name ?? "Friend")."
+        return "\(salutation), \(profile?.name ?? "Friend")."
     }
+
+    func toggleProfile() { isProfileOpen.toggle(); isProgressOpen = false }
+    func toggleProgress() { isProgressOpen.toggle(); isProfileOpen = false }
+    func closeInPlace() { isProfileOpen = false; isProgressOpen = false }
 
     var dateLabel: String {
         selectedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
     }
 
     var formattedBalance: String { "\(Int((balance.score * 100).rounded()))%" }
+    var focusWeights: BalanceWeights { selectedFocus.weights }
 
     func refresh(using modelContext: ModelContext) {
         context = modelContext
@@ -122,6 +139,22 @@ final class HubViewModel {
         selectedItemID = nil
         selectedPillar = nil
         updateDerivedState()
+    }
+
+    func beginScrub() {
+        isScrubbing = true
+        scrubStartOffset = selectedDayOffset
+    }
+
+    func updateScrub(translation: CGFloat) {
+        guard isScrubbing else { return }
+        let steps = Int((translation / 34).rounded(.down))
+        selectDay(daysAgo: scrubStartOffset + steps)
+    }
+
+    func endScrub() {
+        isScrubbing = false
+        selectDay(daysAgo: 0)
     }
 
     func toggleExpandedItems() {
@@ -175,8 +208,20 @@ final class HubViewModel {
             previousMisses(for: habit, before: selectedDate)
         }
         let habitScore = HabitRules.dayScore(habitDays, previousMisses: misses)
+        habitsScheduled = activeHabits.count
+        habitsDone = activeHabits.filter { habit in selectedLogs.first(where: { $0.habitID == habit.id })?.completion ?? 0 > 0 }.count
         let nutritionScore = nutritionScore(for: selectedDate) ?? selectedDay?.nutritionScore ?? 0
         let exerciseScore = exerciseScore(for: selectedDate) ?? selectedDay?.exerciseScore ?? 0
+        let dailyTotals = nutritionTotals(for: selectedDate)
+        caloriesText = Int(dailyTotals["calories"] ?? 0).formatted()
+        proteinText = Int(dailyTotals["protein"] ?? 0).formatted()
+        caloriesGoalText = Int(nutrientGoals.first(where: { $0.key == "calories" })?.goal ?? 2_200).formatted()
+        proteinGoalText = Int(nutrientGoals.first(where: { $0.key == "protein" })?.goal ?? 140).formatted()
+        let movementForDay = movementDays.first { calendar.isDate($0.date, inSameDayAs: selectedDate) }
+        stepsText = (movementForDay?.steps ?? 0).formatted()
+        stepGoalText = (movementGoal?.stepGoal ?? 8_000).formatted()
+        let workouts = movementDays.filter { $0.date >= (calendar.date(byAdding: .day, value: -6, to: selectedDate) ?? selectedDate) && $0.date < (calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate) }.reduce(0) { $0 + $1.workoutCount }
+        workoutsText = "\(workouts) of \(movementGoal?.weeklyWorkoutGoal ?? 4)"
         balance = BalanceEngine.score(
             pillars: BalancePillars(
                 habits: activeHabits.isEmpty ? (selectedDay?.habitsScore ?? 0) : habitScore,
@@ -292,10 +337,13 @@ final class HubViewModel {
         let pointDifference = (currentTotal - previousTotal) / 7 * 100
         let difference = Int(pointDifference.rounded())
         if difference > 0 {
-            trendText = "↗ \(difference) vs last week"
+            trendIsPositive = true
+            trendText = "\(difference) vs last week"
         } else if difference < 0 {
-            trendText = "↘ \(abs(difference)) vs last week"
+            trendIsPositive = false
+            trendText = "\(abs(difference)) vs last week"
         } else {
+            trendIsPositive = true
             trendText = "Even with last week"
         }
     }
@@ -303,13 +351,11 @@ final class HubViewModel {
     private var selectedFocus: BalanceFocus { BalanceFocus(rawValue: profile?.focusKey ?? "") ?? .allRounder }
 
     private func nutritionScore(for date: Date) -> Double? {
-        let meals = foodEntries.filter { calendar.isDate($0.loggedAt, inSameDayAs: date) }.map {
-            MealNutritionInput(calories: $0.calories, protein: $0.proteinGrams, carbs: $0.carbohydrateGrams, fat: $0.fatGrams, fiber: $0.fiberGrams, addedSugar: $0.addedSugarGrams, sodium: $0.sodiumMilligrams)
-        }
+        let totals = nutritionTotals(for: date)
+        let meals = foodEntries.filter { calendar.isDate($0.loggedAt, inSameDayAs: date) }
         let dayID = Self.dayIdentifier(for: date, calendar: calendar)
         let adjustments = nutrientEntries.filter { $0.dayID == dayID }.map { NutritionAdjustmentInput(key: $0.nutrientKey, value: $0.value) }
-        guard NutritionEngine.hasAnyIntake(meals: meals, adjustments: adjustments) else { return nil }
-        let totals = NutritionEngine.totals(meals: meals, adjustments: adjustments)
+        guard NutritionEngine.hasAnyIntake(meals: meals.map { MealNutritionInput(calories: $0.calories, protein: $0.proteinGrams, carbs: $0.carbohydrateGrams, fat: $0.fatGrams, fiber: $0.fiberGrams, addedSugar: $0.addedSugarGrams, sodium: $0.sodiumMilligrams) }, adjustments: adjustments) else { return nil }
         let calorieGoal = nutrientGoals.first(where: { $0.key == "calories" })?.goal ?? 2_200
         return NutritionEngine.score(
             goals: nutrientGoals.filter(\.isActive).map { NutrientGoalInput(key: $0.key, goal: $0.goal, type: NutrientGoalType(rawValue: $0.goalType) ?? .track) },
@@ -318,6 +364,15 @@ final class HubViewModel {
             calorieGoal: calorieGoal,
             hasAnyIntake: true
         ).score
+    }
+
+    private func nutritionTotals(for date: Date) -> [String: Double] {
+        let meals = foodEntries.filter { calendar.isDate($0.loggedAt, inSameDayAs: date) }.map {
+            MealNutritionInput(calories: $0.calories, protein: $0.proteinGrams, carbs: $0.carbohydrateGrams, fat: $0.fatGrams, fiber: $0.fiberGrams, addedSugar: $0.addedSugarGrams, sodium: $0.sodiumMilligrams)
+        }
+        let dayID = Self.dayIdentifier(for: date, calendar: calendar)
+        let adjustments = nutrientEntries.filter { $0.dayID == dayID }.map { NutritionAdjustmentInput(key: $0.nutrientKey, value: $0.value) }
+        return NutritionEngine.totals(meals: meals, adjustments: adjustments)
     }
 
     private func exerciseScore(for date: Date) -> Double? {
@@ -331,7 +386,7 @@ final class HubViewModel {
             ExerciseDayInput(
                 steps: currentDay?.steps ?? 0,
                 stepGoal: movementGoal?.stepGoal ?? 8_000,
-                isTrainingDay: currentDay?.isTrainingDay ?? false,
+                isTrainingDay: (currentDay?.isTrainingDay ?? false) || (currentDay?.workoutCount ?? 0) > 0,
                 workoutsInLastSevenDays: workoutCount,
                 weeklyWorkoutGoal: movementGoal?.weeklyWorkoutGoal ?? 4
             )

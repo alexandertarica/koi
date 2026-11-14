@@ -1,6 +1,7 @@
 import SwiftUI
 
 enum KoiTheme {
+    static let morph = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.8)
     static let onBase = Color(red: 0xF0 / 255, green: 0xE8 / 255, blue: 0xDB / 255)
     static let onBaseMuted = onBase.opacity(0.92)
     static let deepWater = Color(red: 0x2B / 255, green: 0x40 / 255, blue: 0x67 / 255)

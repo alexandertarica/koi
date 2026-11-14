@@ -362,7 +362,9 @@ enum KoiDemoSeeder {
             KoiNutrientGoal(key: "calories", name: "Calories", unit: "kcal", goal: 2_200, step: 50, goalType: "around"),
             KoiNutrientGoal(key: "protein", name: "Protein", unit: "g", goal: 140, step: 5),
             KoiNutrientGoal(key: "fiber", name: "Fiber", unit: "g", goal: 30, step: 1),
-            KoiNutrientGoal(key: "water", name: "Water", unit: "oz", goal: 100, step: 8)
+            KoiNutrientGoal(key: "water", name: "Water", unit: "oz", goal: 100, step: 8),
+            KoiNutrientGoal(key: "carbs", name: "Carbs", unit: "g", goal: 250, step: 5, goalType: "track"),
+            KoiNutrientGoal(key: "fat", name: "Fat", unit: "g", goal: 70, step: 5, goalType: "track")
         ] { context.insert(goal) }
 
         let titles = ["Make the bed", "Read a little", "Take a walk"]
@@ -370,7 +372,7 @@ enum KoiDemoSeeder {
             KoiHabit(title: title, createdAt: created, schedule: "daily", minimumVersion: ["Straighten the pillow", "One page", "Step outside"][index])
         }
         habits.forEach { context.insert($0) }
-        let balanceSamples = [0.78, 0.69, 0.84, 0.62, 0.91, 0.73, 0.86]
+        let balanceSamples = [0.78, 0.74, 0.84, 0.72, 0.91, 0.73, 0.86]
         let foods = ["Salmon rice bowl", "Yogurt and fruit", "Chicken wrap", "Eggs and toast", "Tofu noodle bowl", "Turkey sandwich", "Oatmeal and berries"]
         for offset in 0..<7 {
             guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
@@ -382,7 +384,8 @@ enum KoiDemoSeeder {
             context.insert(KoiNutrientEntry(date: date, nutrientKey: "water", value: [78.0, 96, 110, 84, 102, 72, 94][offset]))
             let trained = [1, 3, 5].contains(offset)
             context.insert(KoiMovementDay(date: date, healthSteps: 6_400 + offset * 615, healthWorkoutCount: trained ? 1 : 0))
-            context.insert(KoiDay(date: date, balance: balanceSamples[offset], habitsScore: balanceSamples[offset], nutritionScore: 0.72, exerciseScore: trained ? 0.86 : 0.53))
+            let demoHabits = completionScore(offset: offset)
+            context.insert(KoiDay(date: date, balance: balanceSamples[offset], habitsScore: demoHabits, nutritionScore: 0.72, exerciseScore: trained ? 0.86 : 0.53))
         }
 
         let tasks = [
@@ -416,5 +419,11 @@ enum KoiDemoSeeder {
             context.insert(KoiBodyWeightEntry(date: date, weightLB: 158.2 - Double((28 - offset) / 7) * 0.35))
         }
         try context.save()
+    }
+
+    private static func completionScore(offset: Int) -> Double {
+        if offset == 2 { return 5.0 / 6.0 }
+        if offset == 4 { return 5.0 / 6.0 }
+        return 1
     }
 }

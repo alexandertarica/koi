@@ -43,6 +43,16 @@ what's partial, known issues, and the next step.
   pillar detail folds, streak/trend summaries and the two-item Today list with
   persistent task completion and habit check-ins. Eighteen simulator tests pass;
   the iPhone 17 Pro build and empty-state launch were visually checked.
+- Hub design pass: replaced the compressed hero with the 470pt left-edge half
+  dial, focus-weighted pillar bars and labels inside its curve. The score,
+  trend chip and streak now overlay the dial; Profile and Progress open in
+  place, greeting changes at 10pm, and Today shows an ivory expand control on
+  its label line. Demo nutrition uses the tracked goal values and the sample
+  history maintains a qualifying seven-day run. Added coverage for the seeded
+  nutrition score and streak. The app builds and all 55 simulator tests pass.
+  Captured the Hub on the iPhone 17 Pro simulator. A second simulator starts
+  the comparison app process but continues to display SpringBoard, so the
+  paired visual review remains incomplete.
 - Phase 3: added persistent habit schedules/check-ins and to-dos with title date
   parsing, required matrix placement, optional due times, notes, edit/detail
   folds, list and draggable matrix views, pause/archive/restore, delayed task
@@ -165,9 +175,13 @@ what's partial, known issues, and the next step.
 - The final visual review covered seeded data in the app's dark water theme.
   Empty-state review was completed in earlier phases; this pass did not repeat
   every screen in both appearances. The app currently requests dark appearance.
+- Simulator screenshot comparison is limited by the second simulator staying
+  on SpringBoard after its app process starts. Resolve the simulator display
+  session before the next paired screen review.
 
 ## Next step
 
-All planned phases are implemented. Physical-device verification remains for
-HealthKit, CloudKit, GPS accuracy, notification delivery, widgets, Control
+Continue with the design foundation polish pass, then proceed through the app
+screens and system integrations in order. Physical-device verification remains
+for HealthKit, CloudKit, GPS accuracy, notification delivery, widgets, Control
 Center actions, and configured-network workout imports.

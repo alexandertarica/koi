@@ -11,40 +11,35 @@ struct HubView: View {
     var body: some View {
         ZStack {
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: KoiTheme.space.s34) {
+                VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
                     header
-                    hero
-                    scoreFooter
-                    todaySection
+                    if model.isProfileOpen { KoiProfileView(onSelectTab: onSelectTab).transition(.opacity) }
+                    else if model.isProgressOpen { KoiProgressView().transition(.opacity) }
+                    else {
+                        hero
+                        todaySection
+                    }
                 }
                 .padding(.horizontal, KoiTheme.space.s21)
                 .padding(.top, KoiTheme.space.s21)
-                .padding(.bottom, KoiTheme.space.s34)
+                .padding(.bottom, KoiTheme.space.s89)
             }
             .scrollClipDisabled()
             .contentMargins(.bottom, 18)
             .mask {
-                LinearGradient(stops: [
-                    .init(color: .black, location: 0),
-                    .init(color: .black, location: 0.82),
-                    .init(color: .clear, location: 1)
-                ], startPoint: .top, endPoint: .bottom)
+                VStack(spacing: 0) {
+                    Rectangle().fill(.black)
+                    LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 89)
+                }
             }
         }
         .onAppear { model.refresh(using: modelContext) }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { model.refresh(using: modelContext) }
         }
-        .sheet(isPresented: $model.presentsProgress) {
-            KoiProgressView()
-                .presentationDetents([.large])
-                .presentationBackground(.ultraThinMaterial)
-        }
-        .sheet(isPresented: $model.presentsProfile, onDismiss: { model.refresh(using: modelContext) }) {
-            KoiProfileView(onSelectTab: onSelectTab)
-                .presentationDetents([.large])
-                .presentationBackground(.ultraThinMaterial)
-        }
+        .animation(KoiTheme.morph, value: model.isProfileOpen)
+        .animation(KoiTheme.morph, value: model.isProgressOpen)
     }
 
     private var header: some View {
@@ -57,46 +52,63 @@ struct HubView: View {
                     .frame(width: 76, height: 30)
                     .foregroundStyle(KoiTheme.onBase)
                     .accessibilityLabel("Koi")
+                    .onTapGesture { withAnimation(KoiTheme.morph) { model.closeInPlace() } }
                 Spacer()
                 Button {
-                    model.presentsProfile = true
+                    withAnimation(KoiTheme.morph) { model.toggleProfile() }
                 } label: {
-                    Image(systemName: "person.crop.circle")
-                        .font(.system(size: 22, weight: .light))
+                    Image(systemName: model.isProfileOpen || model.isProgressOpen ? "xmark" : "person")
+                        .font(.system(size: 21, weight: .light))
                         .foregroundStyle(KoiTheme.onBase)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 44, height: 44)
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Profile")
+                .accessibilityLabel(model.isProfileOpen || model.isProgressOpen ? "Close" : "Profile")
             }
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(model.dateLabel.uppercased())
                     .font(KoiTheme.section)
-                    .tracking(2.2)
+                    .tracking(2.7)
                     .foregroundStyle(KoiTheme.onBase.opacity(0.8))
-                Text(model.greeting)
+                Text(model.isProfileOpen ? "Profile" : (model.isProgressOpen ? "Progress" : model.greeting))
+                    .id(model.isProfileOpen ? "Profile" : (model.isProgressOpen ? "Progress" : model.greeting))
                     .font(KoiTheme.title)
                     .foregroundStyle(KoiTheme.onBase)
+                    .transition(.opacity.combined(with: .blurReplace))
             }
         }
     }
 
     private var hero: some View {
-        VStack(spacing: KoiTheme.space.s5) {
+        VStack(spacing: 0) {
+            ZStack(alignment: .topTrailing) {
             GeometryReader { proxy in
                 KoiDial(
                     score: model.balance.score,
                     habits: model.balance.habits,
                     nutrition: model.balance.nutrition,
-                    exercise: model.balance.exercise
+                    exercise: model.balance.exercise,
+                    onScoreTap: { withAnimation(KoiTheme.morph) { model.toggleProgress() } },
+                    onPillarTap: { pillar in
+                        if model.selectedPillar == pillar { onSelectTab(pillar.tab) }
+                        else { withAnimation(KoiTheme.morph) { model.selectPillar(pillar) } }
+                    },
+                    weights: model.focusWeights
                 )
                 .contentShape(Rectangle())
-                .gesture(DragGesture(minimumDistance: 8).onChanged { value in
-                    let width = max(proxy.size.width, 1)
-                    let location = min(max(value.location.x, 0), width)
-                    model.selectDay(daysAgo: Int(((1 - location / width) * 6).rounded()))
-                })
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.3)
+                        .sequenced(before: DragGesture(minimumDistance: 0))
+                        .onChanged { state in
+                            switch state {
+                            case .first(true): model.beginScrub()
+                            case .second(true, let drag?): model.updateScrub(translation: drag.translation.height)
+                            default: break
+                            }
+                        }
+                        .onEnded { _ in model.endScrub() }
+                )
                 .accessibilityAction(named: Text("Previous day")) {
                     model.selectDay(daysAgo: model.selectedDayOffset + 1)
                 }
@@ -104,89 +116,71 @@ struct HubView: View {
                     model.selectDay(daysAgo: model.selectedDayOffset - 1)
                 }
             }
-            .frame(height: 238)
-            if model.selectedDayOffset > 0 {
-                Text(model.dateLabel)
-                    .font(KoiTheme.caption)
-                    .foregroundStyle(KoiTheme.onBase.opacity(0.78))
-                    .transition(.opacity)
-            }
-            HStack(spacing: 13) {
-                ForEach(HubPillar.allCases) { pillar in
-                    Button {
-                        if model.selectedPillar == pillar {
-                            onSelectTab(pillar.tab)
-                        } else {
-                            withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
-                                model.selectPillar(pillar)
-                            }
-                        }
-                    } label: {
-                        Text(pillar.rawValue)
-                            .font(KoiTheme.caption)
-                            .foregroundStyle(model.selectedPillar == pillar ? KoiTheme.onBase : KoiTheme.onBase.opacity(0.78))
-                            .underline(model.selectedPillar == pillar, color: KoiTheme.onBase.opacity(0.7))
+            .frame(height: 470)
+            .padding(.horizontal, -KoiTheme.space.s21)
+            .padding(.top, -22)
+            .padding(.bottom, -4)
+            VStack(alignment: .trailing, spacing: 8) {
+                Button { withAnimation(KoiTheme.morph) { model.toggleProgress() } } label: {
+                    HStack(spacing: 6) {
+                        if model.hasWeekOfHistory { Image(systemName: model.trendIsPositive ? "arrow.up.right" : "arrow.down.right").font(.system(size: 10)) }
+                        Text(model.trendText).font(KoiTheme.caption).lineLimit(1)
                     }
-                    .buttonStyle(.plain)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(.ultraThinMaterial.opacity(0.6), in: Capsule())
+                    .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
+                    .frame(maxWidth: 160, alignment: .trailing)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open progress. \(model.trendText)")
+                streakBlock
+                    .padding(.top, 100)
             }
-            .frame(maxWidth: .infinity)
-            if let pillar = model.selectedPillar {
-                pillarDetail(pillar)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            .padding(.trailing, KoiTheme.space.s21)
+            .padding(.top, 128)
+            if model.selectedDayOffset > 0 {
+                Text(model.dateLabel.uppercased())
+                    .font(KoiTheme.section).tracking(2.7)
+                    .foregroundStyle(KoiTheme.onBase.opacity(0.8))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(.leading, KoiTheme.space.s21)
+                    .padding(.top, 128)
+                    .allowsHitTesting(false)
             }
+            }
+            .frame(height: 470)
+            if let pillar = model.selectedPillar { pillarDetail(pillar).transition(.opacity.combined(with: .move(edge: .top))) }
         }
     }
 
-    private var scoreFooter: some View {
-        HStack(alignment: .center) {
-            Button {
-                model.presentsProgress = true
-            } label: {
-                KoiGlass(strength: .base) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "chart.xyaxis.line")
-                            .font(.system(size: 11, weight: .light))
-                        Text(model.trendText)
-                            .font(KoiTheme.caption)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Open progress. \(model.trendText)")
-            Spacer()
+    private var streakBlock: some View {
+        VStack(alignment: .trailing, spacing: -1) {
             HStack(spacing: 6) {
-                Image("KoiFlame")
-                    .resizable()
-                    .renderingMode(.template)
-                    .scaledToFit()
-                    .frame(width: 15, height: 18)
-                    .foregroundStyle(KoiTheme.onBase)
-                Text("\(model.streak.current)")
-                    .font(KoiTheme.body)
-                    .monospacedDigit()
-                Text("best \(model.streak.best)")
-                    .font(KoiTheme.caption)
-                    .foregroundStyle(KoiTheme.onBase.opacity(0.8))
+                Image("KoiFlame").resizable().renderingMode(.template).scaledToFit().frame(height: 27).foregroundStyle(KoiTheme.onBase)
+                Text("\(model.streak.current)").font(.system(size: 39)).monospacedDigit()
             }
-            .foregroundStyle(KoiTheme.onBase)
-            .accessibilityLabel("Streak \(model.streak.current), best \(model.streak.best), \(model.streak.freezes) freezes")
+            Text("DAY STREAK").font(KoiTheme.section).tracking(2.7)
+            Text("best \(model.streak.best)").font(KoiTheme.caption).opacity(0.78)
+            if model.streak.freezes > 0 { Text("❄ \(model.streak.freezes) freezes").font(.system(size: 11, weight: .light)) }
         }
+        .foregroundStyle(KoiTheme.onBase.opacity(0.8))
+        .accessibilityLabel("Streak \(model.streak.current), best \(model.streak.best), \(model.streak.freezes) freezes")
     }
 
     private var todaySection: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("TODAY")
                     .font(KoiTheme.section)
-                    .tracking(2.4)
-                    .foregroundStyle(KoiTheme.onBase.opacity(0.8))
-                Spacer()
-                if !model.items.isEmpty {
-                    Text("\(model.items.filter(\.isComplete).count) / \(model.items.count)")
-                        .font(KoiTheme.caption)
-                        .monospacedDigit()
-                        .foregroundStyle(KoiTheme.onBase.opacity(0.75))
+                    .tracking(2.7)
+                    .foregroundStyle(KoiTheme.onBase.opacity(0.92))
+                if model.hiddenItemCount > 0 {
+                    Button { withAnimation(KoiTheme.morph) { model.toggleExpandedItems() } } label: {
+                        HStack(spacing: 4) { Text(model.expandedItems ? "Less" : "+\(model.hiddenItemCount) more"); Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).rotationEffect(.degrees(model.expandedItems ? 180 : 0)) }
+                            .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase).frame(minHeight: 30)
+                    }.buttonStyle(.plain)
                 }
             }
 
@@ -207,16 +201,6 @@ struct HubView: View {
                     ForEach(model.visibleItems) { item in
                         todayRow(item)
                     }
-                }
-                if !model.expandedItems, model.hiddenItemCount > 0 {
-                    Button {
-                        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
-                            model.toggleExpandedItems()
-                        }
-                    } label: {
-                        GlassChip(title: "+\(model.hiddenItemCount) more", symbol: "plus")
-                    }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -244,7 +228,7 @@ struct HubView: View {
                 Button { model.selectItem(item.id) } label: {
                     HStack(spacing: 8) {
                         Text(item.title)
-                            .font(KoiTheme.body)
+                            .font(.custom("RobotoMono-Light", size: 15))
                             .strikethrough(item.isComplete, color: KoiTheme.onBase.opacity(0.55))
                         if item.kind == .habit {
                             Text(item.completion == 1 ? "MINIMUM" : "HABIT")
@@ -284,38 +268,31 @@ struct HubView: View {
     }
 
     private func pillarDetail(_ pillar: HubPillar) -> some View {
-        let value: Double = switch pillar {
-        case .habits: model.balance.habits
-        case .nutrition: model.balance.nutrition
-        case .exercise: model.balance.exercise
+        let value = switch pillar { case .habits: model.balance.habits; case .nutrition: model.balance.nutrition; case .exercise: model.balance.exercise }
+        let detail = switch pillar {
+        case .habits: "\(model.habitsDone) of \(model.habitsScheduled) habits done"
+        case .nutrition: "\(model.caloriesText) / \(model.caloriesGoalText) kcal · protein \(model.proteinText)/\(model.proteinGoalText) g"
+        case .exercise: "\(model.stepsText) / \(model.stepGoalText) steps · \(model.workoutsText) workouts"
         }
-        let explanation: String = switch pillar {
-        case .habits: "\(Int((value * 100).rounded()))% of today's rituals are in place."
-        case .nutrition: "Food and nutrients logged for this day."
-        case .exercise: "Steps and training across the week."
-        }
-        let action: String = switch pillar {
-        case .habits: "OPEN TO-DO"
-        case .nutrition: "LOG FOOD"
-        case .exercise: "START WORKOUT"
-        }
-        return HStack(alignment: .center, spacing: KoiTheme.space.s13) {
-            VStack(alignment: .leading, spacing: 5) {
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(pillar.rawValue.uppercased()).font(KoiTheme.section).tracking(2.7)
+                Spacer()
                 Text("\(Int((value * 100).rounded()))%")
-                    .font(KoiTheme.body)
-                Text(explanation)
-                    .font(KoiTheme.caption)
-                    .foregroundStyle(KoiTheme.onBase.opacity(0.78))
+                    .font(.system(size: 22, weight: .semibold, design: .rounded)).monospacedDigit()
             }
-            Spacer(minLength: 0)
-            Button(action) { onSelectTab(pillar.tab) }
-                .font(KoiTheme.caption)
-                .tracking(1.5)
-                .buttonStyle(.plain)
-                .foregroundStyle(KoiTheme.onBase)
+            Text(detail).font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase.opacity(0.92))
+            HStack(spacing: 8) {
+                if pillar == .nutrition { GlassChip(title: "Log food", symbol: "fork.knife").onTapGesture { onSelectTab(.intake) } }
+                if pillar == .exercise { GlassChip(title: "Start workout", symbol: "dumbbell").onTapGesture { onSelectTab(.movement) } }
+                Button("Open \(pillar.tab.title) →") { onSelectTab(pillar.tab) }.font(KoiTheme.caption).buttonStyle(.plain)
+                Spacer()
+                Button { withAnimation(KoiTheme.morph) { model.selectPillar(pillar) } } label: {
+                    Image(systemName: "xmark").font(.system(size: 12, weight: .light)).frame(width: 32, height: 32)
+                }.buttonStyle(.plain)
+            }
         }
-        .padding(.horizontal, KoiTheme.space.s8)
-        .padding(.top, KoiTheme.space.s5)
+        .padding(.top, KoiTheme.space.s8)
         .foregroundStyle(KoiTheme.onBase)
     }
 }
