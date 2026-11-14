@@ -288,6 +288,16 @@ what's partial, known issues, and the next step.
   Two XCTest launches exited before bootstrapping; after rebooting the test
   simulator, the latest run passed all 63 tests. Nested profile panels still
   need paired visual review through interactive simulator controls.
+- Widget bundle audit accounts for Balance, Balance and pillars, Home Balance,
+  Habits, Habit Rings, Next Action, Quick Log, Meal Camera, the meal camera
+  Control Widget, and workout Rest Live Activity. Siri/App Intents are present
+  for water, protein, meals, workouts, habit completion/toggle, and meal camera;
+  shared-store intent behavior is covered by persistence tests. Widget layouts
+  and lock-screen actions still need physical-device review.
+- Bundle IDs, app group, iCloud container, and 1.0 build 1 remain this app's
+  configured identifiers. Paired empty-state visual captures remain outstanding;
+  the current simulator review flow cannot clear the SwiftData onboarding state
+  or interact with the first-launch overlay through available UI controls.
 
 ## Next step
 
