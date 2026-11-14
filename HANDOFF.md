@@ -398,16 +398,19 @@ what's partial, known issues, and the next step.
   completed without a crash. The latest full simulator suite passes all 67
   tests. A configured-network workout import and deliberately induced estimator
   failure remain unverified.
-- The four app targets currently resolve to version 1.0 build 1. Set the next
-  release build number to 2 before TestFlight upload; marketing version stays
-  1.0.
+- The app, widget, shared framework, and test configurations now resolve to
+  version 1.0 build 2. Marketing version stays 1.0.
 - Workout mode now labels an exact empty-bar load “No plates needed” instead of
   showing an empty per-side breakdown. Plate math and the empty-load case were
   checked in the simulator; the 67-test suite passes.
 
 ## Remaining work
 
-Set `CURRENT_PROJECT_VERSION` to 2 across the app's app/widget/shared/test
-targets, run the final build and test suite, and commit the release build-number
-change. Keep analytics on device through `LocalAnalytics`. A Koi-owned signup
-endpoint is not configured, and HealthKit writes are not implemented.
+Keep analytics on device through `LocalAnalytics`. A Koi-owned signup endpoint
+is not configured, and HealthKit writes are not implemented. Physical-device
+verification remains for HealthKit data and writes, CloudKit account/restore,
+GPS accuracy, camera capture, notification delivery, widget placement and
+actions, Live Activity, Control Center actions, and configured-network workout
+imports. Simulator tests require ad-hoc signing to retain the App Group
+entitlement; `CODE_SIGNING_ALLOWED=NO` crashes during app startup before tests
+bootstrap.
