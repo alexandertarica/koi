@@ -143,9 +143,34 @@ final class KoiFoundationTests: XCTestCase {
 
         let model = HubViewModel(calendar: .current, publishesWidgetSnapshot: false)
         model.refresh(using: context)
-        XCTAssertTrue((0.45...0.55).contains(model.balance.score))
+        XCTAssertTrue((0.45...0.55).contains(model.balance.score), "Starting stage Balance was \(model.balance.score), pillars: \(model.balance.habits), \(model.balance.nutrition), \(model.balance.exercise), weights: \(model.focusWeights)")
+        XCTAssertTrue((0.20...0.30).contains(model.balance.exercise), "Starting stage Exercise was \(model.balance.exercise)")
         XCTAssertGreaterThan(model.streak.current, 0)
         XCTAssertTrue(model.hasWeekOfHistory)
+
+        let startScore = model.balance.score
+        XCTAssertEqual(startScore, 0.4819, accuracy: 0.01)
+        let todayMovement = try XCTUnwrap(try context.fetch(FetchDescriptor<KoiMovementDay>()).first(where: { Calendar.autoupdatingCurrent.isDate($0.date, inSameDayAs: today) }))
+        todayMovement.didManuallyTrain = true
+        try context.save()
+        model.refresh(using: context)
+        let workoutScore = model.balance.score
+        XCTAssertEqual(workoutScore, 0.6069, accuracy: 0.01)
+        XCTAssertTrue((0.12...0.20).contains(workoutScore - startScore), "Workout should visibly raise Balance by 12–20 points")
+
+        context.insert(KoiFoodEntry(name: "Protein bar", calories: 150, proteinGrams: 28, carbohydrateGrams: 18, fatGrams: 5, fiberGrams: 3, addedSugarGrams: 4, sodiumMilligrams: 160))
+        try context.save()
+        model.refresh(using: context)
+        let proteinBarScore = model.balance.score
+        XCTAssertEqual(proteinBarScore, 0.6679, accuracy: 0.01)
+        XCTAssertGreaterThan(proteinBarScore, workoutScore, "The protein bar should raise Balance after the workout")
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiNutrientGoal>()).first(where: { $0.key == "protein" })?.goal, 75)
+
+        DailyGoalAdjustment.add(10, to: "protein")
+        defer { DailyGoalAdjustment.clear("protein", on: today) }
+        let intake = IntakeViewModel()
+        intake.load(context)
+        XCTAssertEqual(intake.nutrientRows.first(where: { $0.key == "protein" })?.goal, 85)
     }
 
     func testDemoLaunchReplacesStoredContentWithTheFixedSample() throws {

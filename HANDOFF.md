@@ -740,3 +740,13 @@ what's partial, known issues, and the next step.
   change; no API deploy was run. Without a configured `KOI_COACH_URL` or if AI
   times out, the app's deterministic local Coach fallback still completes the
   pitch.
+- Stage Balance pass: Jasmine's stage profile uses a 75 g protein goal,
+  4,000 steps and no workouts in the rolling week. Her breakfast remains
+  420 kcal and 20 g protein, with same-day protein, fiber and water entries
+  keeping opening Balance near 48% while Exercise starts at 25%. A real
+  HubViewModel and engine unit scenario verifies Balance rises about 12.5
+  points after training and again after a 150 kcal, 28 g protein bar; the goal
+  displays 85 g when the coach's +10 g adjustment is applied. All 80 unit
+  tests pass. The iPhone 17 Pro stage Hub and Intake screens were captured
+  without food logging or Coach. The debug screen router now supports opening
+  Intake directly.

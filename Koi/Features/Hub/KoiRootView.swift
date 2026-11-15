@@ -171,6 +171,7 @@ struct KoiRootView: View {
                 switch KoiLaunch.screen {
                 case "onboarding": isOnboardingPresented = true
                 case "smartNote": presentsSmartNote = true
+                case "intake", "intakeAdjusted", "photoResult": selectedTab = .intake
                 case "mealLog": selectedTab = .intake; presentsMealComposer = true
                 case "mealCamera": selectedTab = .intake; presentsMealComposer = true; startsMealCamera = true
                 case "profile", "progress": selectedTab = .hub
@@ -703,15 +704,24 @@ enum KoiDemoSeeder {
         try seedForDemoLaunch(context, calendar: calendar)
         let today = calendar.startOfDay(for: .now)
         let end = calendar.date(byAdding: .day, value: 1, to: today) ?? today
-        if let profile = try context.fetch(FetchDescriptor<KoiProfile>()).first { profile.name = "Jasmine" }
+        if let profile = try context.fetch(FetchDescriptor<KoiProfile>()).first {
+            profile.name = "Jasmine"
+            profile.focusKey = BalanceFocus.nourisher.rawValue
+        }
+        if let proteinGoal = try context.fetch(FetchDescriptor<KoiNutrientGoal>()).first(where: { $0.key == "protein" }) {
+            proteinGoal.goal = 75
+        }
         for meal in try context.fetch(FetchDescriptor<KoiFoodEntry>()) where calendar.isDate(meal.loggedAt, inSameDayAs: today) { context.delete(meal) }
         for task in try context.fetch(FetchDescriptor<KoiTask>()) { context.delete(task) }
         context.insert(KoiFoodEntry(name: "Light breakfast", loggedAt: calendar.date(bySettingHour: 8, minute: 0, second: 0, of: today) ?? .now, calories: 420, proteinGrams: 20, carbohydrateGrams: 48, fatGrams: 15, fiberGrams: 4, addedSugarGrams: 8, sodiumMilligrams: 450, confidence: 0.9))
-        for day in try context.fetch(FetchDescriptor<KoiMovementDay>()) where calendar.isDate(day.date, inSameDayAs: today) {
-            day.healthSteps = 6_000
+        for day in try context.fetch(FetchDescriptor<KoiMovementDay>()) where day.date >= (calendar.date(byAdding: .day, value: -6, to: today) ?? today) && day.date < end {
+            day.healthSteps = calendar.isDate(day.date, inSameDayAs: today) ? 4_000 : 0
             day.manualStepAdjustment = 0
             day.healthWorkoutCount = 0
             day.didManuallyTrain = false
+        }
+        if try context.fetch(FetchDescriptor<KoiMovementDay>()).first(where: { calendar.isDate($0.date, inSameDayAs: today) }) == nil {
+            context.insert(KoiMovementDay(date: today, healthSteps: 4_000))
         }
         for session in try context.fetch(FetchDescriptor<KoiWorkoutSession>()) where calendar.isDate(session.startedAt, inSameDayAs: today) { context.delete(session) }
         for session in try context.fetch(FetchDescriptor<KoiCardioSession>()) where calendar.isDate(session.startedAt, inSameDayAs: today) { context.delete(session) }
@@ -721,6 +731,9 @@ enum KoiDemoSeeder {
             log.completion = 2
         }
         for nutrient in try context.fetch(FetchDescriptor<KoiNutrientEntry>()) where nutrient.dayID == KoiDemoSeeder.dayID(today, calendar: calendar) { context.delete(nutrient) }
+        context.insert(KoiNutrientEntry(date: today, nutrientKey: "protein", value: 25))
+        context.insert(KoiNutrientEntry(date: today, nutrientKey: "fiber", value: 20))
+        context.insert(KoiNutrientEntry(date: today, nutrientKey: "water", value: 85))
         if let state = try context.fetch(FetchDescriptor<KoiOnboardingState>()).first { state.isComplete = true; state.hasSeenTour = true }
         DailyGoalAdjustment.clear("protein", on: today, calendar: calendar)
         StageDemoCalendar.prepare(tomorrow: end, calendar: calendar)

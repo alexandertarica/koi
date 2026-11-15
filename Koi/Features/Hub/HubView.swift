@@ -260,29 +260,6 @@ struct HubView: View {
             .padding(.horizontal, -KoiTheme.space.s21)
             .padding(.top, -22)
             .padding(.bottom, -4)
-            VStack(alignment: .trailing, spacing: 8) {
-                Button {
-                    KoiHaptics.tap()
-                    withAnimation(KoiTheme.morph) { model.toggleProgress() }
-                } label: {
-                    HStack(spacing: 6) {
-                        if model.hasWeekOfHistory { Image(systemName: model.trendIsPositive ? "arrow.up.right" : "arrow.down.right").font(.system(size: 10)).foregroundStyle(KoiTheme.onBase) }
-                        Text(model.trendText).font(KoiTheme.caption).lineLimit(1).foregroundStyle(KoiTheme.onBase)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(.ultraThinMaterial.opacity(0.6), in: Capsule())
-                    .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
-                    .frame(maxWidth: 160, alignment: .trailing)
-                    .foregroundStyle(KoiTheme.onBase)
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.white.opacity(0.9))
-                .accessibilityLabel("Open progress. \(model.trendText)")
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            .padding(.trailing, KoiTheme.space.s21)
-            .padding(.top, 128)
             streakBlock
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .padding(.trailing, KoiTheme.space.s21)
@@ -303,8 +280,7 @@ struct HubView: View {
             .buttonStyle(.plain)
             .foregroundStyle(KoiTheme.onBase)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            .padding(.trailing, 125)
-            .padding(.top, 12)
+            .padding(.top, 112)
             .accessibilityLabel("Go to your pond")
             .accessibilityIdentifier("stage.pond.open")
             if model.selectedDayOffset > 0 {
