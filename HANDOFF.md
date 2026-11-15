@@ -667,7 +667,10 @@ what's partial, known issues, and the next step.
   submission goes to `/api/demo-feedback`; Next person reloads the tour with a
   new respondent ID. Anonymous events include visits, tour step numbers,
   completion, live-version opens, and survey submission.
-- Captures are in `docs/assets/tour/` (1206×2622 PNG). The main layouts and
-  survey flow were checked locally in desktop Chrome. The app builds and the
-  iPhone simulator test suite passes 79/79; the API suite passes 4/4. Live Pages
-  phone/desktop review and a live survey submission remain to verify after push.
+- Captures are in `docs/assets/tour/` (1206×2622 PNG). The published Pages tour
+  was reviewed at desktop size and on an iPhone 17 Pro simulator viewport; the
+  screenshots remain sharp and the mobile layout keeps the caption above the
+  phone. The live questionnaire was submitted successfully with synthetic test
+  answers and showed “Thanks, Demo!”. The “Try the live version” link is present
+  throughout the tour and on the confirmation screen. The app builds and the
+  iPhone simulator test suite passes 79/79; the API suite passes 4/4.
