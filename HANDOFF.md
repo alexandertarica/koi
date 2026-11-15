@@ -415,3 +415,28 @@ what's partial, known issues, and the next step.
   configured. Configured-network workout import has not been exercised in this
   final pass.
 
+### Browser demo refresh (2026-11-14)
+
+- Reworked the browser demo's Hub, To-Do, Movement and Intake visuals around the
+  left-edge 180-degree dial: 72 value-aware ticks, weighted inner bars, bead and
+  1.65-second draw-in; added thin Intake nutrient tracks, movement stats, habit
+  initials/check rings, app-style tab icons and header controls. Removed the
+  Hub's stray divider, shows “See progress” without week history, and hides AI
+  confidence on manually entered meals. Demo plan requests use the `plan` task.
+- Added `demo-api/` as a self-contained Vercel project root with the single
+  `/api/demo-ai` endpoint. It calls OpenRouter server-side, returns the app's
+  estimate fields or workout routines, accepts CORS only from GitHub Pages,
+  and applies per-device (30/day) and global daily quotas in warm-instance
+  memory. These quotas are best-effort across Vercel instances; durable global
+  enforcement needs a shared counter service.
+- The browser points to `https://koi-demo-api.vercel.app/api/demo-ai`. It will
+  return a setup error until `OPENROUTER_API_KEY` is configured in that separate
+  project. The model defaults to `openai/gpt-4o-mini`; it can be overridden by
+  `OPENROUTER_MODEL`. The app repository does not specify the existing backend's
+  model identifier, so exact model parity has not been confirmed.
+- Static JavaScript syntax checks pass. The first unsigned test attempt crashed
+  before test bootstrap because the app-group entitlement was absent; rerunning
+  with ad-hoc simulator signing passes all 67 tests. The updated browser demo
+  still needs live Pages visual review at phone size and the separate API project
+  still needs creation/deployment and its key configured.
+

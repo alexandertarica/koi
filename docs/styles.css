@@ -298,3 +298,75 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
 }
+
+/* Screen details drawn like ink on the water. */
+.hub-layout { min-height:410px; margin-top:8px; overflow:visible; }
+.koi-dial { position:absolute; inset:0 auto auto 0; width:80%; height:372px; overflow:visible; pointer-events:none; }
+.dial-tick { stroke:rgba(240,232,219,.27); stroke-width:1; stroke-linecap:round; animation:tick-in 1.65s cubic-bezier(.2,.7,.2,1) both; }
+.dial-tick.lit { stroke:rgba(240,232,219,.8); }
+.dial-tick.major { stroke-width:1.7; }
+.dial-tick.value-tick { stroke-width:2.1; }
+@keyframes tick-in { from { opacity:.12; } to { opacity:1; } }
+.dial-arc-track { fill:none; stroke:rgba(240,232,219,.26); stroke-width:1.2; }
+.dial-arc-progress { fill:none; stroke:rgba(240,232,219,.8); stroke-width:2.1; stroke-linecap:round; stroke-dasharray:100 100; stroke-dashoffset:calc(100 - var(--dial-value)); transition:stroke-dashoffset 1.65s cubic-bezier(.2,.7,.2,1); }
+.dial-bead-halo { fill:rgba(240,232,219,.18); stroke:rgba(255,255,255,.65); stroke-width:1; filter:drop-shadow(0 0 6px rgba(255,255,255,.55)); }
+.dial-bead { fill:#f7f2e9; }
+.dial-bar-label,.dial-label-name,.dial-label-value { fill:rgba(240,232,219,.9); font-family:var(--font-light); font-size:9px; letter-spacing:1px; }
+.dial-label-value { font-size:10px; letter-spacing:0; }
+.dial-bar-track { stroke:rgba(240,232,219,.18); stroke-width:1; }
+.dial-bar-fill { stroke:rgba(240,232,219,.78); stroke-width:1.5; stroke-linecap:round; transition:x2 1.65s ease; }
+.dial-label { display:none; }
+.balance-dial .dial-label { display:block; }
+.progress-chip { position:absolute; top:137px; right:24px; z-index:1; border:1px solid rgba(240,232,219,.34); border-radius:99px; padding:8px 11px; color:var(--ivory); background:rgba(240,232,219,.1); font:300 10px/1 var(--font-light); cursor:pointer; }
+.score-block { top:8px; right:25px; }
+.score-value { font-size:clamp(60px, 9vh, 80px); }
+.streak-block { top:236px; right:29px; }
+.trend-line { display:none; }
+.today-block { margin-top:0; }
+.section-row .more { border:0; padding:0; background:none; cursor:pointer; }
+.demo-habit,.demo-task { gap:11px; min-height:43px; border-bottom:1px solid rgba(240,232,219,.22); color:var(--ivory); }
+.demo-habit input,.demo-task input { display:none; }
+.habit-ring,.task-check { flex:0 0 24px; width:24px; height:24px; display:grid; place-items:center; padding:0; border:1px solid rgba(240,232,219,.76); border-radius:50%; color:var(--ink); background:transparent; font:400 9px/1 var(--font-regular); cursor:pointer; }
+.habit-ring.checked,.task-check.checked { background:var(--ivory); color:var(--ink); }
+.task-check { border-radius:7px; }
+.task-state { display:none; }
+.tab-title-row { display:flex; align-items:flex-start; justify-content:space-between; }
+.header-icon { width:30px; height:30px; display:grid; place-items:center; padding:4px; border:1px solid rgba(240,232,219,.35); border-radius:50%; color:var(--ivory); background:rgba(240,232,219,.08); cursor:pointer; }
+.header-icon svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round; }
+.tab-bar { background:rgba(240,244,249,.68); backdrop-filter:blur(23px) saturate(150%); -webkit-backdrop-filter:blur(23px) saturate(150%); }
+.tab-button { color:rgba(33,51,82,.86); font-family:var(--font-regular); font-size:8px; }
+.tab-button[aria-selected="true"] { background:rgba(28,44,72,.18); box-shadow:inset 0 0 0 1px rgba(33,51,82,.08); }
+.tab-symbol { width:20px; height:20px; display:grid; place-items:center; }
+.tab-symbol svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.45; stroke-linecap:round; stroke-linejoin:round; }
+.intake-layout,.movement-layout { height:250px; position:relative; margin:5px -24px 8px; overflow:hidden; }
+.intake-layout .koi-dial,.movement-layout .koi-dial { width:77%; height:248px; }
+.intake-dial .dial-arc-track,.movement-dial .dial-arc-track { stroke-width:1.1; }
+.intake-dial .dial-label,.movement-dial .dial-label { display:block; }
+.intake-dial .dial-arc-progress,.movement-dial .dial-arc-progress { stroke-width:2.2; }
+.intake-score,.movement-score { position:absolute; top:60px; left:45%; display:grid; justify-items:start; }
+.intake-score strong,.movement-score strong { font:300 39px/.98 var(--font-light); letter-spacing:-.08em; }
+.intake-score span,.movement-score span { margin-top:6px; font:400 9px/1.2 var(--font-regular); letter-spacing:.17em; }
+.intake-score small,.movement-score small { margin-top:4px; color:var(--ivory-soft); font:300 9px/1.3 var(--font-light); }
+.intake-log,.movement-log { position:absolute; top:162px; left:52%; display:flex; align-items:center; gap:9px; padding:0; border:0; color:var(--ivory); background:transparent; font:300 9px/1.2 var(--font-light); cursor:pointer; }
+.log-circle { width:41px; height:41px; display:grid; place-items:center; border:1px solid rgba(240,232,219,.75); border-radius:50%; font:400 8px/1 var(--font-regular); letter-spacing:.07em; }
+.quiet-nutrients { margin-top:8px; }
+.nutrient-progress { margin:0 0 11px; }
+.nutrient-line { padding:5px 0; border:0; font-size:9px; }
+.nutrient-track { height:1px; background:rgba(240,232,219,.18); }
+.nutrient-track i { display:block; height:1px; background:rgba(240,232,219,.74); }
+.movement-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:17px 0 21px; padding:12px 0; border-top:1px solid rgba(240,232,219,.22); border-bottom:1px solid rgba(240,232,219,.22); }
+.movement-stats div { display:grid; gap:5px; }
+.movement-stats strong { font:300 18px/1 var(--font-light); }
+.movement-stats span { color:var(--ivory-soft); font:400 7px/1.25 var(--font-regular); letter-spacing:.1em; }
+@media (max-width:600px) {
+  .hub-layout { min-height:392px; }
+  .koi-dial { width:79%; height:372px; }
+  .score-block { right:23px; }
+  .progress-chip { right:21px; }
+  .streak-block { right:26px; }
+  .intake-layout,.movement-layout { height:239px; }
+  .intake-layout .koi-dial,.movement-layout .koi-dial { height:238px; width:77%; }
+  .intake-score,.movement-score { left:43%; top:53px; }
+  .intake-log,.movement-log { left:51%; top:153px; }
+  .tab-bar-wrap { padding-bottom:calc(7px + env(safe-area-inset-bottom)); }
+}

@@ -1,4 +1,4 @@
-const AI_PROXY_URL = "https://koi-sand.vercel.app/api/demo-ai";
+const AI_PROXY_URL = "https://koi-demo-api.vercel.app/api/demo-ai";
 const root = document.querySelector("#app-root");
 const header = document.querySelector("#app-header");
 const view = document.querySelector("#app-view");
@@ -13,6 +13,7 @@ const initialState = () => ({
   calendar: false,
   tab: "Hub",
   tourVisible: true,
+  showAllToday: false,
   meals: [],
   tasks: [],
   habits: [],
@@ -48,6 +49,7 @@ function loadDemoState() {
       focus: ["balanced", "habits", "nutrition", "exercise"].includes(saved.focus) ? saved.focus : "balanced",
       tab: ["Hub", "To-Do", "Movement", "Intake", "Profile", "Progress"].includes(saved.tab) ? saved.tab : "Hub",
       tourVisible: saved.tourVisible !== false,
+      showAllToday: saved.showAllToday === true,
       meals: Array.isArray(saved.meals) ? saved.meals : [],
       tasks: Array.isArray(saved.tasks) ? saved.tasks : [],
       habits: Array.isArray(saved.habits) ? saved.habits : [],
@@ -72,6 +74,11 @@ const icons = {
   day: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2.2"/><path d="M7.5 8h.1M12 8h.1M16.5 8h.1M7.5 12h.1M12 12h.1M16.5 12h.1M7.5 16h.1M12 16h.1" stroke-width="2.3"/></svg>',
   camera: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5h4l1.7-2h6.6l1.7 2h4v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg>',
   next: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M7.5 12h9M12.5 8l4 4-4 4"/></svg>',
+  hub: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.7 20 7.3v9.4l-8 4.6-8-4.6V7.3z"/><path d="m7.4 9.8 2.3-1.3 2.3 1.3v2.6l-2.3 1.3-2.3-1.3zm4.6 2.6 2.3-1.3 2.3 1.3V15l-2.3 1.3L12 15z"/></svg>',
+  todo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2m-3 7 1 1 2-2m-3 7 1 1 2-2"/></svg>',
+  move: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="14" cy="4.5" r="1.6"/><path d="m11.5 8 3 1.2 2.4 3.1m-5.3-4.3-2.8 3.1-3.2.6m6-.2-1 4.1-3.2 4m4.2-4.1 3.6 2.1 2.5 3.2"/></svg>',
+  intake: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.8 4.2C10 4 5 7.6 5 13.1c0 3.4 2.2 5.7 5.3 5.7 6 0 9.6-6 9.5-14.6Z"/><path d="M4 21c2.6-5 6.5-8.5 12-11"/></svg>',
+  user: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c.7-4 3.2-6 7.5-6s6.8 2 7.5 6"/></svg>',
 };
 
 function safe(value = "") {
@@ -90,6 +97,38 @@ function getBalance() {
   return Math.round((habit * weights[0] + nutrition * weights[1] + movement * weights[2]) * 100);
 }
 
+function renderDial({ value, kind = "balance", bars = [], labels = true, logged = 0 }) {
+  const score = Math.max(0, Math.min(100, Number(value) || 0));
+  const cx = 0, cy = 186, radius = 165;
+  const point = (angle, r) => [cx + Math.cos(angle) * r, cy + Math.sin(angle) * r];
+  const arcPath = `M 0 21 A ${radius} ${radius} 0 0 1 0 351`;
+  const ticks = Array.from({ length: 72 }, (_, index) => {
+    const angle = -Math.PI / 2 + (Math.PI * index) / 71;
+    const major = index % 5 === 0;
+    const valueTick = Math.abs(index / 71 * 100 - score) <= 100 / 71 / 2;
+    const r1 = radius + 7, r2 = radius + (valueTick ? 22 : major ? 17 : 12);
+    const [x1, y1] = point(angle, r1), [x2, y2] = point(angle, r2);
+    const lit = index / 71 * 100 <= score;
+    return `<line class="dial-tick ${lit ? "lit" : ""} ${major ? "major" : ""} ${valueTick ? "value-tick" : ""}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
+  }).join("");
+  const beadAngle = -Math.PI / 2 + Math.PI * score / 100;
+  const [bx, by] = point(beadAngle, radius);
+  const barsMarkup = bars.map((bar, index) => {
+    const y = 149 + index * 25;
+    const width = 104 * Math.max(.1, Math.min(1, bar.weight ?? 1));
+    const fill = width * Math.max(0, Math.min(1, bar.value / 100));
+    return `<g class="dial-bar"><text x="27" y="${y}" class="dial-bar-label">${safe(bar.name)}</text><line x1="27" y1="${y + 8}" x2="${(27 + width).toFixed(1)}" y2="${y + 8}" class="dial-bar-track"/><line x1="27" y1="${y + 8}" x2="${(27 + fill).toFixed(1)}" y2="${y + 8}" class="dial-bar-fill"/></g>`;
+  }).join("");
+  const labelPositions = kind === "balance" ? [
+    ["habits", 126, 24, bars[0]?.value ?? 0], ["nutrition", 186, 46, bars[1]?.value ?? 0], ["exercise", 244, 69, bars[2]?.value ?? 0],
+  ] : kind === "intake" ? [["protein", 132, 24, bars[0]?.value ?? 0], ["fiber", 235, 66, bars[1]?.value ?? 0]] : [["steps", 132, 24, bars[0]?.value ?? 0], ["workouts", 235, 66, bars[1]?.value ?? 0]];
+  const labelsMarkup = labels ? labelPositions.map(([name, y, x, pct]) => `<g class="dial-label"><text x="${x}" y="${y}" class="dial-label-name">${name}</text><text x="${x}" y="${y + 15}" class="dial-label-value">${Math.round(pct)}%</text></g>`).join("") : "";
+  return `<svg class="koi-dial ${kind}-dial" viewBox="0 0 300 372" preserveAspectRatio="none" aria-hidden="true">
+    ${ticks}<path class="dial-arc-track" d="${arcPath}"/><path class="dial-arc-progress" d="${arcPath}" pathLength="100" style="--dial-value:${score};"/>
+    ${barsMarkup}${labelsMarkup}<circle class="dial-bead-halo" cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="9"/><circle class="dial-bead" cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="4.3"/>
+  </svg>`;
+}
+
 function renderHeader() {
   if (state.stage !== "app") {
     const title = state.stage === "welcome" ? "WELCOME" : state.stage === "connect" ? "CONNECT" : "FOCUS";
@@ -100,7 +139,7 @@ function renderHeader() {
   const section = state.foodOpen ? "Log food" : "";
   const right = state.foodOpen
     ? '<button class="close-screen" type="button" data-action="close-food" aria-label="Close meal composer">×</button>'
-    : '<button class="close-screen" type="button" data-action="profile" aria-label="Open profile">◯</button>';
+    : `<button class="header-icon" type="button" data-action="profile" aria-label="Open profile">${icons.user}</button>`;
   header.innerHTML = `<div class="header-row"><img class="wordmark" src="assets/wordmark.png" alt="Koi">${right}</div>
     <div class="date-label">${dateLabel()}</div>${section ? `<h1 class="screen-title">${section}</h1>` : ""}`;
 }
@@ -166,27 +205,22 @@ function renderHub() {
   const exercisePct = Math.min(Math.round(state.steps / 8000 * 100 + (state.didTrain ? 30 : 0)), 100);
   const greeting = new Date().getHours() >= 22 || new Date().getHours() < 5 ? "Still water" : new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 18 ? "Good afternoon" : "Good evening";
   const name = state.name ? `, ${safe(state.name)}` : "";
-  const items = [
-    ...state.habits.map((item) => `<div class="demo-habit"><input type="checkbox" data-action="toggle-habit" data-id="${item.id}" ${item.done ? "checked" : ""}><span>${safe(item.title)}</span><span class="task-state">HABIT</span></div>`),
-    ...state.tasks.map((item) => `<div class="demo-task"><input type="checkbox" data-action="toggle-task" data-id="${item.id}" ${item.done ? "checked" : ""}><span>${safe(item.title)}</span><span class="task-state">TO-DO</span></div>`),
-  ].slice(0, 2).join("");
+  const allItems = [
+    ...state.habits.map((item) => `<div class="demo-habit"><button class="habit-ring ${item.done ? "checked" : ""}" type="button" data-action="toggle-habit" data-id="${item.id}" aria-label="${item.done ? "Uncheck" : "Check"} ${safe(item.title)}">${item.done ? "✓" : safe(item.title.slice(0, 1).toUpperCase())}</button><span>${safe(item.title)}</span></div>`),
+    ...state.tasks.map((item) => `<div class="demo-task"><button class="task-check ${item.done ? "checked" : ""}" type="button" data-action="toggle-task" data-id="${item.id}" aria-label="${item.done ? "Uncheck" : "Check"} ${safe(item.title)}">${item.done ? "✓" : ""}</button><span>${safe(item.title)}</span></div>`),
+  ];
+  const items = (state.showAllToday ? allItems : allItems.slice(0, 2)).join("");
+  const weights = state.focus === "habits" ? [.5, .25, .25] : state.focus === "nutrition" ? [.25, .5, .25] : state.focus === "exercise" ? [.25, .25, .5] : [1/3, 1/3, 1/3];
   return `<div class="app-mode">
     <h1 class="hub-greeting">${greeting}${name}.</h1>
     <div class="hub-layout">
-      <svg class="hub-arc" viewBox="0 0 275 390" preserveAspectRatio="none" aria-hidden="true">
-        <path class="track" d="M 1 14 A 188 188 0 0 1 1 390"/>
-        <path class="progress" d="M 1 14 A 188 188 0 0 1 1 390" pathLength="100" style="stroke-dasharray:${score} 100"/>
-      </svg>
-      <div class="pillar-label habits"><span>${habitPct}%</span>HABITS ›</div>
-      <div class="pillar-label nutrition"><span>${nutritionPct}%</span>NUTRITION ›</div>
-      <div class="pillar-label exercise"><span>${exercisePct}%</span>EXERCISE ›</div>
+      ${renderDial({ value: score, bars: [{name:"HABITS",value:habitPct,weight:weights[0]},{name:"NUTRITION",value:nutritionPct,weight:weights[1]},{name:"EXERCISE",value:exercisePct,weight:weights[2]}] })}
+      <button class="progress-chip" type="button" data-action="show-progress">See progress</button>
       <div class="score-block"><div class="score-value">${score}<span>%</span></div><div class="score-label">BALANCE</div></div>
-      <div class="trend-chip">↘ 0 vs last week</div>
       <div class="streak-block"><img class="streak-flame" src="assets/flame.svg" alt=""><span class="streak-count">0</span><span class="streak-label">DAY STREAK</span><span class="streak-best">best 0</span></div>
-      <div class="trend-line"></div>
     </div>
     <div class="today-block">
-      <div class="section-row"><span>TODAY</span>${state.habits.length + state.tasks.length > 2 ? `<span class="more">+${state.habits.length + state.tasks.length - 2} more</span>` : ""}</div>
+      <div class="section-row"><span>TODAY</span>${state.habits.length + state.tasks.length > 2 ? `<button type="button" class="more" data-action="show-all">${state.showAllToday ? "Show fewer" : `+${state.habits.length + state.tasks.length - 2} more`}</button>` : ""}</div>
       ${items || '<p class="empty-copy">Your day is open. Choose one small thing to begin.</p>'}
       <button class="tour-chip" type="button" data-action="tour" ${state.tourVisible ? "" : "hidden"}>◎ Show me around <span aria-hidden="true">×</span></button>
     </div>
@@ -195,8 +229,8 @@ function renderHub() {
 }
 
 function renderTodo() {
-  const habits = state.habits.map((item) => `<div class="demo-habit"><input type="checkbox" data-action="toggle-habit" data-id="${item.id}" ${item.done ? "checked" : ""}><span>${safe(item.title)}</span><span class="task-state">${item.done ? "DONE" : "DAILY"}</span></div>`).join("");
-  const tasks = state.tasks.map((item) => `<div class="demo-task"><input type="checkbox" data-action="toggle-task" data-id="${item.id}" ${item.done ? "checked" : ""}><span>${safe(item.title)}</span><span class="task-state">${item.done ? "DONE" : "TO-DO"}</span></div>`).join("");
+  const habits = state.habits.map((item) => `<div class="demo-habit"><button class="habit-ring ${item.done ? "checked" : ""}" type="button" data-action="toggle-habit" data-id="${item.id}" aria-label="${item.done ? "Uncheck" : "Check"} ${safe(item.title)}">${item.done ? "✓" : safe(item.title.slice(0,1).toUpperCase())}</button><span>${safe(item.title)}</span></div>`).join("");
+  const tasks = state.tasks.map((item) => `<div class="demo-task"><button class="task-check ${item.done ? "checked" : ""}" type="button" data-action="toggle-task" data-id="${item.id}" aria-label="${item.done ? "Uncheck" : "Check"} ${safe(item.title)}">${item.done ? "✓" : ""}</button><span>${safe(item.title)}</span></div>`).join("");
   return `<div class="app-mode"><h1 class="view-heading">Practice.</h1><p class="view-note">A little room for what matters.</p>
     <p class="small-label">HABITS</p>${habits || '<p class="empty-copy">Your habits will settle here.</p>'}
     <form class="task-form" data-form="habit"><input name="title" maxlength="80" placeholder="A habit to begin" aria-label="A habit to begin"><button type="submit">Add</button></form>
@@ -207,11 +241,12 @@ function renderTodo() {
 
 function renderMovement() {
   const routine = state.planResult ? `<div class="result-card"><p class="small-label">PLAN READY</p><h2 class="view-heading">${safe(state.planResult.name)}</h2>${state.planResult.exercises.map((item) => `<div class="nutrient-line"><span>${safe(item.name)}</span><span>${item.sets} × ${item.reps}</span></div>`).join("")}</div>` : "";
-  return `<div class="app-mode"><h1 class="view-heading">Move with intention.</h1><p class="view-note">Small steps count.</p>
-    <div class="metric-row"><span>STEPS TODAY</span><strong>${state.steps.toLocaleString()}</strong></div>
+  const workoutCount = state.didTrain ? 1 : 0;
+  const stepPercent = Math.min(state.steps / 8000 * 100, 100);
+  return `<div class="app-mode"><div class="tab-title-row"><div><h1 class="view-heading">Movement.</h1><p class="view-note">Small steps count.</p></div><button class="header-icon" type="button" data-action="profile" aria-label="Open profile">${icons.user}</button></div>
+    <div class="movement-layout">${renderDial({value:stepPercent,kind:"movement",bars:[{name:"STEPS",value:stepPercent,weight:.72},{name:"WORKOUTS",value:workoutCount?100:0,weight:.54}],labels:true,logged:workoutCount})}<div class="movement-score"><strong>${state.steps.toLocaleString()}</strong><span>STEPS</span><small>of 8,000</small></div><button class="movement-log" type="button" data-action="toggle-workout"><span class="log-circle">${workoutCount ? "✓" : "LOG"}</span><span>${workoutCount ? "1 logged" : "Log workout"}</span></button></div>
     <div class="quick-add-row"><button class="glass-chip" type="button" data-action="steps" data-delta="-500">− 500</button><button class="glass-chip" type="button" data-action="steps" data-delta="500">+ 500 steps</button></div>
-    <div class="metric-row"><span>WORKOUT</span><strong>${state.didTrain ? "Logged" : "Open"}</strong></div>
-    <button class="quiet-link" type="button" data-action="toggle-workout">${state.didTrain ? "Undo workout" : "Log a workout"}</button>
+    <div class="movement-stats"><div><strong>${workoutCount}</strong><span>WORKOUTS · 7 DAYS</span></div><div><strong>${Math.round(state.steps / 1000 * 10) / 10}k</strong><span>AVG STEPS</span></div><div><strong>${state.steps ? state.steps.toLocaleString() : "—"}</strong><span>BEST DAY</span></div></div>
     <div class="nutrient-list"><p class="small-label">WORKOUT PLAN</p><p class="view-note">Read text or a photo into a simple routine.</p>
       <textarea class="food-field" id="plan-text" rows="3" maxlength="8000" placeholder="Bench press 3×8, row 3×10">${safe(state.planText)}</textarea>
       <div class="quick-add-row"><button class="glass-chip" type="button" data-action="import-plan">${state.importingPlan ? "Reading…" : "Read plan"}</button><button class="glass-chip" type="button" data-action="pick-plan-photo">Upload a photo</button></div>
@@ -232,9 +267,11 @@ function renderIntake() {
   }), { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 });
   if (state.foodOpen) return renderFoodComposer(totals);
   const mealRows = state.meals.map((meal) => `<div class="nutrient-line"><span>${safe(meal.description)}</span><span>${Math.round(meal.calories)} kcal</span></div>`).join("");
-  return `<div class="app-mode"><div class="result-top"><div><h1 class="view-heading">Nutrition.</h1><p class="view-note">A steady picture of the day.</p></div><button class="glass-chip" type="button" data-action="open-food">LOG${state.meals.length ? ` · ${state.meals.length} logged` : ""}</button></div>
-    <div class="metric-row"><span>CALORIES</span><strong>${Math.round(totals.calories).toLocaleString()} <small>of 2,200</small></strong></div>
-    <div class="nutrient-list"><div class="nutrient-line"><span>Protein</span><span>${Math.round(totals.protein)} g</span></div><div class="nutrient-line"><span>Carbs</span><span>${Math.round(totals.carbs)} g</span></div><div class="nutrient-line"><span>Fat</span><span>${Math.round(totals.fat)} g</span></div><div class="nutrient-line"><span>Fiber</span><span>${Math.round(totals.fiber)} g</span></div><div class="nutrient-line"><span>Added sugar</span><span>${Math.round(totals.sugar)} g</span></div><div class="nutrient-line"><span>Sodium</span><span>${Math.round(totals.sodium)} mg</span></div></div>
+  const kcalPct = Math.min(totals.calories / 2200 * 100, 100);
+  const nutrients = [["Protein",totals.protein,140,"g"],["Carbs",totals.carbs,250,"g"],["Fat",totals.fat,70,"g"],["Fiber",totals.fiber,30,"g"],["Added sugar",totals.sugar,36,"g"],["Sodium",totals.sodium,2300,"mg"]];
+  return `<div class="app-mode"><div class="tab-title-row"><div><h1 class="view-heading">Intake.</h1><p class="view-note">A steady picture of the day.</p></div><button class="header-icon" type="button" data-action="profile" aria-label="Open profile">${icons.user}</button></div>
+    <div class="intake-layout">${renderDial({value:kcalPct,kind:"intake",bars:[{name:"PROTEIN",value:Math.min(totals.protein/140*100,100),weight:.62},{name:"FIBER",value:Math.min(totals.fiber/30*100,100),weight:.46}],labels:true,logged:state.meals.length})}<div class="intake-score"><strong>${Math.round(totals.calories).toLocaleString()}</strong><span>CALORIES</span><small>of 2,200</small></div><button class="intake-log" type="button" data-action="open-food"><span class="log-circle">${state.meals.length ? state.meals.length : "LOG"}</span><span>${state.meals.length ? `${state.meals.length} logged` : "Add a meal"}</span></button></div>
+    <div class="nutrient-list quiet-nutrients">${nutrients.map(([label,value,goal,unit]) => `<div class="nutrient-progress"><div class="nutrient-line"><span>${label}</span><span>${Math.round(value)} / ${goal} ${unit}</span></div><div class="nutrient-track"><i style="width:${Math.min(value/goal*100,100)}%"></i></div></div>`).join("")}</div>
     <p class="small-label">TODAY</p>${mealRows || '<p class="empty-copy">Your meals will settle here.</p>'}<button class="primary-button" type="button" data-action="open-food">Log food</button>
   </div>`;
 }
@@ -244,7 +281,7 @@ function renderFoodComposer(totals = null) {
   if (state.foodResult && !state.manualMode && state.editingMealID === null) {
     const result = state.foodResult;
     return `<div class="app-mode">
-      <div class="result-top"><span class="result-kcal">~${Math.round(result.calories)} kcal</span><span class="result-sure">${Math.round(result.confidence * 100)}% sure</span></div>
+      <div class="result-top"><span class="result-kcal">~${Math.round(result.calories)} kcal</span>${result.source === "manual" ? "" : `<span class="result-sure">${Math.round(result.confidence * 100)}% sure</span>`}</div>
       <p class="result-description">${safe(result.description)}</p>
       <p class="result-macros">P ${Math.round(result.protein)}g · C ${Math.round(result.carbs)}g · F ${Math.round(result.fat)}g</p>
       <p class="result-added">Added to today's totals.</p>
@@ -258,7 +295,7 @@ function renderFoodComposer(totals = null) {
     const result = state.foodResult;
     return `<div class="app-mode"><h2 class="view-heading">Fix numbers</h2><label class="small-label" for="edit-meal-name">MEAL</label><input id="edit-meal-name" class="food-field" value="${safe(result.description)}">
       <div class="nutrient-fields">${nutrientInput("Calories", "calories", result.calories, "kcal")}${nutrientInput("Protein", "protein", result.protein, "g")}${nutrientInput("Carbs", "carbs", result.carbs, "g")}${nutrientInput("Fat", "fat", result.fat, "g")}${nutrientInput("Fiber", "fiber", result.fiber, "g")}${nutrientInput("Added sugar", "sugar", result.sugar, "g")}${nutrientInput("Sodium", "sodium", result.sodium, "mg")}</div>
-      <button class="primary-button" type="button" data-action="save-edit">Save</button><button class="quiet-link" type="button" data-action="cancel-edit">Cancel</button>
+      <button class="primary-button" type="button" data-action="save-edit">Save</button><button class="quiet-link" type="button" data-action="delete-meal">Delete meal</button><button class="quiet-link" type="button" data-action="cancel-edit">Cancel</button>
     </div>`;
   }
 
@@ -296,7 +333,7 @@ function renderSmartNote() {
 }
 
 function renderTabBar() {
-  const tabs = [["Hub", "⬡"], ["To-Do", "☷"], ["Movement", "♧"], ["Intake", "⌁"]];
+  const tabs = [["Hub", icons.hub], ["To-Do", icons.todo], ["Movement", icons.move], ["Intake", icons.intake]];
   return `<nav class="tab-bar" aria-label="Main tabs">${tabs.map(([name, symbol]) => `<button class="tab-button" type="button" role="tab" aria-selected="${state.tab === name}" data-action="tab" data-tab="${name}"><span class="tab-symbol">${symbol}</span><span>${name}</span></button>`).join("")}</nav>`;
 }
 
@@ -304,7 +341,7 @@ function render() {
   try {
     localStorage.setItem("koi.browser-demo-state", JSON.stringify({
       stage: state.stage, name: state.name, focus: state.focus, tab: state.tab,
-      tourVisible: state.tourVisible, meals: state.meals.map(({ imageURL, ...meal }) => meal),
+      tourVisible: state.tourVisible, showAllToday: state.showAllToday, meals: state.meals.map(({ imageURL, ...meal }) => meal),
       tasks: state.tasks, habits: state.habits, steps: state.steps, didTrain: state.didTrain,
       health: state.health, calendar: state.calendar,
     }));
@@ -424,6 +461,7 @@ async function estimateFood() {
   const estimate = mapEstimate(response, state.foodText);
   estimate.id = crypto.randomUUID();
   estimate.imageURL = state.foodPreview;
+  estimate.source = "ai";
   state.meals.push(estimate);
   state.foodResult = estimate;
   state.error = "";
@@ -434,7 +472,7 @@ async function estimateFood() {
 async function importPlan() {
   state.planText = document.querySelector("#plan-text")?.value ?? state.planText;
   if (!state.planText.trim() && !state.planPhoto) return;
-  const response = await callAI("workout-import", state.planText, state.planPhoto);
+  const response = await callAI("plan", state.planText, state.planPhoto);
   if (!response) return;
   const routine = response.routines?.[0];
   if (!routine?.exercises?.length) {
@@ -511,7 +549,7 @@ function smartNote() {
 function saveManualMeal() {
   const description = document.querySelector("#food-description")?.value.trim() || "Meal";
   const values = Object.fromEntries([...document.querySelectorAll("[data-nutrient]")].map((input) => [input.dataset.nutrient, Math.max(0, Number(input.value) || 0)]));
-  const estimate = { id: crypto.randomUUID(), description, calories: values.calories, protein: values.protein, carbs: values.carbs, fat: values.fat, fiber: values.fiber, sugar: values.sugar, sodium: values.sodium, confidence: 0, imageURL: state.foodPreview };
+  const estimate = { id: crypto.randomUUID(), description, calories: values.calories, protein: values.protein, carbs: values.carbs, fat: values.fat, fiber: values.fiber, sugar: values.sugar, sodium: values.sodium, confidence: 0, source: "manual", imageURL: state.foodPreview };
   state.meals.push(estimate);
   state.foodResult = estimate;
   state.editingMealID = null;
@@ -553,6 +591,8 @@ function onClick(event) {
     }
     state.editingMealID = null; render(); return;
   }
+  if (action === "delete-meal") { state.meals = state.meals.filter((item) => item.id !== state.editingMealID); state.editingMealID = null; state.foodResult = null; render(); return; }
+  if (action === "show-all") { state.showAllToday = !state.showAllToday; render(); return; }
   if (action === "cancel-edit") { state.editingMealID = null; render(); return; }
   if (action === "log-another") { state.foodText = ""; state.foodPhoto = null; state.foodPreview = ""; state.foodResult = null; state.error = ""; state.manualMode = false; state.editingMealID = null; render(); return; }
   if (action === "tour") { state.tourVisible = false; state.smartNoteOpen = true; state.smartNoteMessage = "Look around the four tabs, log a sample item, or try a Quick note."; render(); return; }
