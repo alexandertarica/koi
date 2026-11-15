@@ -580,3 +580,14 @@ what's partial, known issues, and the next step.
   the outer desktop demo toolbar is hidden. Existing app-state visitors can now
   start the sample walkthrough without clearing browser storage or returning to
   onboarding. Script and style query versions were advanced for Pages caching.
+
+### Browser kiosk feedback storage (2026-11-14)
+
+- Added the separate demo API routes `/api/demo-feedback`, `/api/demo-event`,
+  and keyed `/api/demo-stats` with CSV export. Feedback is idempotent by
+  respondent ID; event collection validates its allowlist and silently drops
+  events when Upstash is not configured. Added `@upstash/redis` as an API-only
+  dependency and endpoint tests.
+- The API source requires `UPSTASH_REDIS_REST_URL`,
+  `UPSTASH_REDIS_REST_TOKEN`, and `STATS_KEY` in the separate demo API project
+  before the routes can persist or display data. This source is not deployed.

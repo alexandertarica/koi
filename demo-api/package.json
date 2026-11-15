@@ -1,5 +1,11 @@
 {
   "name": "koi-demo-api",
   "private": true,
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.41.0"
+  }
 }

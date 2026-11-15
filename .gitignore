@@ -9,5 +9,8 @@ build/
 # Secrets
 Koi/Config/Secrets.plist
 
+# Node dependencies
+node_modules/
+
 # macOS
 .DS_Store
