@@ -686,6 +686,9 @@ what's partial, known issues, and the next step.
 - Live phone-sized review confirmed the full task row shows “Tomorrow” and the
   9 AM class note, but not a 7 AM timestamp. The final caption now says
   “tomorrow morning” so it matches what the screenshot shows.
+- Made screenshot-tour captions explicit that the hotspots advance to the next
+  screen; they do not perform the underlying coach or pillar action. This keeps
+  the click-through story accurate while the live app remains one tap away.
 - Rechecked all nine live tour steps in both directions and advanced by the
   labeled hotspots. The survey rejected a blank name, missing choices, and a
   malformed email; a synthetic “Demo” response reached “Thanks, Demo!” and

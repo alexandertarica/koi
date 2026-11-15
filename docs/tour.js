@@ -4,14 +4,14 @@ const testMode = new URLSearchParams(location.search).get("test") === "1";
 const respondentId = crypto.randomUUID();
 const startedAt = new Date().toISOString();
 const steps = [
-  { image: "01-hub.png", title: "One score for your day", copy: "Habits, food and movement come together in one calm view. Tap a pillar label to see what is shaping Balance.", hot: [35, 46], tap: "Nutrition pillar" },
+  { image: "01-hub.png", title: "One score for your day", copy: "Habits, food and movement come together in one calm view. The highlight marks Nutrition, one of the three pillars.", hot: [35, 46], tap: "Nutrition pillar" },
   { image: "02-workout-logged.png", title: "Movement counts", copy: "The first set is logged. Each workout adds to movement alongside your daily steps.", hot: [50, 85], tap: "Log the next set" },
-  { image: "03-coach.png", title: "Pillars talk to each other", copy: "After the workout, Koi suggests 10 g more protein today. Accept it and see the new target in Intake.", hot: [18, 81], tap: "Accept the protein suggestion" },
+  { image: "03-coach.png", title: "Pillars talk to each other", copy: "After the workout, Koi suggests 10 g more protein today. The next screen shows the adjusted Intake target.", hot: [18, 81], tap: "Accept the protein suggestion" },
   { image: "04-intake-adjusted.png", title: "Your target adapts to training", copy: "The protein target is now 150 g for today. Logging food closes the gap, while Balance stays protected.", hot: [82, 83], tap: "Protein target, 150 grams" },
   { image: "05-photo-result.png", title: "AI reads a photo", copy: "A protein bar photo becomes a meal estimate with calories and macros. Fix the numbers if anything looks off.", hot: [27, 61], tap: "Fix meal numbers" },
   { image: "06-hub-after.png", title: "One score, all three pillars", copy: "The meal and workout now count in today's Balance. It rises from 77% to 90% as your day comes together.", hot: [77, 26], tap: "90 percent Balance" },
   { image: "07-pond.png", title: "Friends keep you consistent", copy: "The sample pond has five friends in a sprint. Maya is currently 3rd of 5.", hot: [55, 71], tap: "Maya's third-place row" },
-  { image: "08-run-suggestion.png", title: "Koi plans around your schedule", copy: "The sample schedule has class at 9 AM. Koi suggests a 3-mile run beforehand, then adds it to To-Do.", hot: [18, 81], tap: "Accept the run suggestion" },
+  { image: "08-run-suggestion.png", title: "Koi plans around your schedule", copy: "The sample schedule has class at 9 AM. Koi suggests a 3-mile run before class; the final screen shows it in To-Do.", hot: [18, 81], tap: "Accept the run suggestion" },
   { image: "09-todo-run.png", title: "A next step, already planned", copy: "The 3-mile run is in To-Do for tomorrow morning, before class.", hot: [31, 48], tap: "3-mile run task" },
 ];
 const copy = document.querySelector("#tour-copy");
