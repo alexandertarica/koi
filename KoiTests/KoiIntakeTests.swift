@@ -28,6 +28,27 @@ final class KoiIntakeTests: XCTestCase {
         XCTAssertNil(model.errorMessage)
     }
 
+    func testPhotoOnlyEstimatePassesImageAndSavesOneMeal() async throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let model = IntakeViewModel()
+        model.load(context)
+        let jpeg = Data([0xff, 0xd8, 0xff, 0xd9])
+        let estimate = FoodEstimateValue(description: "Protein bar", calories: 210, proteinGrams: 20, carbohydrateGrams: 24, fatGrams: 7, fiberGrams: 5, addedSugarGrams: 6, sodiumMilligrams: 180, confidence: 0.82)
+        let estimator = PhotoOnlyFoodEstimator(value: estimate)
+
+        await model.estimateMeal(text: nil, jpegData: jpeg, using: estimator)
+        let decoded = try XCTUnwrap(model.estimate)
+        let receivedPhoto = await estimator.receivedPhoto()
+        XCTAssertEqual(decoded, estimate)
+        XCTAssertEqual(receivedPhoto, jpeg)
+
+        let saved = try XCTUnwrap(model.addMeal(decoded, note: "", jpegData: jpeg))
+        XCTAssertEqual(saved.imageJPEG, jpeg)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiFoodEntry>()).count, 1)
+        XCTAssertEqual(model.calories, 210)
+    }
+
     func testDefaultGoalsMealAndManualAdjustmentPersist() throws {
         let container = try KoiSchema.makeContainer(inMemory: true)
         let context = ModelContext(container)
@@ -166,6 +187,20 @@ private struct FixedCoachProvider: KoiCoaching {
 
 private struct OfflineCoachProvider: KoiCoaching {
     func suggest(context: KoiCoachContext) async throws -> KoiCoachSuggestion { throw EstimateClientError.connection }
+}
+
+private actor PhotoOnlyFoodEstimator: FoodEstimating {
+    let value: FoodEstimateValue
+    private var photo: Data?
+
+    init(value: FoodEstimateValue) { self.value = value }
+
+    func estimate(text: String?, jpegData: Data?) async throws -> FoodEstimateValue {
+        photo = jpegData
+        return value
+    }
+
+    func receivedPhoto() -> Data? { photo }
 }
 
 @MainActor

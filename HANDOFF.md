@@ -517,3 +517,15 @@ what's partial, known issues, and the next step.
   Coach task in source and needs its owner-operated redeploy before browser AI
   Coach responses can work.
 
+### Photo meal estimate (2026-11-14)
+
+- The current photo-picker path keeps selected JPEG data, automatically
+  estimates a photo-only meal, saves the estimate once, and leaves the result
+  available for edits. Added a simulator test that verifies photo bytes reach
+  the estimator and the resulting meal is stored exactly once with its image
+  and updated Intake totals.
+- The simulator CLI can install, launch and capture screens but cannot select a
+  Photos library item. The updated picker-to-result UI therefore still needs an
+  interactive Photos selection check; the estimate, persistence and duplicate
+  save behavior are covered by the passing model test.
+
