@@ -8,7 +8,7 @@
     <title>Koi — Browser demo</title>
     <link rel="preload" href="assets/RobotoMono-Light.ttf" as="font" type="font/ttf" crossorigin>
     <link rel="preload" href="assets/water.png" as="image">
-    <link rel="stylesheet" href="styles.css?v=7">
+    <link rel="stylesheet" href="styles.css?v=8">
   </head>
   <body>
     <main class="demo-shell">
@@ -20,6 +20,7 @@
         <div class="bar-actions">
           <span class="demo-note">A small, interactive preview</span>
           <button class="restart-button" type="button" data-action="start-guided">Guided demo</button>
+          <button class="restart-button" type="button" data-action="show-feedback">Answer questions</button>
           <button class="restart-button" type="button" data-action="start-fresh">Start fresh</button>
         </div>
       </header>
@@ -49,6 +50,6 @@
       </footer>
     </main>
     <input id="photo-input" type="file" accept="image/*" hidden>
-    <script src="app.js?v=3" defer></script>
+    <script src="app.js?v=4" defer></script>
   </body>
 </html>

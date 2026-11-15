@@ -1,12 +1,19 @@
 const AI_PROXY_URL = "https://koi-demo-api.vercel.app/api/demo-ai";
+const FEEDBACK_URL = "https://koi-demo-api.vercel.app/api/demo-feedback";
+const EVENT_URL = "https://koi-demo-api.vercel.app/api/demo-event";
+const respondentId = crypto.randomUUID();
+const respondentStartedAt = new Date().toISOString();
+const respondent = { firstName: "", feedbackBusy: false, feedbackError: "" };
 const root = document.querySelector("#app-root");
 const header = document.querySelector("#app-header");
 const view = document.querySelector("#app-view");
 const tabBar = document.querySelector("#tab-bar-wrap");
+const demoBar = document.querySelector(".demo-bar");
+const demoFooter = document.querySelector(".demo-footer");
 const photoInput = document.querySelector("#photo-input");
 
 const initialState = () => ({
-  stage: "welcome",
+  stage: "respondent",
   guidedMode: false,
   guidedStep: "start",
   guidedStartBalance: 0,
@@ -49,42 +56,17 @@ const initialState = () => ({
   planError: "",
 });
 
-function loadDemoState() {
-  try {
-    const saved = JSON.parse(localStorage.getItem("koi.browser-demo-state") || "null");
-    if (!saved || typeof saved !== "object") return initialState();
-    return {
-      ...initialState(),
-      stage: saved.stage === "app" ? "app" : "welcome",
-      guidedMode: false,
-      guidedStep: "start",
-      pondViewed: saved.pondViewed === true,
-      name: typeof saved.name === "string" ? saved.name.slice(0, 28) : "",
-      focus: ["balanced", "habits", "nutrition", "exercise"].includes(saved.focus) ? saved.focus : "balanced",
-      tab: ["Hub", "To-Do", "Movement", "Intake", "Profile", "Progress"].includes(saved.tab) ? saved.tab : "Hub",
-      tourVisible: saved.tourVisible !== false,
-      showAllToday: saved.showAllToday === true,
-      meals: Array.isArray(saved.meals) ? saved.meals : [],
-      proteinGoalToday: saved.goalDate === new Date().toLocaleDateString("en-CA") ? Math.max(140, Number(saved.proteinGoalToday) || 140) : 140,
-      balanceFloor: saved.goalDate === new Date().toLocaleDateString("en-CA") ? Math.max(0, Number(saved.balanceFloor) || 0) : 0,
-      goalDate: new Date().toLocaleDateString("en-CA"),
-      tasks: Array.isArray(saved.tasks) ? saved.tasks : [],
-      habits: Array.isArray(saved.habits) ? saved.habits : [],
-      steps: Math.max(0, Number(saved.steps) || 0),
-      didTrain: saved.didTrain === true,
-      health: saved.health === true,
-      calendar: saved.calendar === true,
-    };
-  } catch {
-    return initialState();
+try { localStorage.removeItem("koi.browser-demo-state"); } catch { /* The demo still works when storage is disabled. */ }
+let state = initialState();
+let demoDeviceID = "";
+try {
+  demoDeviceID = localStorage.getItem("koi.browser-demo-id") || "";
+  if (!demoDeviceID) {
+    demoDeviceID = crypto.randomUUID();
+    localStorage.setItem("koi.browser-demo-id", demoDeviceID);
   }
-}
-
-let state = loadDemoState();
-let demoDeviceID = localStorage.getItem("koi.browser-demo-id");
-if (!demoDeviceID) {
+} catch {
   demoDeviceID = crypto.randomUUID();
-  localStorage.setItem("koi.browser-demo-id", demoDeviceID);
 }
 
 const icons = {
@@ -100,6 +82,15 @@ const icons = {
 
 function safe(value = "") {
   return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+}
+
+function trackDemoEvent(event) {
+  fetch(EVENT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ respondentId, event, timestamp: new Date().toISOString() }),
+    keepalive: true,
+  }).catch(() => {});
 }
 
 function dateLabel() {
@@ -165,7 +156,7 @@ function renderCaptionPanel() {
     : state.guidedStep === "balance"
       ? `Balance moved from ${state.guidedStartBalance}% to ${getBalance()}%. The meal and workout now count in today's score. Next, see the clearly labeled sample Pond.`
       : defaultDescription;
-  panel.innerHTML = `<p class="caption-kicker">GUIDED DEMO · SAMPLE DAY</p><h2>${safe(title)}</h2><p>${safe(description)}</p>${state.guidedStep === "todo" ? '<p class="sample-note">Friends, starting data and the 9:00 AM class are samples.</p><button class="primary-button" type="button" data-action="start-fresh">Start fresh</button>' : ""}<button class="caption-exit" type="button" data-action="exit-guided">${state.guidedStep === "start" ? "Skip guided demo" : "Exit guided demo"}</button>`;
+  panel.innerHTML = `<p class="caption-kicker">GUIDED DEMO · SAMPLE DAY</p><h2>${safe(title)}</h2><p>${safe(description)}</p>${state.guidedStep === "todo" ? '<p class="sample-note">Friends, starting data and the 9:00 AM class are samples.</p><button class="primary-button" type="button" data-action="show-feedback">Finish & answer questions</button><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button>' : ""}<button class="caption-exit" type="button" data-action="exit-guided">${state.guidedStep === "start" ? "Skip guided demo" : "Exit guided demo"}</button>`;
 }
 
 function renderPond() {
@@ -229,7 +220,7 @@ function renderDial({ value, kind = "balance", bars = [], labels = true, logged 
 
 function renderHeader() {
   if (state.stage !== "app") {
-    const title = state.stage === "welcome" ? "WELCOME" : state.stage === "connect" ? "CONNECT" : "FOCUS";
+    const title = ["respondent", "respondent-choice"].includes(state.stage) ? "WELCOME" : state.stage === "feedback" ? "YOUR THOUGHTS" : state.stage === "thanks" ? "THANK YOU" : state.stage === "connect" ? "CONNECT" : "FOCUS";
     header.innerHTML = `<div class="header-row"><img class="wordmark" src="assets/wordmark.png" alt="Koi"><span class="header-section">${title}</span></div>`;
     return;
   }
@@ -240,6 +231,25 @@ function renderHeader() {
     : `<button class="header-icon" type="button" data-action="profile" aria-label="Open profile">${icons.user}</button>`;
   header.innerHTML = `<div class="header-row"><img class="wordmark" src="assets/wordmark.png" alt="Koi">${right}</div>
     <div class="date-label">${dateLabel()}</div>${section ? `<h1 class="screen-title">${section}</h1>` : ""}`;
+}
+
+const privacyNote = "Student project built at the Cal Poly hackathon. We only keep your first name and answers (plus email if you add it).";
+
+function renderRespondentStart() {
+  return `<section class="onboarding-view respondent-view"><p class="step-label">A QUICK KIOSK DEMO</p><h1 class="welcome-title">Your first name</h1><p class="view-note">One person at a time. Your answers help us make Koi better.</p><form id="respondent-name-form"><label class="respondent-name-label" for="respondent-first-name">FIRST NAME</label><input class="name-field" id="respondent-first-name" name="firstName" maxlength="40" autocomplete="given-name" required placeholder="First name"><button class="primary-button" type="submit">Continue</button></form><button class="quiet-link skip-questions-link" type="button" data-action="skip-to-questions">Skip to questions</button><p class="privacy-note">${privacyNote}</p></section>`;
+}
+
+function renderRespondentChoice() {
+  return `<section class="onboarding-view respondent-view"><p class="step-label">HI, ${safe(respondent.firstName.toUpperCase())}</p><h1 class="step-heading">How would you like to try Koi?</h1><p class="view-note">Follow a short guided day or explore the app at your own pace.</p><div class="onboarding-spacer"></div><button class="primary-button" type="button" data-action="start-guided">Guided demo</button><button class="quiet-link" type="button" data-action="try-koi">Try Koi freely</button><button class="quiet-link skip-questions-link" type="button" data-action="show-feedback">Skip to questions</button><p class="privacy-note">${privacyNote}</p></section>`;
+}
+
+function renderFeedbackForm() {
+  const question = (key, title) => `<fieldset class="feedback-question"><legend>${title}</legend><div class="feedback-choices">${["Yes", "Maybe", "No"].map((choice) => `<label><input type="radio" name="${key}" value="${choice}" required><span>${choice}</span></label>`).join("")}</div></fieldset>`;
+  return `<section class="onboarding-view feedback-view"><p class="step-label">YOUR FEEDBACK</p><h1 class="step-heading">A few quick questions.</h1><form id="feedback-form" class="feedback-form">${question("wouldUse", "Would you use Koi?")}${question("wouldPay", "Would you pay $2.99/month for the AI coach?")}<label class="feedback-field"><span>What would make you use it every day?</span><input name="dailyUse" maxlength="240" placeholder="One line, optional"></label><label class="feedback-field"><span>Email, if you want Koi when it launches</span><input name="email" type="email" maxlength="254" autocomplete="email" placeholder="Optional"></label><p class="privacy-note">${privacyNote}</p>${respondent.feedbackError ? `<p class="feedback-error" role="alert">${safe(respondent.feedbackError)}</p>` : ""}<button class="primary-button" type="submit" ${respondent.feedbackBusy ? "disabled" : ""}>${respondent.feedbackBusy ? "Sending…" : "Send answers"}</button></form><button class="quiet-link" type="button" data-action="back-to-koi">Back to Koi</button></section>`;
+}
+
+function renderThanks() {
+  return `<section class="onboarding-view respondent-view thanks-view"><div><p class="step-label">RECEIVED</p><h1 class="step-heading">Thanks, ${safe(respondent.firstName)}!</h1><p class="view-note">Your note helps shape what Koi becomes.</p></div><div class="onboarding-spacer"></div><button class="primary-button" type="button" data-action="next-person">Next person</button></section>`;
 }
 
 function renderWelcome() {
@@ -442,28 +452,21 @@ function renderTabBar() {
 }
 
 function renderDemoControls() {
-  if (state.guidedMode) return `<div class="demo-controls"><span>GUIDED DEMO</span><button class="quiet-link" type="button" data-action="exit-guided">Exit guided demo</button></div>`;
-  return `<div class="demo-controls"><span>DEMO DATA STAYS IN THIS BROWSER</span><div class="demo-control-actions"><button class="quiet-link mobile-guided-entry" type="button" data-action="start-guided">Guided demo</button><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button></div></div>`;
+  if (state.guidedMode) return `<div class="demo-controls"><span>GUIDED DEMO</span><div class="demo-control-actions"><button class="quiet-link" type="button" data-action="show-feedback">Answer questions</button><button class="quiet-link" type="button" data-action="exit-guided">Exit guided demo</button></div></div>`;
+  return `<div class="demo-controls"><span>DEMO</span><div class="demo-control-actions"><button class="quiet-link mobile-guided-entry" type="button" data-action="start-guided">Guided demo</button><button class="quiet-link" type="button" data-action="show-feedback">Answer questions</button><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button></div></div>`;
 }
 
 function render() {
-  try {
-    localStorage.setItem("koi.browser-demo-state", JSON.stringify({
-      stage: state.stage, name: state.name, focus: state.focus, tab: state.tab,
-      tourVisible: state.tourVisible, showAllToday: state.showAllToday, meals: state.meals.map(({ imageURL, ...meal }) => meal),
-      tasks: state.tasks, habits: state.habits, steps: state.steps, didTrain: state.didTrain,
-      health: state.health, calendar: state.calendar,
-      proteinGoalToday: state.proteinGoalToday, balanceFloor: state.balanceFloor, goalDate: state.goalDate,
-      pondViewed: state.pondViewed,
-    }));
-  } catch { /* Storage may be unavailable in private browsing; the demo still works. */ }
   renderHeader();
   const isApp = state.stage === "app";
+  demoBar.hidden = !isApp;
+  demoFooter.hidden = !isApp;
   view.className = `app-view${isApp ? " app-mode" : ""}`;
   tabBar.classList.toggle("visible", isApp && !state.foodOpen && !state.smartNoteOpen);
   renderCaptionPanel();
   if (!isApp) {
-    view.innerHTML = state.stage === "welcome" ? renderWelcome() : state.stage === "connect" ? renderConnect() : renderFocus();
+    const screens = { respondent: renderRespondentStart, "respondent-choice": renderRespondentChoice, feedback: renderFeedbackForm, thanks: renderThanks, welcome: renderWelcome, connect: renderConnect, focus: renderFocus };
+    view.innerHTML = (screens[state.stage] ?? renderRespondentStart)();
   } else {
     let content;
     if (state.smartNoteOpen) content = renderSmartNote();
@@ -494,20 +497,85 @@ function enterApp() {
   requestMorningCoachIfNeeded();
 }
 
+function requireRespondentName() {
+  const input = document.querySelector("#respondent-first-name");
+  const firstName = input?.value.trim().replace(/\s+/g, " ").slice(0, 40) || "";
+  if (!firstName) { input?.reportValidity(); return false; }
+  respondent.firstName = firstName;
+  state.name = firstName;
+  return true;
+}
+
+function showFeedback() {
+  state.guidedMode = false;
+  state.foodOpen = false;
+  state.smartNoteOpen = false;
+  state.pondOpen = false;
+  state.stage = "feedback";
+  respondent.feedbackError = "";
+  render();
+}
+
+async function submitFeedback(form) {
+  const fields = new FormData(form);
+  const answers = {
+    wouldUse: fields.get("wouldUse")?.toString() || "",
+    wouldPay: fields.get("wouldPay")?.toString() || "",
+    dailyUse: fields.get("dailyUse")?.toString().trim() || "",
+  };
+  const email = fields.get("email")?.toString().trim() || "";
+  const button = form.querySelector('button[type="submit"]');
+  respondent.feedbackBusy = true;
+  button.disabled = true;
+  button.textContent = "Sending…";
+  respondent.feedbackError = "";
+  try {
+    const response = await fetch(FEEDBACK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ respondentId, firstName: respondent.firstName, answers, email, startedAt: respondentStartedAt, finishedAt: new Date().toISOString() }),
+    });
+    if (!response.ok) {
+      let detail = "Feedback could not be saved. Please try again.";
+      try { detail = (await response.json()).error || detail; } catch { /* Keep a friendly message for an unreadable response. */ }
+      throw new Error(detail);
+    }
+    trackDemoEvent("feedback_submitted");
+    state.stage = "thanks";
+    render();
+  } catch (error) {
+    respondent.feedbackError = error.message || "Feedback could not be saved. Please try again.";
+    button.disabled = false;
+    button.textContent = "Send answers";
+    let errorNode = form.querySelector(".feedback-error");
+    if (!errorNode) {
+      errorNode = document.createElement("p");
+      errorNode.className = "feedback-error";
+      errorNode.setAttribute("role", "alert");
+      form.insertBefore(errorNode, button);
+    }
+    errorNode.textContent = respondent.feedbackError;
+  } finally {
+    respondent.feedbackBusy = false;
+  }
+}
+
 function startFresh() {
-  localStorage.removeItem("koi.browser-demo-state");
+  trackDemoEvent("start_fresh");
   state = initialState();
   state.stage = "app";
+  state.name = respondent.firstName;
   state.tourVisible = false;
   render();
 }
 
 function startGuided() {
+  trackDemoEvent("guided_started");
   state = initialState();
   state.stage = "app";
   state.guidedMode = true;
   state.guidedStep = "start";
-  state.name = "Alex";
+  state.name = respondent.firstName;
   state.tourVisible = false;
   state.habits = [
     { id: crypto.randomUUID(), title: "Morning water", done: true },
@@ -522,10 +590,8 @@ function startGuided() {
 }
 
 function requestMorningCoachIfNeeded() {
-  if (state.guidedMode) return;
-  const day = new Date().toLocaleDateString("en-CA");
-  if (localStorage.getItem("koi.browser-coach-day") === day) return;
-  localStorage.setItem("koi.browser-coach-day", day);
+  if (state.guidedMode || respondent.morningCoachRequested) return;
+  respondent.morningCoachRequested = true;
   requestCoach("morning");
 }
 
@@ -578,6 +644,7 @@ async function requestCoach(event) {
   state.coachLoading = false;
   state.coachError = "";
   render();
+  if (state.coachSuggestion) trackDemoEvent("coach_shown");
 }
 
 function scheduleBeforeSampleEvent() {
@@ -591,6 +658,7 @@ function scheduleBeforeSampleEvent() {
 function acceptCoach() {
   const action = state.coachSuggestion?.action;
   if (!action) return;
+  trackDemoEvent("coach_accepted");
   if (action.type === "adjustGoal" && action.nutrient === "protein") {
     state.goalDate = new Date().toLocaleDateString("en-CA");
     state.balanceFloor = Math.max(state.balanceFloor || 0, getBalance());
@@ -701,6 +769,7 @@ async function estimateFood() {
   estimate.imageURL = state.foodPreview;
   estimate.source = "ai";
   state.meals.push(estimate);
+  trackDemoEvent(state.foodPhoto ? "meal_logged_photo" : "meal_logged_text");
   state.foodResult = estimate;
   state.error = "";
   state.tourVisible = false;
@@ -819,6 +888,7 @@ function saveManualMeal() {
   const values = Object.fromEntries([...document.querySelectorAll("[data-nutrient]")].map((input) => [input.dataset.nutrient, Math.max(0, Number(input.value) || 0)]));
   const estimate = { id: crypto.randomUUID(), description, calories: values.calories, protein: values.protein, carbs: values.carbs, fat: values.fat, fiber: values.fiber, sugar: values.sugar, sodium: values.sodium, confidence: 0, source: "manual", imageURL: state.foodPreview };
   state.meals.push(estimate);
+  trackDemoEvent(state.foodPhoto ? "meal_logged_photo" : "meal_logged_text");
   state.foodResult = estimate;
   state.editingMealID = null;
   state.manualMode = false;
@@ -836,6 +906,15 @@ function onClick(event) {
   if (action === "restart" || action === "start-fresh") { startFresh(); return; }
   if (action === "start-guided") { startGuided(); return; }
   if (action === "exit-guided") { state.guidedMode = false; state.guidedStep = "start"; render(); return; }
+  if (action === "try-koi") { enterApp(); return; }
+  if (action === "skip-to-questions") {
+    if (state.stage === "respondent" && !requireRespondentName()) return;
+    showFeedback();
+    return;
+  }
+  if (action === "show-feedback") { showFeedback(); return; }
+  if (action === "back-to-koi") { state.stage = "app"; state.tab = "Hub"; render(); return; }
+  if (action === "next-person") { window.location.reload(); return; }
   if (action === "next-connect") { updateName(); state.stage = "connect"; render(); return; }
   if (action === "skip-setup") { updateName(); enterApp(); return; }
   if (action === "next-focus") { state.stage = "focus"; render(); return; }
@@ -847,7 +926,7 @@ function onClick(event) {
   if (action === "profile") { state.tab = "Profile"; render(); return; }
   if (action === "open-food") { openFood(); return; }
   if (action === "close-food") { closeFood(); return; }
-  if (action === "open-pond") { state.pondOpen = true; state.pondViewed = true; if (!state.sampleSchedule) state.sampleSchedule = sampleEventDate().toISOString(); if (state.guidedMode) state.guidedStep = "pond"; render(); return; }
+  if (action === "open-pond") { trackDemoEvent("pond_opened"); state.pondOpen = true; state.pondViewed = true; if (!state.sampleSchedule) state.sampleSchedule = sampleEventDate().toISOString(); if (state.guidedMode) state.guidedStep = "pond"; render(); return; }
   if (action === "close-pond") { state.pondOpen = false; render(); return; }
   if (action === "return-from-pond") {
     state.pondOpen = false;
@@ -929,6 +1008,16 @@ view.addEventListener("input", (event) => {
 });
 
 view.addEventListener("submit", (event) => {
+  if (event.target.id === "respondent-name-form") {
+    event.preventDefault();
+    if (requireRespondentName()) { state.stage = "respondent-choice"; render(); }
+    return;
+  }
+  if (event.target.id === "feedback-form") {
+    event.preventDefault();
+    submitFeedback(event.target);
+    return;
+  }
   const form = event.target.closest("form[data-form]");
   if (!form) return;
   event.preventDefault();
@@ -972,4 +1061,4 @@ function setClock() {
 setClock();
 setInterval(setClock, 30_000);
 render();
-if (state.stage === "app") requestMorningCoachIfNeeded();
+trackDemoEvent("visit");

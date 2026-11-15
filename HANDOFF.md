@@ -581,6 +581,19 @@ what's partial, known issues, and the next step.
   start the sample walkthrough without clearing browser storage or returning to
   onboarding. Script and style query versions were advanced for Pages caching.
 
+### Browser judge kiosk flow (2026-11-14)
+
+- Every page load starts a fresh respondent session with a new random ID and
+  timestamp. Visitors enter a required first name, then choose the guided demo,
+  free use, or the visible Skip to questions route. The optional email and
+  one-line daily-use answer are sent with both Yes/Maybe/No answers and the
+  start/finish timestamps. After a successful save the thank-you screen offers
+  Next person, which reloads into a new respondent session.
+- The app sends only the requested event names with the random respondent ID;
+  those requests fail silently. The feedback screen and first-name screen were
+  exercised locally. The form's success state still needs a redeploy with the
+  Redis settings connected before a live browser submission can be verified.
+
 ### Browser kiosk feedback storage (2026-11-14)
 
 - Added the separate demo API routes `/api/demo-feedback`, `/api/demo-event`,
