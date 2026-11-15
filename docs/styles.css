@@ -63,8 +63,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 }
 
 .demo-bar { min-height: 42px; }
-.brand-link { display: flex; align-items: baseline; gap: 12px; color: #213352; text-decoration: none; }
-.brand-mark { font: italic 700 19px/1 var(--font-regular); letter-spacing: -2px; transform: skewX(-10deg); }
+.brand-link { display: flex; align-items: center; gap: 12px; color: #213352; text-decoration: none; }
+.brand-logo { display: block; width: 92px; height: 22px; object-fit: contain; object-position: left center; }
 .demo-label { font: 400 10px/1 var(--font-regular); letter-spacing: .2em; opacity: .62; }
 .bar-actions { display: flex; align-items: center; gap: 18px; }
 .demo-note, .demo-footer { font-size: 11px; opacity: .68; }
