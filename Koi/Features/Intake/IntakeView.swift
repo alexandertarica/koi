@@ -37,7 +37,7 @@ struct IntakeView: View {
                 } else {
                     calorieCard.modifier(KoiIntroReveal(order: 1))
                     if let note = model.adjustmentNote {
-                        Text(note).font(KoiTheme.caption).opacity(0.78).padding(.horizontal, KoiTheme.space.s8)
+                        Text(note).font(KoiTheme.caption).opacity(0.78).padding(.horizontal, KoiTheme.space.s8).accessibilityIdentifier("stage.intake.adjustmentNote")
                     }
                     nutrientsSection.modifier(KoiIntroReveal(order: 2))
                     supplementsSection.modifier(KoiIntroReveal(order: 3))
@@ -109,13 +109,11 @@ struct IntakeView: View {
                 VStack(spacing: KoiTheme.space.s5) {
                     KoiTickRing(isOn: foodRingLit) {
                         KoiHaptics.ringFill(duration: 0.5, beats: 12)
-                        withAnimation(.easeOut(duration: 0.25)) { foodRingLit = true }
-                        Task { @MainActor in
-                            try? await Task.sleep(for: .milliseconds(400))
-                            openComposer()
-                            withAnimation(.easeOut(duration: 0.2)) { foodRingLit = false }
-                        }
+                        foodRingLit = true
+                        composerID = UUID()
+                        withAnimation(KoiTheme.morph) { composerActive = true }
                     }
+                    .accessibilityIdentifier("stage.food.log")
                     Text(model.mealCount == 0 ? "LOG" : "\(model.mealCount) logged").font(KoiTheme.section).tracking(1.3)
                 }
                 .foregroundStyle(KoiTheme.onBase)

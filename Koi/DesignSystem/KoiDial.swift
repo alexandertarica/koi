@@ -48,6 +48,7 @@ struct KoiDial: View {
                 Text("\(Int((score * 100 * revealProgress).rounded()))")
                     .font(.system(size: 80, weight: .regular))
                     .contentTransition(.numericText())
+                    .accessibilityIdentifier("stage.balance.score")
                 Text("%")
                     .font(.system(size: 40, weight: .regular))
                     .baselineOffset(10)

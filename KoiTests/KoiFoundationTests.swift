@@ -91,6 +91,8 @@ final class KoiFoundationTests: XCTestCase {
     }
 
     func testDemoHubHasScoredNutritionAndAContinuousWeekStreak() throws {
+        DailyGoalAdjustment.clear("protein")
+        defer { DailyGoalAdjustment.clear("protein") }
         let container = try KoiSchema.makeContainer(inMemory: true)
         let context = ModelContext(container)
         try KoiDemoSeeder.seedIfEmpty(context)
@@ -121,6 +123,29 @@ final class KoiFoundationTests: XCTestCase {
 
         XCTAssertEqual(try context.fetch(FetchDescriptor<KoiTask>()).map(\.title), ["Keep this task"])
         XCTAssertTrue(try context.fetch(FetchDescriptor<KoiProfile>()).isEmpty)
+    }
+
+    func testStageSeedUsesLiveScoresAndOneCompletedHabit() throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        try KoiDemoSeeder.seedForStageLaunch(context)
+
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiProfile>()).first?.name, "Jasmine")
+        let today = Calendar.autoupdatingCurrent.startOfDay(for: .now)
+        let habits = try context.fetch(FetchDescriptor<KoiHabit>())
+        let logs = try context.fetch(FetchDescriptor<KoiHabitLog>()).filter { Calendar.autoupdatingCurrent.isDate($0.date, inSameDayAs: today) }
+        XCTAssertEqual(logs.filter { $0.completion > 0 }.count, 1)
+        XCTAssertEqual(logs.first(where: { $0.habitID == habits.first(where: { $0.title == "Morning walk" })?.id })?.completion, 2)
+        let breakfast = try XCTUnwrap(context.fetch(FetchDescriptor<KoiFoodEntry>()).first(where: { $0.name == "Light breakfast" }))
+        XCTAssertEqual(breakfast.calories, 420)
+        XCTAssertEqual(breakfast.proteinGrams, 20)
+        XCTAssertFalse(try context.fetch(FetchDescriptor<KoiMovementDay>()).first(where: { Calendar.autoupdatingCurrent.isDate($0.date, inSameDayAs: today) })?.isTrainingDay ?? true)
+
+        let model = HubViewModel(calendar: .current, publishesWidgetSnapshot: false)
+        model.refresh(using: context)
+        XCTAssertTrue((0.45...0.55).contains(model.balance.score))
+        XCTAssertGreaterThan(model.streak.current, 0)
+        XCTAssertTrue(model.hasWeekOfHistory)
     }
 
     func testDemoLaunchReplacesStoredContentWithTheFixedSample() throws {

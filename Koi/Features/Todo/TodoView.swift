@@ -329,6 +329,7 @@ struct TodoView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(mode == .matrix ? "Grid view" : "List view")
+                .accessibilityIdentifier(mode == .matrix ? "stage.todo.matrix" : "stage.todo.list")
                 .accessibilityAddTraits(model.mode == mode ? .isSelected : [])
             }
         }
@@ -379,6 +380,8 @@ struct TodoView: View {
                     guard let id = values.first.flatMap(UUID.init(uuidString:)), let task = model.tasks.first(where: { $0.id == id }) else { return false }
                             KoiHaptics.land(); model.move(task, to: section); return true
                 }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier(section == .notUrgentImportant ? "stage.todo.important" : "todo.quadrant.\(section.quadrant)")
             }
         }
     }
@@ -401,6 +404,7 @@ struct TodoView: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(task.title).font(.custom("RobotoMono-Light", size: 15)).strikethrough(task.isComplete).foregroundStyle(KoiTheme.onBase).lineLimit(2)
+                                .accessibilityLabel(task.title == "3-mile run" && task.quadrant == TodoSection.notUrgentImportant.quadrant ? "3-mile run, Important" : task.title)
                             if !compact, let dueAt = task.dueAt,
                                Calendar.current.startOfDay(for: dueAt) <= Calendar.current.startOfDay(for: .now),
                                !model.tasksMarkedUrgent.contains(task.id),
@@ -432,6 +436,8 @@ struct TodoView: View {
                             }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.buttonStyle(.plain)
+                        .accessibilityIdentifier(task.title == "3-mile run" ? "stage.todo.run" : "")
+                        .accessibilityLabel(task.title == "3-mile run" && task.quadrant == TodoSection.notUrgentImportant.quadrant ? "3-mile run, Important" : task.title)
                     if !compact, let dueAt = task.dueAt,
                        Calendar.current.startOfDay(for: dueAt) > Calendar.current.startOfDay(for: .now) {
                         Text(model.dueLabel(for: task) ?? "")

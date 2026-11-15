@@ -98,6 +98,7 @@ struct MovementView: View {
                     else { KoiHaptics.ringFill(duration: 0.65, beats: 14) }
                     model.toggleManualTraining()
                 }, label: "LOG", what: "workout")
+                .accessibilityIdentifier("stage.workout.log")
                 Text(model.isTrainingDay ? "LOGGED" : "LOG").font(KoiTheme.section).tracking(1.3)
             }.foregroundStyle(KoiTheme.onBase).padding(.trailing, KoiTheme.space.s21).padding(.bottom, 64).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         }

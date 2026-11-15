@@ -2,6 +2,44 @@ import EventKit
 import Foundation
 import OSLog
 
+@MainActor
+enum StageDemoCalendar {
+    private static let startKey = "koi.stage.sampleClass.start"
+    private static let localKey = "koi.stage.sampleClass.local"
+    private static let eventIdentifierKey = "koi.stage.sampleClass.eventIdentifier"
+
+    static var hasLocalSample: Bool { UserDefaults.standard.bool(forKey: localKey) }
+
+    static func event(calendar: Calendar = .autoupdatingCurrent) -> CalendarEventSummary? {
+        guard let start = UserDefaults.standard.object(forKey: startKey) as? Date else { return nil }
+        return CalendarEventSummary(title: "Class", start: start, end: start.addingTimeInterval(3_600))
+    }
+
+    static func prepare(tomorrow: Date, calendar: Calendar = .autoupdatingCurrent) {
+        guard let start = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: tomorrow) else { return }
+        UserDefaults.standard.set(start, forKey: startKey)
+        let status = EKEventStore.authorizationStatus(for: .event)
+        guard status == .fullAccess || status == .writeOnly else {
+            UserDefaults.standard.set(true, forKey: localKey)
+            return
+        }
+        let store = EKEventStore()
+        let savedID = UserDefaults.standard.string(forKey: eventIdentifierKey)
+        let item = savedID.flatMap(store.event(withIdentifier:)) ?? EKEvent(eventStore: store)
+        item.title = "Class"
+        item.startDate = start
+        item.endDate = start.addingTimeInterval(3_600)
+        item.calendar = store.defaultCalendarForNewEvents
+        do {
+            try store.save(item, span: .thisEvent, commit: true)
+            if let identifier = item.eventIdentifier { UserDefaults.standard.set(identifier, forKey: eventIdentifierKey) }
+            UserDefaults.standard.set(false, forKey: localKey)
+        } catch {
+            UserDefaults.standard.set(true, forKey: localKey)
+        }
+    }
+}
+
 struct CalendarTaskValue: Sendable {
     let id: UUID
     let title: String
@@ -28,6 +66,7 @@ struct CalendarEventSummary: Sendable {
 @MainActor
 protocol CalendarProviding: Sendable {
     var isAvailable: Bool { get }
+    var hasEventAccess: Bool { get }
     func requestAccess() async throws
     func saveTaskEvent(_ task: CalendarTaskValue) async throws -> String
     func deleteTaskEvent(identifier: String) async throws
@@ -38,6 +77,7 @@ protocol CalendarProviding: Sendable {
 }
 
 extension CalendarProviding {
+    var hasEventAccess: Bool { false }
     func events(from start: Date, to end: Date) async throws -> [CalendarEventSummary] { [] }
     func requestReminderAccess() async throws { throw CalendarServiceError.unavailable }
     func saveTaskReminder(_ task: ReminderTaskValue) async throws -> String { throw CalendarServiceError.unavailable }
@@ -64,6 +104,10 @@ final class CalendarService: CalendarProviding {
     private let store = EKEventStore()
     private let logger = Logger(subsystem: "com.alexandertarica.koi", category: "Calendar")
     var isAvailable: Bool { EKEventStore.authorizationStatus(for: .event) != .restricted }
+    var hasEventAccess: Bool {
+        let status = EKEventStore.authorizationStatus(for: .event)
+        return status == .fullAccess || status == .writeOnly
+    }
 
     func requestAccess() async throws {
         guard isAvailable else { throw CalendarServiceError.unavailable }

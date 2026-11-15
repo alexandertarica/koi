@@ -107,6 +107,9 @@ final class MovementViewModel {
         let record = day(for: selectedDate) ?? createDay(in: context)
         record.didManuallyTrain.toggle()
         saveAndReload(context)
+        if record.didManuallyTrain {
+            NotificationCenter.default.post(name: .koiCoachRequested, object: nil, userInfo: ["event": "workout"])
+        }
     }
 
     func connectHealth(using provider: any HealthProviding) async {

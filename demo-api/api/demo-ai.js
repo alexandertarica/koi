@@ -48,13 +48,14 @@ function prompts(task, text) {
     const calendarEvent = typeof context.firstCalendarEvent === "string" ? context.firstCalendarEvent : "";
     const today = typeof context.today === "string" ? context.today : "";
     const timezone = typeof context.timezone === "string" ? context.timezone : "UTC";
+    const hint = typeof context.hint === "string" ? context.hint : "";
     const totals = context.totals && typeof context.totals === "object" ? context.totals : {};
     const goals = context.goals && typeof context.goals === "object" ? context.goals : {};
     const proteinContext = Number(totals.protein) < Number(goals.protein ?? 140);
-    const guidedDirection = event === "workout" && proteinContext
-      ? "The workout was just logged and protein is under goal: prefer action adjustGoal with nutrient protein and delta 10, and say why this supports today's training."
-      : event === "meal" && rank && calendarEvent
-        ? `A meal was just logged. Mention the pond standing (${rank}) and consistency. Suggest a 3-mile run before the first event (${calendarEvent}). Never say that running increases protein intake or connects to protein. Prefer action addTodo with title 3-mile run. The current local date is ${today} in timezone ${timezone}; if you include dueDate, calculate tomorrow at 7:00 AM in that timezone.`
+    const guidedDirection = (event === "workout" && proteinContext) || hint.includes("adjustGoal protein +10")
+      ? "The workout was just logged and protein is under goal: action MUST be adjustGoal with nutrient protein and delta 10. Never suggest water. Say exactly: Great session. Add 10 g of protein today to help you recover."
+      : ((event === "meal" || event === "pond") && rank && calendarEvent) || hint.includes("addTodo 3-mile run")
+        ? `Pond standing is ${rank}. Mention friendly competition and consistency. Suggest a 3-mile run before the first event (${calendarEvent}). Never say that running increases protein intake or connects to protein. Prefer action addTodo with title 3-mile run. The current local date is ${today} in timezone ${timezone}; if you include dueDate, calculate tomorrow at 7:00 AM in that timezone.`
         : "";
     return `Use this compact Koi day context to offer one calm, useful next step. Return JSON only as {"message":string,"action":{"type":"adjustGoal"|"addTodo"|"none","nutrient"?:string,"delta"?:number,"title"?:string,"dueDate"?:string,"why":string}}. The current local date is ${today} and the user's timezone is ${timezone}; use those values to understand today and tomorrow, never a remembered date. Only suggest an action when it clearly helps; otherwise use type none. adjustGoal is for a temporary target change today, usually +10 g protein after exercise when protein is below goal. addTodo must have a concise title and an ISO-8601 dueDate when timing is known. If tomorrow has a first calendar event, schedule an activity before it and do not conflict with it. Never invent that Calendar is connected or that an event exists. A run is movement and does not increase protein; never connect running to protein intake. Keep the message under 150 characters and why under 140 characters. ${guidedDirection} Context: ${text}`;
   }

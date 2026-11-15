@@ -19,6 +19,7 @@ struct KoiProfileView: View {
     @State private var showsWeightHistory = false
     let onSelectTab: (KoiTab) -> Void
     let onPresentSmartNote: () -> Void
+    var onResetStageDemo: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
@@ -34,6 +35,23 @@ struct KoiProfileView: View {
                         .foregroundStyle(KoiTheme.onBase)
                         .padding(.vertical, KoiTheme.space.s8)
                     }.buttonStyle(.plain)
+                    #if DEBUG
+                    if KoiLaunch.stageEnabled {
+                        Button {
+                            KoiHaptics.tap()
+                            onResetStageDemo()
+                        } label: {
+                            HStack {
+                                Text("Reset stage demo")
+                                Spacer()
+                                Image(systemName: "arrow.counterclockwise").font(.system(size: 12, weight: .light)).opacity(0.65)
+                            }
+                            .font(KoiTheme.caption).foregroundStyle(KoiTheme.onBase).padding(.vertical, KoiTheme.space.s8)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("stage.reset")
+                    }
+                    #endif
                     fold("Body weight", summary: model.currentWeight.map { "\(Int($0.rounded())) lb · \(model.weightTrendText)" } ?? "Log a starting point") { bodyWeightSection }
                     fold("Your focus", summary: focusLine(model.focus)) { focusSection }
                     fold("Nutrition goals", summary: model.nutritionGoalSummary) {

@@ -21,7 +21,10 @@ struct KoiApp: App {
             fatalError("Koi could not open its local data store: \(error.localizedDescription)")
         }
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-koiDemo") {
+        if ProcessInfo.processInfo.arguments.contains("-koiStage") {
+            do { try KoiDemoSeeder.seedForStageLaunch(ModelContext(modelContainer)) }
+            catch { Logger(subsystem: "com.alexandertarica.koi", category: "StageDemo").error("Unable to seed stage demo data before launch.") }
+        } else if ProcessInfo.processInfo.arguments.contains("-koiDemo") {
             do { try KoiDemoSeeder.seedForDemoLaunch(ModelContext(modelContainer)) }
             catch { Logger(subsystem: "com.alexandertarica.koi", category: "Demo").error("Unable to seed demo data before launch.") }
         }

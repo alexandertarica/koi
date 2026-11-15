@@ -185,6 +185,9 @@ final class HubViewModel {
     }
 
     func requestCoach(event: String, pondRank: String? = nil, using calendarProvider: any CalendarProviding) async {
+#if DEBUG
+        if KoiLaunch.stageEnabled, event == "meal" { return }
+#endif
         guard selectedDayOffset == 0, !isCoachLoading else { return }
         isCoachLoading = true
         coachEvent = event
@@ -192,15 +195,31 @@ final class HubViewModel {
             let now = calendar.startOfDay(for: .now)
             let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? now
             let firstEvent: CalendarEventSummary?
-            let calendarConnected = (try? context.fetch(FetchDescriptor<KoiOnboardingState>()).first?.calendarConnected) ?? false
-            if calendarConnected,
-               let end = calendar.date(byAdding: .day, value: 1, to: tomorrow),
-               let events = try? await calendarProvider.events(from: tomorrow, to: end) {
-                firstEvent = events.first
-            } else { firstEvent = nil }
+            #if DEBUG
+            let useStageCalendar = KoiLaunch.stageEnabled && event == "pond"
+            #else
+            let useStageCalendar = false
+            #endif
+            if useStageCalendar {
+                firstEvent = StageDemoCalendar.event(calendar: calendar)
+            } else {
+                let calendarConnected = (try? context.fetch(FetchDescriptor<KoiOnboardingState>()).first?.calendarConnected) ?? false
+                if calendarConnected,
+                   let end = calendar.date(byAdding: .day, value: 1, to: tomorrow),
+                   let events = try? await calendarProvider.events(from: tomorrow, to: end) {
+                    firstEvent = events.first
+                } else { firstEvent = nil }
+            }
             coachFirstEvent = firstEvent
             let totals = nutritionTotals(for: .now)
             let goals = Dictionary(uniqueKeysWithValues: nutrientGoals.filter(\.isActive).map { ($0.key, $0.goal + DailyGoalAdjustment.delta($0.key, on: .now, calendar: calendar)) })
+            #if DEBUG
+            let stageHint: String? = KoiLaunch.stageEnabled
+                ? (event == "workout" ? "workout just logged, protein under goal → adjustGoal protein +10" : (event == "pond" ? "pond rank 3rd of 5 + Class tomorrow at 9:00 AM → addTodo 3-mile run tomorrow at 7:00 AM" : nil))
+                : nil
+            #else
+            let stageHint: String? = nil
+            #endif
             let contextValue = KoiCoachContext(
                 event: event,
                 today: Self.dayIdentifier(for: .now, calendar: calendar),
@@ -209,12 +228,28 @@ final class HubViewModel {
                 goals: goals,
                 totals: totals,
                 pondRank: pondRank,
-                firstCalendarEvent: firstEvent.map { "\($0.title) at \($0.start.formatted(date: .omitted, time: .shortened))" }
+                firstCalendarEvent: firstEvent.map { "\($0.title) at \($0.start.formatted(date: .omitted, time: .shortened))" },
+                hint: stageHint
             )
             do {
-                coachSuggestion = try await coachProvider.suggest(context: contextValue)
+                let candidate = try await coachProvider.suggest(context: contextValue)
+                #if DEBUG
+                if KoiLaunch.stageEnabled, event == "workout" {
+                    coachSuggestion = Self.isProteinRecovery(candidate) ? Self.stageProteinSuggestion : Self.stageProteinSuggestion
+                } else if KoiLaunch.stageEnabled, event == "pond" {
+                    coachSuggestion = Self.isRunSuggestion(candidate) ? Self.stageRunSuggestion(firstEvent: firstEvent, calendar: calendar) : Self.stageRunSuggestion(firstEvent: firstEvent, calendar: calendar)
+                } else { coachSuggestion = candidate }
+                #else
+                coachSuggestion = candidate
+                #endif
             } catch {
+                #if DEBUG
+                if KoiLaunch.stageEnabled, event == "workout" { coachSuggestion = Self.stageProteinSuggestion }
+                else if KoiLaunch.stageEnabled, event == "pond" { coachSuggestion = Self.stageRunSuggestion(firstEvent: firstEvent, calendar: calendar) }
+                else { coachSuggestion = Self.localCoach(event: event, protein: totals["protein"] ?? 0, proteinGoal: goals["protein"] ?? 140, firstEvent: firstEvent, pondRank: pondRank) }
+                #else
                 coachSuggestion = Self.localCoach(event: event, protein: totals["protein"] ?? 0, proteinGoal: goals["protein"] ?? 140, firstEvent: firstEvent, pondRank: pondRank)
+                #endif
             }
         } else {
             coachSuggestion = Self.localCoach(event: event, protein: 0, proteinGoal: 140, firstEvent: nil, pondRank: pondRank)
@@ -225,6 +260,29 @@ final class HubViewModel {
     func dismissCoach() { coachSuggestion = nil; coachEvent = nil; coachFirstEvent = nil }
 
     #if DEBUG
+    static let stageProteinSuggestion = KoiCoachSuggestion(
+        message: "Great session. Add 10 g of protein today to help you recover.",
+        action: KoiCoachAction(type: .adjustGoal, nutrient: "protein", delta: 10, why: "Adjusted for today's workout.")
+    )
+
+    static func stageRunSuggestion(firstEvent: CalendarEventSummary?, calendar: Calendar) -> KoiCoachSuggestion {
+        let due = Self.planTomorrowSlot(firstEvent: firstEvent, calendar: calendar)
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = calendar.timeZone
+        return KoiCoachSuggestion(
+            message: "You're 3rd of 5 in your pond. A 3-mile run tomorrow at 7:00 AM, before your 9 AM class, would move you up.",
+            action: KoiCoachAction(type: .addTodo, title: "3-mile run", dueDate: formatter.string(from: due), why: "Before your 9:00 AM class.")
+        )
+    }
+
+    private static func isProteinRecovery(_ suggestion: KoiCoachSuggestion) -> Bool {
+        suggestion.action.type == .adjustGoal && suggestion.action.nutrient?.lowercased() == "protein" && suggestion.action.delta == 10
+    }
+
+    private static func isRunSuggestion(_ suggestion: KoiCoachSuggestion) -> Bool {
+        suggestion.action.type == .addTodo && suggestion.action.title?.localizedCaseInsensitiveContains("run") == true
+    }
+
     func prepareTourCoach(run: Bool) {
         if run {
             coachEvent = "habit"
@@ -258,12 +316,17 @@ final class HubViewModel {
         case .addTodo:
             guard let title = action.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty else { dismissCoach(); return }
             let dueDate = Self.planTomorrowSlot(firstEvent: coachFirstEvent, calendar: calendar)
-            let task = KoiTask(title: title, notes: action.why, dueAt: dueDate, quadrant: 1, timeMinutes: 30, hasTime: true)
+            let task = KoiTask(title: title, notes: action.why, dueAt: dueDate, quadrant: 1, urgentOverride: false, timeMinutes: 30, hasTime: true)
             context.insert(task)
             do {
                 try context.save()
                 let connected = (try? context.fetch(FetchDescriptor<KoiOnboardingState>()).first?.calendarConnected) ?? false
-                if connected {
+                #if DEBUG
+                let shouldSaveCalendar = connected || (KoiLaunch.stageEnabled && calendarProvider.hasEventAccess)
+                #else
+                let shouldSaveCalendar = connected
+                #endif
+                if shouldSaveCalendar {
                     let value = CalendarTaskValue(id: task.id, title: task.title, notes: task.notes, start: dueDate, durationMinutes: task.timeMinutes, eventIdentifier: nil)
                     if let id = try? await calendarProvider.saveTaskEvent(value) { task.calendarEventID = id; try? context.save() }
                 }
@@ -421,7 +484,12 @@ final class HubViewModel {
             return HubTodayItem(id: task.id, title: task.title, kind: .task, completion: task.isComplete ? 2 : 0, dueAt: dueAt)
         }
         items = (selectedHabits + selectedTasks).sorted {
-            if $0.isComplete != $1.isComplete { return !$0.isComplete }
+            if $0.isComplete != $1.isComplete {
+                #if DEBUG
+                if KoiLaunch.stageEnabled { return $0.isComplete }
+                #endif
+                return !$0.isComplete
+            }
             if $0.kind != $1.kind { return $0.kind == .habit }
             return ($0.dueAt ?? selectedDate) < ($1.dueAt ?? selectedDate)
         }

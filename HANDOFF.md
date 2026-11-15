@@ -21,6 +21,7 @@ what's partial, known issues, and the next step.
 | 11 | Widgets, Live Activity (log set from lock screen), Log-a-meal control | ✅ |
 | 12 | Smart note, readiness, habit coach, trends, supersets, plate drawing, workout import | ✅ |
 | 13 | Analytics, polish pass on every screen, empty states, demo data | ✅ |
+| 14 | Stage pitch demo, deterministic coach steps, local sample Pond | ✅ |
 
 ## Done
 
@@ -709,3 +710,33 @@ what's partial, known issues, and the next step.
   iPhone simulator suite passes 79/79 and the API suite passes 9/9. The
   `CODE_SIGNING_ALLOWED=NO` test invocation cannot launch this App Group app in
   Simulator; running tests with normal simulator signing succeeds.
+
+### Stage pitch demo (2026-11-15)
+
+- Added the DEBUG-only `-koiStage` launch path with a Jasmine day seeded into
+  SwiftData. Balance, streak, and trend are derived from the seeded habits,
+  breakfast, movement, and day history. The initial Hub Balance computes to
+  50%; one of five habits is complete, breakfast has 20 g of protein against a
+  140 g target, and there is no workout logged.
+- Stage mode uses a local five-member sample Pond. Jasmine ranks third; the UI
+  marks it “SAMPLE FRIENDS · LOCAL DEMO” and labels the sample 9 AM class.
+  EventKit is used only when calendar access already exists; no permission
+  prompt is shown. Resetting from Profile reseeds the stage day.
+- Logging a Movement workout posts the Coach event. Stage Coach calls carry the
+  explicit `adjustGoal protein +10` or `addTodo 3-mile run` hint, use a 2.7 s
+  request timeout, validate the action, and fall back to the exact pitch copy
+  and action. Accepting raises only today's protein target; the run is scheduled
+  at 7 AM tomorrow, saved as a non-urgent Important task, and added to Calendar
+  when access is already authorized.
+- The stage UI test selects the protein-bar image from Simulator Photos using
+  the picker image element, then uses the real estimate service. It verifies
+  the meal is saved and Balance rises, checks Jasmine at third place in the
+  sample Pond, and confirms the run inside the Important matrix quadrant. It
+  passed three consecutive iterations. The unit suite passes 80/80, including
+  a live-seed score and single-completed-habit test. A Release simulator build
+  succeeds, and its app binary contains no `-koiStage` launch flag.
+- `demo-api/api/demo-ai.js` now honors the stage Coach hints and exact recovery
+  guidance. The owner must redeploy the separate demo API for this server prompt
+  change; no API deploy was run. Without a configured `KOI_COACH_URL` or if AI
+  times out, the app's deterministic local Coach fallback still completes the
+  pitch.

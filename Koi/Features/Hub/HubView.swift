@@ -11,11 +11,13 @@ struct HubView: View {
     @State private var pondModel: PondViewModel
     let onSelectTab: (KoiTab) -> Void
     let onPresentSmartNote: () -> Void
+    let onResetStageDemo: () -> Void
     let pondService: any PondService
 
-    init(onSelectTab: @escaping (KoiTab) -> Void, onPresentSmartNote: @escaping () -> Void, pondService: any PondService = CloudKitPondService()) {
+    init(onSelectTab: @escaping (KoiTab) -> Void, onPresentSmartNote: @escaping () -> Void, onResetStageDemo: @escaping () -> Void = {}, pondService: any PondService = CloudKitPondService()) {
         self.onSelectTab = onSelectTab
         self.onPresentSmartNote = onPresentSmartNote
+        self.onResetStageDemo = onResetStageDemo
         self.pondService = pondService
         _pondModel = State(initialValue: PondViewModel(service: pondService))
     }
@@ -25,7 +27,7 @@ struct HubView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
                     header.modifier(KoiIntroReveal(order: 0))
-                    if model.isProfileOpen { KoiProfileView(onSelectTab: onSelectTab, onPresentSmartNote: onPresentSmartNote).transition(.opacity) }
+                    if model.isProfileOpen { KoiProfileView(onSelectTab: onSelectTab, onPresentSmartNote: onPresentSmartNote, onResetStageDemo: onResetStageDemo).transition(.opacity) }
                     else if model.isProgressOpen { KoiProgressView().transition(.opacity) }
                     else if model.isPondOpen { PondScreen(model: pondModel, displayName: model.displayName, scores: model.balance).transition(.opacity) }
                     else {
@@ -76,6 +78,15 @@ struct HubView: View {
                 Task { await pondModel.syncDailyScore(model.balance) }
             }
         }
+        .onChange(of: model.isPondOpen) { _, opened in
+            #if DEBUG
+            guard opened, KoiLaunch.stageEnabled else { return }
+            Task {
+                await pondModel.syncDailyScore(model.balance)
+                await model.requestCoach(event: "pond", pondRank: pondModel.rankSummary ?? "3rd of 5 in your pond", using: calendarProvider)
+            }
+            #endif
+        }
         .onReceive(NotificationCenter.default.publisher(for: .koiCoachRequested)) { note in
             model.refresh(using: modelContext)
             let event = note.userInfo?["event"] as? String ?? "morning"
@@ -99,6 +110,9 @@ struct HubView: View {
 
     @MainActor
     private func requestMorningCoachIfNeeded() {
+#if DEBUG
+        guard !KoiLaunch.stageEnabled else { return }
+#endif
         guard (try? modelContext.fetch(FetchDescriptor<KoiOnboardingState>()).first?.isComplete) == true else { return }
         let calendar = Calendar.autoupdatingCurrent
         let day = calendar.startOfDay(for: .now).timeIntervalSince1970
@@ -122,7 +136,7 @@ struct HubView: View {
                 if model.isCoachLoading {
                     Text("Finding one small next step…").font(KoiTheme.body)
                 } else if let suggestion = model.coachSuggestion {
-                    Text(suggestion.message).font(KoiTheme.body).fixedSize(horizontal: false, vertical: true)
+                    Text(suggestion.message).font(KoiTheme.body).fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("stage.coach.message")
                     HStack(spacing: KoiTheme.space.s13) {
                         Button {
                             KoiHaptics.success()
@@ -133,9 +147,9 @@ struct HubView: View {
                                 if action == .addTodo { onSelectTab(.toDo) }
                             }
                         } label: { Text("Accept").font(KoiTheme.caption).padding(.horizontal, 13).padding(.vertical, 7).background(KoiTheme.onBase.opacity(0.18), in: Capsule()) }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.plain).accessibilityIdentifier("stage.coach.accept")
                         Button("Not now") { KoiHaptics.tap(); model.dismissCoach() }
-                            .font(KoiTheme.caption).opacity(0.75).buttonStyle(.plain)
+                            .font(KoiTheme.caption).opacity(0.75).buttonStyle(.plain).accessibilityIdentifier("stage.coach.dismiss")
                     }.padding(.top, 2)
                 }
             }
@@ -292,6 +306,7 @@ struct HubView: View {
             .padding(.trailing, 125)
             .padding(.top, 12)
             .accessibilityLabel("Go to your pond")
+            .accessibilityIdentifier("stage.pond.open")
             if model.selectedDayOffset > 0 {
                 Text(model.dateLabel.uppercased())
                     .font(KoiTheme.section).tracking(2.7)
@@ -447,6 +462,11 @@ private struct PondScreen: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
+            if snapshotNameIsSample {
+                Text("SAMPLE FRIENDS · LOCAL DEMO")
+                    .font(KoiTheme.section).tracking(1.8).opacity(0.78)
+                    .accessibilityIdentifier("stage.pond.sample")
+            }
             if model.isLoading && model.snapshot == nil {
                 Text("Finding your pond…").font(KoiTheme.body).padding(.vertical, KoiTheme.space.s21)
             }
@@ -468,6 +488,8 @@ private struct PondScreen: View {
         .onAppear { Task { await model.load(displayName: displayName, scores: scores) } }
         .animation(KoiTheme.morph, value: model.snapshot?.sprint?.recordName)
     }
+
+    private var snapshotNameIsSample: Bool { model.snapshot?.name == "Sample friends" }
 
     private var usernameSetup: some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
@@ -509,6 +531,11 @@ private struct PondScreen: View {
                     .padding(.top, 4)
             } else {
                 friendEntry
+            }
+            if snapshot.name == "Sample friends" {
+                Text("Sample schedule · Class tomorrow at 9:00 AM")
+                    .font(KoiTheme.caption).opacity(0.72)
+                    .accessibilityIdentifier("stage.pond.sampleSchedule")
             }
             if let sprint = snapshot.sprint {
                 if model.isSprintFinished {
@@ -593,7 +620,9 @@ private struct PondScreen: View {
         return VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: KoiTheme.space.s8) {
                 Text(entry.rank == 1 ? "♛" : "\(entry.rank)").font(.custom("RobotoMono-Regular", size: 13)).frame(width: 20, alignment: .leading)
+                    .accessibilityIdentifier(entry.member.username == "jasmine" ? "stage.pond.rank.jasmine" : "stage.pond.rank.\(entry.rank)")
                 Text(entry.member.displayName).font(.custom("RobotoMono-Regular", size: 14)).lineLimit(1)
+                    .accessibilityIdentifier(entry.member.username == "jasmine" ? "stage.pond.jasmine" : "stage.pond.member.\(entry.member.username)")
                 Spacer()
                 Text("\(Int((entry.score * 100).rounded()))%").font(.custom("RobotoMono-Regular", size: 13)).monospacedDigit()
             }

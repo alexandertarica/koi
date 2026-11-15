@@ -54,6 +54,13 @@ enum KoiTab: Int, CaseIterable, Identifiable {
 }
 
 enum KoiLaunch {
+    static var stageEnabled: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-koiStage")
+        #else
+        false
+        #endif
+    }
     static var tourState: String? {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
@@ -102,11 +109,19 @@ struct KoiRootView: View {
     @State private var didRouteDebugScreen = false
     @State private var launchVisible: Bool = {
         #if DEBUG
-        !ProcessInfo.processInfo.arguments.contains("-koiDemo")
+        !ProcessInfo.processInfo.arguments.contains("-koiDemo") && !ProcessInfo.processInfo.arguments.contains("-koiStage")
         #else
         true
         #endif
     }()
+
+    init() {
+        #if DEBUG
+        _pondService = State(initialValue: KoiLaunch.stageEnabled ? InMemoryPondService.stage() : CloudKitPondService())
+        #else
+        _pondService = State(initialValue: CloudKitPondService())
+        #endif
+    }
 
     var body: some View {
         ZStack {
@@ -128,7 +143,10 @@ struct KoiRootView: View {
         }
         .task {
 #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("-koiDemo") {
+            if KoiLaunch.stageEnabled {
+                pondService = InMemoryPondService.stage()
+                rootRefreshID = UUID()
+            } else if ProcessInfo.processInfo.arguments.contains("-koiDemo") {
                 pondService = InMemoryPondService.demo()
                 rootRefreshID = UUID()
                 if let tourState = KoiLaunch.tourState {
@@ -225,7 +243,23 @@ struct KoiRootView: View {
 
     private var tabContent: some View {
         TabView(selection: $selectedTab) {
-            HubView(onSelectTab: { selectedTab = $0 }, onPresentSmartNote: { presentsSmartNote = true }, pondService: pondService).tag(KoiTab.hub)
+            HubView(
+                onSelectTab: { selectedTab = $0 },
+                onPresentSmartNote: { presentsSmartNote = true },
+                onResetStageDemo: {
+                    #if DEBUG
+                    do {
+                        try KoiDemoSeeder.seedForStageLaunch(modelContext)
+                        pondService = InMemoryPondService.stage()
+                        selectedTab = .hub
+                        rootRefreshID = UUID()
+                    } catch {
+                        Logger(subsystem: "com.alexandertarica.koi", category: "StageDemo").error("Unable to reset stage demo data.")
+                    }
+                    #endif
+                },
+                pondService: pondService
+            ).tag(KoiTab.hub)
             TodoView().tag(KoiTab.toDo)
             MovementView().tag(KoiTab.movement)
             IntakeView(presentsMealComposer: $presentsMealComposer, startsCamera: $startsMealCamera).tag(KoiTab.intake)
@@ -663,6 +697,39 @@ enum KoiDemoSeeder {
             try context.save()
         default: break
         }
+    }
+
+    static func seedForStageLaunch(_ context: ModelContext, calendar: Calendar = .autoupdatingCurrent) throws {
+        try seedForDemoLaunch(context, calendar: calendar)
+        let today = calendar.startOfDay(for: .now)
+        let end = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+        if let profile = try context.fetch(FetchDescriptor<KoiProfile>()).first { profile.name = "Jasmine" }
+        for meal in try context.fetch(FetchDescriptor<KoiFoodEntry>()) where calendar.isDate(meal.loggedAt, inSameDayAs: today) { context.delete(meal) }
+        for task in try context.fetch(FetchDescriptor<KoiTask>()) { context.delete(task) }
+        context.insert(KoiFoodEntry(name: "Light breakfast", loggedAt: calendar.date(bySettingHour: 8, minute: 0, second: 0, of: today) ?? .now, calories: 420, proteinGrams: 20, carbohydrateGrams: 48, fatGrams: 15, fiberGrams: 4, addedSugarGrams: 8, sodiumMilligrams: 450, confidence: 0.9))
+        for day in try context.fetch(FetchDescriptor<KoiMovementDay>()) where calendar.isDate(day.date, inSameDayAs: today) {
+            day.healthSteps = 6_000
+            day.manualStepAdjustment = 0
+            day.healthWorkoutCount = 0
+            day.didManuallyTrain = false
+        }
+        for session in try context.fetch(FetchDescriptor<KoiWorkoutSession>()) where calendar.isDate(session.startedAt, inSameDayAs: today) { context.delete(session) }
+        for session in try context.fetch(FetchDescriptor<KoiCardioSession>()) where calendar.isDate(session.startedAt, inSameDayAs: today) { context.delete(session) }
+        for log in try context.fetch(FetchDescriptor<KoiHabitLog>()) where calendar.isDate(log.date, inSameDayAs: today) { log.completion = 0 }
+        if let habit = try context.fetch(FetchDescriptor<KoiHabit>()).first(where: { $0.title == "Morning walk" }),
+           let log = try context.fetch(FetchDescriptor<KoiHabitLog>()).first(where: { $0.habitID == habit.id && calendar.isDate($0.date, inSameDayAs: today) }) {
+            log.completion = 2
+        }
+        for nutrient in try context.fetch(FetchDescriptor<KoiNutrientEntry>()) where nutrient.dayID == KoiDemoSeeder.dayID(today, calendar: calendar) { context.delete(nutrient) }
+        if let state = try context.fetch(FetchDescriptor<KoiOnboardingState>()).first { state.isComplete = true; state.hasSeenTour = true }
+        DailyGoalAdjustment.clear("protein", on: today, calendar: calendar)
+        StageDemoCalendar.prepare(tomorrow: end, calendar: calendar)
+        try context.save()
+    }
+
+    private static func dayID(_ date: Date, calendar: Calendar) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
     #endif
 

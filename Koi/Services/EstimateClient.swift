@@ -84,6 +84,7 @@ struct KoiCoachContext: Codable, Sendable {
     let totals: [String: Double]
     let pondRank: String?
     let firstCalendarEvent: String?
+    var hint: String? = nil
 }
 
 protocol KoiCoaching: Sendable {
@@ -101,7 +102,7 @@ struct KoiCoachClient: KoiCoaching {
 
     func suggest(context: KoiCoachContext) async throws -> KoiCoachSuggestion {
         guard let url else { throw EstimateClientError.notConfigured }
-        var request = URLRequest(url: url, timeoutInterval: 3.5)
+        var request = URLRequest(url: url, timeoutInterval: 2.7)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(CoachRequest(task: "coach", context: context, deviceId: EstimateClient.deviceIdentifierForCoach))

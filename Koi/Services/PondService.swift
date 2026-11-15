@@ -373,6 +373,30 @@ final class InMemoryPondService: PondService {
         return InMemoryPondService(snapshot: snapshot)
     }
 
+    static func stage(now: Date = .now, calendar: Calendar = .autoupdatingCurrent) -> InMemoryPondService {
+        let members = [
+            PondMember(username: "alex", displayName: "Alex"),
+            PondMember(username: "maya", displayName: "Maya"),
+            PondMember(username: "jasmine", displayName: "Jasmine"),
+            PondMember(username: "riley", displayName: "Riley"),
+            PondMember(username: "sam", displayName: "Sam")
+        ]
+        let start = calendar.date(byAdding: .day, value: -4, to: now) ?? now
+        let sprint = PondSprint(recordName: "sprint-stage", pillars: [.habits, .nutrition, .exercise], startDate: start, endDate: PondEngine.nextThursday(after: now, calendar: calendar), rule: "Losers buy the winner a coffee", createdBy: "jasmine")
+        let averages: [(Double, Double, Double)] = [(0.94, 0.92, 0.90), (0.84, 0.83, 0.82), (0.56, 0.50, 0.50), (0.43, 0.42, 0.40), (0.34, 0.36, 0.32)]
+        var scores: [PondDailyScore] = []
+        for offset in 0...4 {
+            guard let date = calendar.date(byAdding: .day, value: offset - 4, to: now) else { continue }
+            for (index, member) in members.enumerated() {
+                let values = averages[index]
+                let adjustment = Double((offset + index) % 3) * 0.006
+                scores.append(PondDailyScore(username: member.username, date: date, habits: values.0 - adjustment, nutrition: values.1 - adjustment, exercise: values.2 - adjustment, calendar: calendar))
+            }
+        }
+        let snapshot = PondSnapshot(currentUsername: "jasmine", name: "Sample friends", members: members, sprint: sprint, dailyScores: scores)
+        return InMemoryPondService(snapshot: snapshot)
+    }
+
     func usernameIsAvailable(_ username: String) async throws -> Bool {
         guard PondEngine.isValidUsername(username) else { throw PondServiceError.invalidUsername }
         return knownProfiles[username.lowercased()] == nil
