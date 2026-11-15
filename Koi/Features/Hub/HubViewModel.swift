@@ -35,12 +35,54 @@ enum HubPillar: String, CaseIterable, Identifiable {
     }
 }
 
+extension Notification.Name {
+    static let koiCoachRequested = Notification.Name("KoiCoachRequested")
+}
+
+enum DailyGoalAdjustment {
+    static func delta(_ nutrient: String, on date: Date = .now, calendar: Calendar = .autoupdatingCurrent) -> Double {
+        UserDefaults.standard.double(forKey: key("delta", nutrient, date, calendar))
+    }
+
+    static func add(_ amount: Double, to nutrient: String, on date: Date = .now, calendar: Calendar = .autoupdatingCurrent) {
+        UserDefaults.standard.set(delta(nutrient, on: date, calendar: calendar) + amount, forKey: key("delta", nutrient, date, calendar))
+    }
+
+    static func adjustmentNote(on date: Date = .now, calendar: Calendar = .autoupdatingCurrent) -> String? {
+        guard calendar.isDateInToday(date), delta("protein", on: date, calendar: calendar) != 0 else { return nil }
+        return "Adjusted for today's workout"
+    }
+
+    static func holdBalance(_ score: Double, on date: Date = .now, calendar: Calendar = .autoupdatingCurrent) {
+        guard calendar.isDateInToday(date) else { return }
+        let key = key("floor", "balance", date, calendar)
+        UserDefaults.standard.set(max(score, UserDefaults.standard.double(forKey: key)), forKey: key)
+    }
+
+    static func balanceFloor(on date: Date = .now, calendar: Calendar = .autoupdatingCurrent) -> Double {
+        guard calendar.isDateInToday(date) else { return 0 }
+        return UserDefaults.standard.double(forKey: key("floor", "balance", date, calendar))
+    }
+
+    static func clear(_ nutrient: String, on date: Date = .now, calendar: Calendar = .autoupdatingCurrent) {
+        UserDefaults.standard.removeObject(forKey: key("delta", nutrient, date, calendar))
+        UserDefaults.standard.removeObject(forKey: key("floor", "balance", date, calendar))
+    }
+
+    private static func key(_ kind: String, _ nutrient: String, _ date: Date, _ calendar: Calendar) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        let day = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+        return "koi.daily.\(kind).\(day).\(nutrient)"
+    }
+}
+
 @MainActor
 @Observable
 final class HubViewModel {
     private let logger = Logger(subsystem: "com.alexandertarica.koi", category: "Hub")
     private let calendar: Calendar
     private let publishesWidgetSnapshot: Bool
+    private let coachProvider: any KoiCoaching
     private var context: ModelContext?
     private var days: [KoiDay] = []
     private var habits: [KoiHabit] = []
@@ -77,10 +119,15 @@ final class HubViewModel {
     private(set) var workoutsText = "0 of 4"
     private(set) var isProfileOpen = false
     private(set) var isProgressOpen = false
+    private(set) var coachSuggestion: KoiCoachSuggestion?
+    private(set) var isCoachLoading = false
+    private(set) var coachEvent: String?
+    private var coachFirstEvent: CalendarEventSummary?
 
-    init(calendar: Calendar = .autoupdatingCurrent, publishesWidgetSnapshot: Bool = true) {
+    init(calendar: Calendar = .autoupdatingCurrent, publishesWidgetSnapshot: Bool = true, coachProvider: any KoiCoaching = KoiCoachClient()) {
         self.calendar = calendar
         self.publishesWidgetSnapshot = publishesWidgetSnapshot
+        self.coachProvider = coachProvider
         self.selectedDate = calendar.startOfDay(for: .now)
     }
 
@@ -131,6 +178,107 @@ final class HubViewModel {
         }
     }
 
+    func requestCoach(event: String, using calendarProvider: any CalendarProviding) async {
+        guard selectedDayOffset == 0, !isCoachLoading else { return }
+        isCoachLoading = true
+        coachEvent = event
+        if let context {
+            let now = calendar.startOfDay(for: .now)
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? now
+            let firstEvent: CalendarEventSummary?
+            let calendarConnected = (try? context.fetch(FetchDescriptor<KoiOnboardingState>()).first?.calendarConnected) ?? false
+            if calendarConnected,
+               let end = calendar.date(byAdding: .day, value: 1, to: tomorrow),
+               let events = try? await calendarProvider.events(from: tomorrow, to: end) {
+                firstEvent = events.first
+            } else { firstEvent = nil }
+            coachFirstEvent = firstEvent
+            let totals = nutritionTotals(for: .now)
+            let goals = Dictionary(uniqueKeysWithValues: nutrientGoals.filter(\.isActive).map { ($0.key, $0.goal + DailyGoalAdjustment.delta($0.key, on: .now, calendar: calendar)) })
+            let contextValue = KoiCoachContext(
+                event: event,
+                date: Self.dayIdentifier(for: .now, calendar: calendar),
+                scores: ["habits": Int((balance.habits * 100).rounded()), "nutrition": Int((balance.nutrition * 100).rounded()), "exercise": Int((balance.exercise * 100).rounded())],
+                goals: goals,
+                totals: totals,
+                pondRank: nil,
+                firstCalendarEvent: firstEvent.map { "\($0.title) at \($0.start.formatted(date: .omitted, time: .shortened))" }
+            )
+            do {
+                coachSuggestion = try await coachProvider.suggest(context: contextValue)
+            } catch {
+                coachSuggestion = Self.localCoach(event: event, protein: totals["protein"] ?? 0, proteinGoal: goals["protein"] ?? 140, firstEvent: firstEvent)
+            }
+        } else {
+            coachSuggestion = Self.localCoach(event: event, protein: 0, proteinGoal: 140, firstEvent: nil)
+        }
+        isCoachLoading = false
+    }
+
+    func dismissCoach() { coachSuggestion = nil; coachEvent = nil; coachFirstEvent = nil }
+
+    func acceptCoach(using calendarProvider: any CalendarProviding) async {
+        guard let context, let action = coachSuggestion?.action else { dismissCoach(); return }
+        switch action.type {
+        case .none:
+            dismissCoach()
+        case .adjustGoal:
+            let nutrient = action.nutrient ?? "protein"
+            let delta = min(max(action.delta ?? 10, 1), 500)
+            DailyGoalAdjustment.holdBalance(balance.score, on: .now, calendar: calendar)
+            DailyGoalAdjustment.add(delta, to: nutrient, on: .now, calendar: calendar)
+            dismissCoach()
+            refresh(using: context)
+        case .addTodo:
+            guard let title = action.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty else { dismissCoach(); return }
+            let proposedDate = action.dueDate.flatMap(Self.parseCoachDate)
+            let dueDate = Self.planTomorrowSlot(proposed: proposedDate, firstEvent: coachFirstEvent, calendar: calendar)
+            let task = KoiTask(title: title, notes: action.why, dueAt: dueDate, quadrant: 1, timeMinutes: 30, hasTime: true)
+            context.insert(task)
+            do {
+                try context.save()
+                let connected = (try? context.fetch(FetchDescriptor<KoiOnboardingState>()).first?.calendarConnected) ?? false
+                if connected {
+                    let value = CalendarTaskValue(id: task.id, title: task.title, notes: task.notes, start: dueDate, durationMinutes: task.timeMinutes, eventIdentifier: nil)
+                    if let id = try? await calendarProvider.saveTaskEvent(value) { task.calendarEventID = id; try? context.save() }
+                }
+            } catch { logger.error("Unable to save a Coach task.") }
+            dismissCoach()
+            refresh(using: context)
+        }
+    }
+
+    private static func localCoach(event: String, protein: Double, proteinGoal: Double, firstEvent: CalendarEventSummary?) -> KoiCoachSuggestion {
+        if event == "workout", protein < proteinGoal {
+            return KoiCoachSuggestion(message: "Your workout could use a little more protein today.", action: KoiCoachAction(type: .adjustGoal, nutrient: "protein", delta: 10, why: "Support today's training."))
+        }
+        let tomorrow = Calendar.autoupdatingCurrent.date(bySettingHour: 7, minute: 0, second: 0, of: Calendar.autoupdatingCurrent.date(byAdding: .day, value: 1, to: .now) ?? .now) ?? .now
+        let iso = ISO8601DateFormatter().string(from: tomorrow)
+        let beforeEvent = firstEvent.map { " before \($0.title.lowercased())" } ?? ""
+        return KoiCoachSuggestion(message: "A short walk tomorrow\(beforeEvent) could round out your movement.", action: KoiCoachAction(type: .addTodo, nutrient: nil, delta: nil, title: "3-mile run", dueDate: iso, why: firstEvent.map { "Scheduled before \($0.title)." } ?? "Make a little space for movement."))
+    }
+
+    private static func parseCoachDate(_ raw: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        if let date = formatter.date(from: raw) { return date }
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractional.date(from: raw)
+    }
+
+    static func planTomorrowSlot(proposed: Date?, firstEvent: CalendarEventSummary?, calendar: Calendar) -> Date {
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now)) ?? .now
+        let preferred = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: tomorrow) ?? tomorrow
+        guard let event = firstEvent, calendar.isDate(event.start, inSameDayAs: tomorrow) else {
+            if let proposed, calendar.isDate(proposed, inSameDayAs: tomorrow) { return proposed }
+            return preferred
+        }
+        let candidate = proposed.flatMap { calendar.isDate($0, inSameDayAs: tomorrow) ? $0 : nil } ?? preferred
+        let duration: TimeInterval = 30 * 60
+        if candidate < event.start, candidate.addingTimeInterval(duration) <= event.start { return candidate }
+        return event.start.addingTimeInterval(-duration)
+    }
+
     func selectDay(daysAgo: Int) {
         let offset = min(max(daysAgo, 0), 6)
         guard let date = calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: .now)) else { return }
@@ -171,24 +319,29 @@ final class HubViewModel {
 
     func toggle(_ item: HubTodayItem) {
         guard let context else { return }
+        var didComplete = false
         switch item.kind {
         case .task:
             guard let task = tasks.first(where: { $0.id == item.id }) else { return }
             task.isComplete.toggle()
             task.completedAt = task.isComplete ? .now : nil
             task.lastTouchedAt = .now
+            didComplete = task.isComplete
         case .habit:
             guard let habit = habits.first(where: { $0.id == item.id }) else { return }
             let log = logs.first { $0.habitID == habit.id && calendar.isDate($0.date, inSameDayAs: selectedDate) }
             if let log {
                 log.completion = log.completion > 0 ? 0 : 2
+                didComplete = log.completion > 0
             } else {
                 context.insert(KoiHabitLog(habitID: habit.id, date: selectedDate, completion: 2))
+                didComplete = true
             }
         }
         do {
             try context.save()
             refresh(using: context)
+            if didComplete { NotificationCenter.default.post(name: .koiCoachRequested, object: nil, userInfo: ["event": item.kind == .habit ? "habit" : "todo"]) }
         } catch {
             logger.error("Unable to save a Today update.")
         }
@@ -215,8 +368,8 @@ final class HubViewModel {
         let dailyTotals = nutritionTotals(for: selectedDate)
         caloriesText = Int(dailyTotals["calories"] ?? 0).formatted()
         proteinText = Int(dailyTotals["protein"] ?? 0).formatted()
-        caloriesGoalText = Int(nutrientGoals.first(where: { $0.key == "calories" })?.goal ?? 2_200).formatted()
-        proteinGoalText = Int(nutrientGoals.first(where: { $0.key == "protein" })?.goal ?? 140).formatted()
+        caloriesGoalText = Int((nutrientGoals.first(where: { $0.key == "calories" })?.goal ?? 2_200) + DailyGoalAdjustment.delta("calories", on: selectedDate, calendar: calendar)).formatted()
+        proteinGoalText = Int((nutrientGoals.first(where: { $0.key == "protein" })?.goal ?? 140) + DailyGoalAdjustment.delta("protein", on: selectedDate, calendar: calendar)).formatted()
         let movementForDay = movementDays.first { calendar.isDate($0.date, inSameDayAs: selectedDate) }
         stepsText = (movementForDay?.steps ?? 0).formatted()
         stepGoalText = (movementGoal?.stepGoal ?? 8_000).formatted()
@@ -229,9 +382,13 @@ final class HubViewModel {
                 exercise: exerciseScore
             ), focus: selectedFocus
         )
-        balance = ProcessInfo.processInfo.arguments.contains("-koiDemo") && profile?.name == "Maya" && calendar.isDateInToday(selectedDate)
+        let rawBalance = ProcessInfo.processInfo.arguments.contains("-koiDemo") && profile?.name == "Maya" && calendar.isDateInToday(selectedDate)
             ? BalanceEngine.score(pillars: BalancePillars(habits: 0.75, nutrition: 0.64, exercise: 0.93), focus: selectedFocus)
             : liveBalance
+        let floor = DailyGoalAdjustment.balanceFloor(on: selectedDate, calendar: calendar)
+        balance = floor > rawBalance.score
+            ? BalanceResult(score: floor, habits: rawBalance.habits, nutrition: rawBalance.nutrition, exercise: rawBalance.exercise)
+            : rawBalance
 
         let selectedHabits = activeHabits.map { habit in
             let completion = selectedLogs.first(where: { $0.habitID == habit.id })?.completion ?? 0
@@ -368,9 +525,9 @@ final class HubViewModel {
         let dayID = Self.dayIdentifier(for: date, calendar: calendar)
         let adjustments = nutrientEntries.filter { $0.dayID == dayID }.map { NutritionAdjustmentInput(key: $0.nutrientKey, value: $0.value) }
         guard NutritionEngine.hasAnyIntake(meals: meals.map { MealNutritionInput(calories: $0.calories, protein: $0.proteinGrams, carbs: $0.carbohydrateGrams, fat: $0.fatGrams, fiber: $0.fiberGrams, addedSugar: $0.addedSugarGrams, sodium: $0.sodiumMilligrams) }, adjustments: adjustments) else { return nil }
-        let calorieGoal = nutrientGoals.first(where: { $0.key == "calories" })?.goal ?? 2_200
+        let calorieGoal = (nutrientGoals.first(where: { $0.key == "calories" })?.goal ?? 2_200) + DailyGoalAdjustment.delta("calories", on: date, calendar: calendar)
         return NutritionEngine.score(
-            goals: nutrientGoals.filter(\.isActive).map { NutrientGoalInput(key: $0.key, goal: $0.goal, type: NutrientGoalType(rawValue: $0.goalType) ?? .track) },
+            goals: nutrientGoals.filter(\.isActive).map { NutrientGoalInput(key: $0.key, goal: $0.goal + DailyGoalAdjustment.delta($0.key, on: date, calendar: calendar), type: NutrientGoalType(rawValue: $0.goalType) ?? .track) },
             values: totals,
             calories: totals["calories"] ?? 0,
             calorieGoal: calorieGoal,

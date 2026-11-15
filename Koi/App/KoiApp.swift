@@ -79,6 +79,7 @@ enum KoiIntentStore {
         let context = try suppliedContext ?? makeContext()
         context.insert(KoiFoodEntry(name: cleanedName, calories: calories, proteinGrams: protein))
         try context.save()
+        NotificationCenter.default.post(name: .koiCoachRequested, object: nil, userInfo: ["event": "meal"])
     }
 
     static func completeHabit(named phrase: String, allowToggle: Bool = false, context suppliedContext: ModelContext? = nil) throws -> Bool {
@@ -94,12 +95,15 @@ enum KoiIntentStore {
         }) else { return false }
         let day = Calendar.autoupdatingCurrent.startOfDay(for: .now)
         let logs = try context.fetch(FetchDescriptor<KoiHabitLog>())
+        var didComplete = true
         if let log = logs.first(where: { $0.habitID == habit.id && Calendar.autoupdatingCurrent.isDate($0.date, inSameDayAs: day) }) {
             log.completion = allowToggle && log.completion > 0 ? 0 : 2
+            didComplete = log.completion > 0
         } else {
             context.insert(KoiHabitLog(habitID: habit.id, date: day, completion: 2))
         }
         try context.save()
+        if didComplete { NotificationCenter.default.post(name: .koiCoachRequested, object: nil, userInfo: ["event": "habit"]) }
         return true
     }
 
@@ -120,6 +124,7 @@ enum KoiIntentStore {
             context.insert(KoiMovementDay(date: today, didManuallyTrain: true))
         }
         try context.save()
+        NotificationCenter.default.post(name: .koiCoachRequested, object: nil, userInfo: ["event": "workout"])
     }
 }
 

@@ -45,6 +45,16 @@ final class KoiFoundationTests: XCTestCase {
         XCTAssertEqual(decoded.habitsTotal, 1)
     }
 
+    func testCoachResponseDecodesStructuredActionAndSchedule() throws {
+        let json = Data(#"{"message":"A short run could help.","action":{"type":"addTodo","title":"3-mile run","dueDate":"2026-11-15T07:00:00-08:00","why":"Before class."}}"#.utf8)
+        let result = try JSONDecoder().decode(KoiCoachSuggestion.self, from: json)
+
+        XCTAssertEqual(result.action.type, .addTodo)
+        XCTAssertEqual(result.action.title, "3-mile run")
+        XCTAssertEqual(result.action.dueDate, "2026-11-15T07:00:00-08:00")
+        XCTAssertEqual(result.action.why, "Before class.")
+    }
+
     func testDemoSeedBuildsAFullWeekAndLeavesExistingDataAlone() throws {
         let container = try KoiSchema.makeContainer(inMemory: true)
         let context = ModelContext(container)

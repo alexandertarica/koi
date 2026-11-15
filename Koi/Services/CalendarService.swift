@@ -19,18 +19,26 @@ struct ReminderTaskValue: Sendable {
     let reminderIdentifier: String?
 }
 
+struct CalendarEventSummary: Sendable {
+    let title: String
+    let start: Date
+    let end: Date
+}
+
 @MainActor
 protocol CalendarProviding: Sendable {
     var isAvailable: Bool { get }
     func requestAccess() async throws
     func saveTaskEvent(_ task: CalendarTaskValue) async throws -> String
     func deleteTaskEvent(identifier: String) async throws
+    func events(from start: Date, to end: Date) async throws -> [CalendarEventSummary]
     func requestReminderAccess() async throws
     func saveTaskReminder(_ task: ReminderTaskValue) async throws -> String
     func deleteTaskReminder(identifier: String) async throws
 }
 
 extension CalendarProviding {
+    func events(from start: Date, to end: Date) async throws -> [CalendarEventSummary] { [] }
     func requestReminderAccess() async throws { throw CalendarServiceError.unavailable }
     func saveTaskReminder(_ task: ReminderTaskValue) async throws -> String { throw CalendarServiceError.unavailable }
     func deleteTaskReminder(identifier: String) async throws {}
@@ -82,6 +90,15 @@ final class CalendarService: CalendarProviding {
         try await requestAccess()
         guard let event = store.event(withIdentifier: identifier) else { return }
         try store.remove(event, span: .thisEvent, commit: true)
+    }
+
+    func events(from start: Date, to end: Date) async throws -> [CalendarEventSummary] {
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return [] }
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        return store.events(matching: predicate)
+            .filter { !$0.isAllDay }
+            .sorted { $0.startDate < $1.startDate }
+            .map { CalendarEventSummary(title: $0.title ?? "Event", start: $0.startDate, end: $0.endDate) }
     }
 
     func requestReminderAccess() async throws {

@@ -6,6 +6,7 @@ struct HubView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.analyticsProvider) private var analyticsProvider
+    @Environment(\.calendarProvider) private var calendarProvider
     @State private var model = HubViewModel()
     let onSelectTab: (KoiTab) -> Void
     let onPresentSmartNote: () -> Void
@@ -19,6 +20,7 @@ struct HubView: View {
                     else if model.isProgressOpen { KoiProgressView().transition(.opacity) }
                     else {
                         hero.modifier(KoiIntroReveal(order: 2))
+                        coachCard
                         todaySection.modifier(KoiIntroReveal(order: 5))
                     }
                 }
@@ -31,6 +33,7 @@ struct HubView: View {
         }
         .onAppear {
             model.refresh(using: modelContext)
+            requestMorningCoachIfNeeded()
             #if DEBUG
             if let panel = KoiLaunch.screen ?? launchPanelArgument {
                 switch panel.lowercased() {
@@ -42,7 +45,15 @@ struct HubView: View {
             #endif
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { model.refresh(using: modelContext) }
+            if phase == .active {
+                model.refresh(using: modelContext)
+                requestMorningCoachIfNeeded()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .koiCoachRequested)) { note in
+            model.refresh(using: modelContext)
+            let event = note.userInfo?["event"] as? String ?? "morning"
+            Task { await model.requestCoach(event: event, using: calendarProvider) }
         }
         .animation(KoiTheme.morph, value: model.isProfileOpen)
         .animation(KoiTheme.morph, value: model.isProgressOpen)
@@ -55,6 +66,55 @@ struct HubView: View {
         return arguments[marker + 1]
     }
     #endif
+
+    @MainActor
+    private func requestMorningCoachIfNeeded() {
+        guard (try? modelContext.fetch(FetchDescriptor<KoiOnboardingState>()).first?.isComplete) == true else { return }
+        let calendar = Calendar.autoupdatingCurrent
+        let day = calendar.startOfDay(for: .now).timeIntervalSince1970
+        let key = "koi.coach.morning.presentedDay"
+        guard UserDefaults.standard.double(forKey: key) != day else { return }
+        UserDefaults.standard.set(day, forKey: key)
+        Task { await model.requestCoach(event: "morning", using: calendarProvider) }
+    }
+
+    @ViewBuilder
+    private var coachCard: some View {
+        if model.isCoachLoading || model.coachSuggestion != nil {
+            VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
+                HStack(spacing: KoiTheme.space.s5) {
+                    Image(systemName: "sparkles").font(.system(size: 12))
+                    Text("KOI COACH").font(KoiTheme.section).tracking(2)
+                }.opacity(0.78)
+                if model.isCoachLoading {
+                    Text("Finding one small next step…").font(KoiTheme.body)
+                } else if let suggestion = model.coachSuggestion {
+                    Text(suggestion.message).font(KoiTheme.body).fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: KoiTheme.space.s13) {
+                        Button {
+                            KoiHaptics.success()
+                            let action = suggestion.action.type
+                            Task {
+                                await model.acceptCoach(using: calendarProvider)
+                                if action == .adjustGoal { onSelectTab(.intake) }
+                                if action == .addTodo { onSelectTab(.toDo) }
+                            }
+                        } label: { Text("Accept").font(KoiTheme.caption).padding(.horizontal, 13).padding(.vertical, 7).background(KoiTheme.onBase.opacity(0.18), in: Capsule()) }
+                            .buttonStyle(.plain)
+                        Button("Not now") { KoiHaptics.tap(); model.dismissCoach() }
+                            .font(KoiTheme.caption).opacity(0.75).buttonStyle(.plain)
+                    }.padding(.top, 2)
+                }
+            }
+            .foregroundStyle(KoiTheme.onBase)
+            .padding(.horizontal, KoiTheme.space.s13)
+            .padding(.vertical, KoiTheme.space.s13)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.ultraThinMaterial.opacity(0.28), in: RoundedRectangle(cornerRadius: 17))
+            .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(KoiTheme.onBase.opacity(0.19), lineWidth: 1))
+            .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+    }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {

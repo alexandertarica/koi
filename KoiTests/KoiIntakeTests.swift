@@ -71,4 +71,110 @@ final class KoiIntakeTests: XCTestCase {
         hub.refresh(using: context)
         XCTAssertEqual(hub.balance.nutrition, 0.75, accuracy: 0.0001)
     }
+
+    func testCoachProteinTargetIsTodayOnlyAndVisibleInIntake() throws {
+        DailyGoalAdjustment.clear("protein")
+        defer { DailyGoalAdjustment.clear("protein") }
+        DailyGoalAdjustment.holdBalance(0.62)
+        DailyGoalAdjustment.add(10, to: "protein")
+
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let intake = IntakeViewModel()
+        intake.load(context)
+
+        XCTAssertEqual(intake.nutrientRows.first(where: { $0.key == "protein" })?.goal, 150)
+        XCTAssertEqual(intake.adjustmentNote, "Adjusted for today's workout")
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiNutrientGoal>()).first(where: { $0.key == "protein" })?.goal, 140)
+    }
+
+    func testCoachSchedulesBeforeFirstTomorrowCalendarEvent() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .autoupdatingCurrent
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now))!
+        let classTime = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: tomorrow)!
+        let event = CalendarEventSummary(title: "Class", start: classTime, end: classTime.addingTimeInterval(3_600))
+        let planned = HubViewModel.planTomorrowSlot(proposed: nil, firstEvent: event, calendar: calendar)
+
+        XCTAssertEqual(calendar.component(.hour, from: planned), 7)
+        XCTAssertLessThanOrEqual(planned.addingTimeInterval(30 * 60), classTime)
+    }
+
+    func testAcceptingCoachGoalActionLeavesBalanceAndRecurringGoalAlone() async throws {
+        DailyGoalAdjustment.clear("protein")
+        defer { DailyGoalAdjustment.clear("protein") }
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        context.insert(KoiDay(date: .now, balance: 0.75, habitsScore: 0.75, nutritionScore: 0.75, exerciseScore: 0.75))
+        try context.save()
+        let suggestion = KoiCoachSuggestion(message: "Add a little protein today.", action: KoiCoachAction(type: .adjustGoal, nutrient: "protein", delta: 10, why: "Support training."))
+        let model = HubViewModel(publishesWidgetSnapshot: false, coachProvider: FixedCoachProvider(suggestion: suggestion))
+        model.refresh(using: context)
+        await model.requestCoach(event: "workout", using: FakeCoachCalendar())
+        await model.acceptCoach(using: FakeCoachCalendar())
+
+        let intake = IntakeViewModel()
+        intake.load(context)
+        XCTAssertEqual(model.balance.score, 0.75, accuracy: 0.0001)
+        XCTAssertEqual(intake.nutrientRows.first(where: { $0.key == "protein" })?.goal, 150)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<KoiNutrientGoal>()).first(where: { $0.key == "protein" })?.goal, 140)
+    }
+
+    func testAcceptingCoachTaskCreatesCalendarLinkedToDoBeforeClass() async throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        context.insert(KoiOnboardingState(isComplete: true, calendarConnected: true))
+        try context.save()
+        let calendar = Calendar.autoupdatingCurrent
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now))!
+        let classStart = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: tomorrow)!
+        let provider = FakeCoachCalendar(events: [CalendarEventSummary(title: "Class", start: classStart, end: classStart.addingTimeInterval(3_600))])
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = calendar.timeZone
+        let afterClass = calendar.date(bySettingHour: 10, minute: 0, second: 0, of: tomorrow)!
+        let suggestion = KoiCoachSuggestion(message: "A run before class could help.", action: KoiCoachAction(type: .addTodo, title: "3-mile run", dueDate: formatter.string(from: afterClass), why: "Before class."))
+        let model = HubViewModel(publishesWidgetSnapshot: false, coachProvider: FixedCoachProvider(suggestion: suggestion))
+        model.refresh(using: context)
+        await model.requestCoach(event: "meal", using: provider)
+        await model.acceptCoach(using: provider)
+
+        let task = try XCTUnwrap(context.fetch(FetchDescriptor<KoiTask>()).first)
+        XCTAssertEqual(task.title, "3-mile run")
+        XCTAssertEqual(task.dueAt, classStart.addingTimeInterval(-1_800))
+        XCTAssertTrue(task.hasTime)
+        XCTAssertEqual(task.calendarEventID, "event-id")
+    }
+
+    func testOfflineCoachFallsBackToTrainingProteinRule() async throws {
+        let container = try KoiSchema.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let model = HubViewModel(publishesWidgetSnapshot: false, coachProvider: OfflineCoachProvider())
+        model.refresh(using: context)
+
+        await model.requestCoach(event: "workout", using: FakeCoachCalendar())
+
+        XCTAssertEqual(model.coachSuggestion?.action.type, .adjustGoal)
+        XCTAssertEqual(model.coachSuggestion?.action.nutrient, "protein")
+        XCTAssertEqual(model.coachSuggestion?.action.delta, 10)
+    }
+}
+
+private struct FixedCoachProvider: KoiCoaching {
+    let suggestion: KoiCoachSuggestion
+    func suggest(context: KoiCoachContext) async throws -> KoiCoachSuggestion { suggestion }
+}
+
+private struct OfflineCoachProvider: KoiCoaching {
+    func suggest(context: KoiCoachContext) async throws -> KoiCoachSuggestion { throw EstimateClientError.connection }
+}
+
+@MainActor
+private final class FakeCoachCalendar: CalendarProviding {
+    private let availableEvents: [CalendarEventSummary]
+    init(events: [CalendarEventSummary] = []) { availableEvents = events }
+    var isAvailable: Bool { true }
+    func requestAccess() async throws {}
+    func saveTaskEvent(_ task: CalendarTaskValue) async throws -> String { "event-id" }
+    func deleteTaskEvent(identifier: String) async throws {}
+    func events(from start: Date, to end: Date) async throws -> [CalendarEventSummary] { availableEvents }
 }

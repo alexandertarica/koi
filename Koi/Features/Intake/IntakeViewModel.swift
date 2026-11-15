@@ -43,12 +43,13 @@ final class IntakeViewModel {
     var activeGoals: [KoiNutrientGoal] { goals.filter(\.isActive).sorted(by: Self.sortGoals) }
     var activeSupplements: [KoiSupplement] { supplements.filter(\.isActive).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending } }
     var calories: Double { totals["calories"] ?? 0 }
-    var calorieGoal: Double { activeGoals.first(where: { $0.key == "calories" })?.goal ?? 2_200 }
+    var calorieGoal: Double { effectiveGoal("calories") }
+    var adjustmentNote: String? { DailyGoalAdjustment.adjustmentNote(on: selectedDate, calendar: calendar) }
     var mealCount: Int { meals.count }
     var hasAnyIntake: Bool { NutritionEngine.hasAnyIntake(meals: mealInputs, adjustments: adjustmentInputs) }
     var score: NutritionScore {
         NutritionEngine.score(
-            goals: activeGoals.map { NutrientGoalInput(key: $0.key, goal: $0.goal, type: NutrientGoalType(rawValue: $0.goalType) ?? .track) },
+            goals: activeGoals.map { NutrientGoalInput(key: $0.key, goal: effectiveGoal($0.key), type: NutrientGoalType(rawValue: $0.goalType) ?? .track) },
             values: totals,
             calories: calories,
             calorieGoal: calorieGoal,
@@ -61,13 +62,17 @@ final class IntakeViewModel {
                 key: goal.key,
                 name: goal.name,
                 unit: goal.unit,
-                goal: goal.goal,
+                goal: effectiveGoal(goal.key),
                 step: goal.step,
                 goalType: NutrientGoalType(rawValue: goal.goalType) ?? .track,
                 value: totals[goal.key] ?? 0,
                 contribution: score.contributions[goal.key]
             )
         }
+    }
+
+    private func effectiveGoal(_ key: String) -> Double {
+        (activeGoals.first(where: { $0.key == key })?.goal ?? (key == "calories" ? 2_200 : 0)) + DailyGoalAdjustment.delta(key, on: selectedDate, calendar: calendar)
     }
 
     func load(_ context: ModelContext) {
@@ -216,6 +221,7 @@ final class IntakeViewModel {
         context.insert(meal)
         guard saveAndReload(context) else { context.delete(meal); return nil }
         clearEstimate()
+        NotificationCenter.default.post(name: .koiCoachRequested, object: nil, userInfo: ["event": "meal"])
         return meal
     }
 

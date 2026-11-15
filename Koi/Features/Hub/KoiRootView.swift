@@ -141,7 +141,9 @@ struct KoiRootView: View {
                 if state?.isComplete != true {
                     if try await backupProvider.hasBackup() { isRestoreOfferPresented = true }
                     else { isOnboardingPresented = true }
-                } else { showTourOffer = !(state?.hasSeenTour ?? true) && firstLoggedItemCount == 0 }
+                } else {
+                    showTourOffer = !(state?.hasSeenTour ?? true) && firstLoggedItemCount == 0
+                }
             } catch {
                 isOnboardingPresented = true
             }
@@ -256,9 +258,12 @@ struct KoiRootView: View {
 
     @MainActor
     private func handleScenePhase(_ phase: ScenePhase) {
-        if phase == .active { Task { await notificationProvider.refreshPlan(using: modelContext) } }
+        if phase == .active {
+            Task { await notificationProvider.refreshPlan(using: modelContext) }
+        }
         if phase == .background { Task { await createAutomaticBackup() } }
     }
+
 
     @MainActor
     private func createAutomaticBackup() async {
@@ -502,6 +507,7 @@ private struct SmartNoteSheet: View {
         isSaving = true
         defer { isSaving = false }
         do {
+            var coachEvent: String?
             if !noteIsPersisted {
                 context.insert(KoiQuickNote(text: text, action: action.map(actionKind) ?? "reflection"))
                 try context.save()
@@ -513,6 +519,7 @@ private struct SmartNoteSheet: View {
                 let estimate = try await estimator.estimate(text: description, jpegData: nil)
                 context.insert(KoiFoodEntry(name: estimate.description, calories: estimate.calories, proteinGrams: estimate.proteinGrams, carbohydrateGrams: estimate.carbohydrateGrams, fatGrams: estimate.fatGrams, fiberGrams: estimate.fiberGrams, addedSugarGrams: estimate.addedSugarGrams, sodiumMilligrams: estimate.sodiumMilligrams, confidence: estimate.confidence))
                 confirmation = "Meal added."
+                coachEvent = "meal"
             case .water(let ounces):
                 let date = Date.now
                 let entries = try context.fetch(FetchDescriptor<KoiNutrientEntry>())
@@ -530,6 +537,7 @@ private struct SmartNoteSheet: View {
                 if let log = logs.first(where: { $0.habitID == habit.id && Calendar.current.isDate($0.date, inSameDayAs: day) }) { log.completion = 2 }
                 else { context.insert(KoiHabitLog(habitID: habit.id, date: day, completion: 2)) }
                 confirmation = "\(habit.title) checked off."
+                coachEvent = "habit"
             case .task(let title, let dueAt):
                 context.insert(KoiTask(title: title, dueAt: dueAt, quadrant: 1))
                 confirmation = "To-do added."
@@ -543,6 +551,7 @@ private struct SmartNoteSheet: View {
                 let day = try context.fetch(FetchDescriptor<KoiMovementDay>()).first(where: { Calendar.current.isDate($0.date, inSameDayAs: .now) })
                 if let day { day.didManuallyTrain = true } else { context.insert(KoiMovementDay(date: .now, didManuallyTrain: true)) }
                 confirmation = "Workout added."
+                coachEvent = "workout"
             case .planLift(let name):
                 let routine = KoiWorkoutRoutine(name: "Today", muscleGroup: WorkoutNameRules.guessGroup(name), plannedAt: Calendar.current.startOfDay(for: .now))
                 context.insert(routine)
@@ -553,6 +562,7 @@ private struct SmartNoteSheet: View {
             try context.save()
             analyticsProvider.signal("Note.saved")
             isSaved = true
+            if let coachEvent { NotificationCenter.default.post(name: .koiCoachRequested, object: nil, userInfo: ["event": coachEvent]) }
         } catch let error as LocalizedError {
             self.error = error.errorDescription ?? "Couldn't save that note. Try again."
         } catch { self.error = "Couldn't save that note. Try again." }

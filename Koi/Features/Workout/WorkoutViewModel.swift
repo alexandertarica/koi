@@ -465,6 +465,7 @@ final class WorkoutViewModel {
         completionSummary = summary
         persist()
         endLiveActivity(sessionID: sessionID)
+        NotificationCenter.default.post(name: .koiCoachRequested, object: nil, userInfo: ["event": "workout"])
         return summary
     }
 

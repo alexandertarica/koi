@@ -469,8 +469,24 @@ what's partial, known issues, and the next step.
   context and returns a short message with one validated `adjustGoal`, `addTodo`,
   or `none` action. The deployed API project will need a redeploy to expose this
   new task; no deployment was run.
-- The iPhone Coach implementation is in progress. The app reads its endpoint
-  from `KOI_COACH_URL` in private configuration, calls the AI with a short
-  timeout, and uses local rules if the request is unavailable. Daily target and
-  UI work is being built and has not yet passed the full test suite.
+- The iPhone now requests one suggestion after saved meals (including Smart Note
+  and App Intent paths), completed workouts, completed habits, and the first Hub
+  open each day. Its compact request includes today's pillar scores, goals,
+  totals, the latest event, and tomorrow's first Calendar event when access is
+  already connected. `KOI_COACH_URL` is read from private `Secrets.plist`; an
+  unavailable or slow endpoint falls back to local coaching rules.
+- Accepting a protein action raises only today's displayed target, adds the
+  “Adjusted for today's workout” note, and holds the pre-acceptance Balance as
+  a floor for the day. Profile's recurring target remains unchanged. Accepting
+  a task action creates a dated 30-minute To-Do and syncs it to Calendar when
+  Calendar is enabled. Scheduling picks a free morning slot before the first
+  event when one exists.
+- The Hub coach card, response decoding, offline fallback, today-only target,
+  Balance protection, Calendar scheduling and task persistence are covered by
+  the serial iPhone 17 Pro simulator suite: 73 tests pass. A screenshot confirms
+  the suggestion renders on Hub. AI responses from the new endpoint remain
+  unavailable until the separate project is redeployed; no deployment was run.
+- Next: finish Koi Pond, confirm the photo-library estimate path after the
+  composer update, then mirror the completed Coach/Pond flow into the browser
+  guided demo and exercise it on GitHub Pages.
 

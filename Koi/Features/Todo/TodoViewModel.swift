@@ -325,14 +325,18 @@ final class TodoViewModel {
     func toggleHabit(_ habit: KoiHabit, minimum: Bool = false) {
         guard let context else { return }
         let today = calendar.startOfDay(for: .now)
+        var didComplete = false
         if let log = logs.first(where: { $0.habitID == habit.id && calendar.isDate($0.date, inSameDayAs: today) }) {
             log.completion = log.completion > 0 ? 0 : (minimum ? 1 : 2)
+            didComplete = log.completion > 0
         } else {
             let log = KoiHabitLog(habitID: habit.id, date: today, completion: minimum ? 1 : 2)
             context.insert(log)
             logs.append(log)
+            didComplete = true
         }
         persist()
+        if didComplete { NotificationCenter.default.post(name: .koiCoachRequested, object: nil, userInfo: ["event": "habit"] ) }
     }
 
     func deleteTask(_ task: KoiTask) {

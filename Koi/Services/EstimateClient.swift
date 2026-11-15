@@ -60,6 +60,70 @@ protocol WorkoutImporting: Sendable {
     func importWorkout(text: String?, jpegData: Data?) async throws -> [ImportedRoutine]
 }
 
+struct KoiCoachAction: Codable, Equatable, Sendable {
+    enum ActionType: String, Codable, Sendable { case adjustGoal, addTodo, none }
+    let type: ActionType
+    var nutrient: String?
+    var delta: Double?
+    var title: String?
+    var dueDate: String?
+    var why: String
+}
+
+struct KoiCoachSuggestion: Codable, Equatable, Sendable {
+    let message: String
+    let action: KoiCoachAction
+}
+
+struct KoiCoachContext: Codable, Sendable {
+    let event: String
+    let date: String
+    let scores: [String: Int]
+    let goals: [String: Double]
+    let totals: [String: Double]
+    let pondRank: String?
+    let firstCalendarEvent: String?
+}
+
+protocol KoiCoaching: Sendable {
+    func suggest(context: KoiCoachContext) async throws -> KoiCoachSuggestion
+}
+
+struct KoiCoachClient: KoiCoaching {
+    private let session: URLSession
+    private let url: URL?
+
+    init(session: URLSession = .shared, url: URL? = Self.loadURL()) {
+        self.session = session
+        self.url = url
+    }
+
+    func suggest(context: KoiCoachContext) async throws -> KoiCoachSuggestion {
+        guard let url else { throw EstimateClientError.notConfigured }
+        var request = URLRequest(url: url, timeoutInterval: 3.5)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(CoachRequest(task: "coach", context: context, deviceId: EstimateClient.deviceIdentifierForCoach))
+        let (data, response) = try await session.data(for: request)
+        guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else { throw EstimateClientError.serverUnavailable }
+        return try JSONDecoder().decode(KoiCoachSuggestion.self, from: data)
+    }
+
+    private static func loadURL() -> URL? {
+        guard let resource = Bundle.main.url(forResource: "Secrets", withExtension: "plist"),
+              let data = try? Data(contentsOf: resource),
+              let values = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: String],
+              let raw = values["KOI_COACH_URL"], let parsed = URL(string: raw), parsed.scheme == "https" else { return nil }
+        return parsed
+    }
+}
+
+private struct CoachRequest: Encodable {
+    let task: String
+    let context: KoiCoachContext
+    let deviceId: String
+}
+
 struct EstimateClient: FoodEstimating, WorkoutImporting {
     private let logger = Logger(subsystem: "com.alexandertarica.koi", category: "Estimate")
     private let session: URLSession
@@ -176,6 +240,8 @@ struct EstimateClient: FoodEstimating, WorkoutImporting {
         UserDefaults.standard.set(created, forKey: key)
         return created
     }
+
+    static var deviceIdentifierForCoach: String { deviceIdentifier() }
 }
 
 private struct EstimateRequest: Encodable {

@@ -36,6 +36,9 @@ struct IntakeView: View {
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 } else {
                     calorieCard.modifier(KoiIntroReveal(order: 1))
+                    if let note = model.adjustmentNote {
+                        Text(note).font(KoiTheme.caption).opacity(0.78).padding(.horizontal, KoiTheme.space.s8)
+                    }
                     nutrientsSection.modifier(KoiIntroReveal(order: 2))
                     supplementsSection.modifier(KoiIntroReveal(order: 3))
                     mealSection.modifier(KoiIntroReveal(order: 4))

@@ -143,6 +143,7 @@ final class CardioViewModel {
         context.insert(session)
         markTrainingDay(session.startedAt, context: context)
         saveAndReload(context)
+        NotificationCenter.default.post(name: .koiCoachRequested, object: nil, userInfo: ["event": "workout"])
     }
 
     func setTreadmillDistance(miles: Double) {
@@ -166,6 +167,7 @@ final class CardioViewModel {
         markTrainingDay(session.startedAt, context: context)
         saveAndReload(context)
         tracker?.reset()
+        NotificationCenter.default.post(name: .koiCoachRequested, object: nil, userInfo: ["event": "workout"])
     }
 
     func discardActiveSession() {
