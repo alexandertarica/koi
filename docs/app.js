@@ -19,8 +19,6 @@ const initialState = () => ({
   guidedStartBalance: 0,
   name: "",
   focus: "balanced",
-  health: false,
-  calendar: false,
   tab: "Hub",
   tourVisible: true,
   showAllToday: false,
@@ -238,7 +236,7 @@ function renderHeader() {
 const privacyNote = "Student project built at the Cal Poly hackathon. We only keep your first name and answers (plus email if you add it).";
 
 function renderRespondentStart() {
-  return `<section class="onboarding-view respondent-view"><p class="step-label">YOUR THOUGHTS</p><h1 class="welcome-title">Your first name</h1><p class="view-note">Your answers help us make Koi better.</p><form id="respondent-name-form"><label class="respondent-name-label" for="respondent-first-name">FIRST NAME</label><input class="name-field" id="respondent-first-name" name="firstName" maxlength="40" autocomplete="given-name" required placeholder="First name"><button class="primary-button" type="submit">Continue</button></form><button class="quiet-link skip-questions-link" type="button" data-action="back-to-koi">Back to Koi</button><p class="privacy-note">${privacyNote}</p></section>`;
+  return `<section class="onboarding-view respondent-view"><p class="step-label">QUICK FEEDBACK</p><h1 class="welcome-title">Your first name</h1><p class="view-note">Your answers help us make Koi better.</p><form id="respondent-name-form"><label class="respondent-name-label" for="respondent-first-name">FIRST NAME</label><input class="name-field" id="respondent-first-name" name="firstName" maxlength="40" autocomplete="given-name" required placeholder="First name"><button class="primary-button" type="submit">Continue</button></form><button class="quiet-link skip-questions-link" type="button" data-action="back-to-koi">Back to Koi</button><p class="privacy-note">${privacyNote}</p></section>`;
 }
 
 function renderFeedbackForm() {
@@ -248,61 +246,6 @@ function renderFeedbackForm() {
 
 function renderThanks() {
   return `<section class="onboarding-view respondent-view thanks-view"><div><p class="step-label">RECEIVED</p><h1 class="step-heading">Thanks, ${safe(respondent.firstName)}!</h1><p class="view-note">Your note helps shape what Koi becomes.</p></div><div class="onboarding-spacer"></div><button class="primary-button" type="button" data-action="next-person">Next person</button></section>`;
-}
-
-function renderWelcome() {
-  return `<section class="onboarding-view">
-    <p class="step-label">1 of 3</p>
-    <h1 class="welcome-title">One score for your habits, food and movement.</h1>
-    <ul class="feature-list">
-      <li class="feature-row"><span class="feature-icon">${icons.day}</span><span>See your day at a glance</span></li>
-      <li class="feature-row"><span class="feature-icon">${icons.camera}</span><span>Log food with a photo or a sentence</span></li>
-      <li class="feature-row"><span class="feature-icon">${icons.next}</span><span>Know what to do next</span></li>
-    </ul>
-    <input class="name-field" id="first-name" maxlength="28" autocomplete="given-name" placeholder="First name (optional)" aria-label="First name (optional)" value="${safe(state.name)}">
-    <button class="quiet-link" type="button" data-action="skip-setup">Skip setup, use the defaults</button>
-    <button class="quiet-link guided-entry" type="button" data-action="start-guided">Try the guided demo</button>
-    <div class="onboarding-spacer"></div>
-    <button class="primary-button" type="button" data-action="next-connect">Next</button>
-  </section>`;
-}
-
-function renderConnect() {
-  const row = (key, symbol, title, detail, checked) => `<div class="connect-row">
-    <span class="connect-icon" aria-hidden="true">${symbol}</span>
-    <span class="connect-copy"><strong>${title}</strong><small>${detail}</small></span>
-    <button class="switch" type="button" role="switch" aria-checked="${checked}" aria-label="${title}" data-action="toggle-${key}"></button>
-  </div>`;
-  return `<section class="onboarding-view">
-    <p class="step-label">2 of 3</p>
-    <h1 class="step-heading">Bring the useful parts of your day together.</h1>
-    <div class="connect-list">
-      ${row("health", "♡", "Apple Health", "Steps, workouts and sleep", state.health)}
-      ${row("calendar", "▦", "Calendar", "To-dos and plans", state.calendar)}
-    </div>
-    <p class="optional-note">Both are optional. You can connect them later in Profile.</p>
-    <p class="demo-permissions-note">This browser preview does not request Health or Calendar access.</p>
-    <div class="onboarding-spacer"></div>
-    <button class="primary-button" type="button" data-action="next-focus">Next</button>
-  </section>`;
-}
-
-const focusOptions = [
-  ["balanced", "Balanced", "All three count equally"],
-  ["habits", "Habits", "Give habits a little more weight"],
-  ["nutrition", "Nutrition", "Give nutrition a little more weight"],
-  ["exercise", "Exercise", "Give movement a little more weight"],
-];
-
-function renderFocus() {
-  return `<section class="onboarding-view">
-    <p class="step-label">3 of 3</p>
-    <h1 class="step-heading">Choose what matters most.</h1>
-    <p class="view-note">You can change this in Profile.</p>
-    <div class="focus-list">${focusOptions.map(([value, title, detail]) => `<button type="button" class="focus-choice" aria-pressed="${state.focus === value}" data-action="select-focus" data-value="${value}"><span><strong>${title}</strong><small>${detail}</small></span><i class="focus-dot"></i></button>`).join("")}</div>
-    <div class="onboarding-spacer"></div>
-    <button class="primary-button" type="button" data-action="start-demo">Start</button>
-  </section>`;
 }
 
 function renderHub() {
@@ -353,7 +296,7 @@ function renderMovement() {
   const routine = state.planResult ? `<div class="result-card"><p class="small-label">PLAN READY</p><h2 class="view-heading">${safe(state.planResult.name)}</h2>${state.planResult.exercises.map((item) => `<div class="nutrient-line"><span>${safe(item.name)}</span><span>${item.sets} × ${item.reps}</span></div>`).join("")}</div>` : "";
   const workoutCount = state.didTrain ? 1 : 0;
   const stepPercent = Math.min(state.steps / 8000 * 100, 100);
-  return `<div class="app-mode"><div class="tab-title-row"><div><h1 class="view-heading">Movement.</h1><p class="view-note">Small steps count.</p></div><button class="header-icon" type="button" data-action="profile" aria-label="Open profile">${icons.user}</button></div>
+  return `<div class="app-mode"><div class="tab-title-row"><div><h1 class="view-heading">Movement.</h1><p class="view-note">Small steps count.</p></div></div>
     <div class="movement-layout">${renderDial({value:stepPercent,kind:"movement",bars:[{name:"STEPS",value:stepPercent,weight:.72},{name:"WORKOUTS",value:workoutCount?100:0,weight:.54}],labels:true,logged:workoutCount})}<div class="movement-score"><strong>${state.steps.toLocaleString()}</strong><span>STEPS</span><small>of 8,000</small></div><button class="movement-log" type="button" data-action="toggle-workout"><span class="log-circle">${workoutCount ? "✓" : "LOG"}</span><span>${workoutCount ? "1 logged" : "Log workout"}</span></button></div>
     <div class="movement-stats"><div><strong>${workoutCount}</strong><span>WORKOUTS · 7 DAYS</span></div><div><strong>${Math.round(state.steps / 1000 * 10) / 10}k</strong><span>AVG STEPS</span></div><div><strong>${state.steps ? state.steps.toLocaleString() : "—"}</strong><span>BEST DAY</span></div></div>
     <div class="quick-add-row"><button class="glass-chip" type="button" data-action="steps" data-delta="-500">− 500</button><button class="glass-chip" type="button" data-action="steps" data-delta="500">+ 500 steps</button></div>
@@ -379,7 +322,7 @@ function renderIntake() {
   const mealRows = state.meals.map((meal) => `<div class="nutrient-line"><span>${safe(meal.description)}</span><span>${Math.round(meal.calories)} kcal</span></div>`).join("");
   const kcalPct = Math.min(totals.calories / 2200 * 100, 100);
   const nutrients = [["Protein",totals.protein,state.proteinGoalToday,"g"],["Carbs",totals.carbs,250,"g"],["Fat",totals.fat,70,"g"],["Fiber",totals.fiber,30,"g"],["Added sugar",totals.sugar,36,"g"],["Sodium",totals.sodium,2300,"mg"]];
-  return `<div class="app-mode"><div class="tab-title-row"><div><h1 class="view-heading">Intake.</h1><p class="view-note">A steady picture of the day.</p></div><button class="header-icon" type="button" data-action="profile" aria-label="Open profile">${icons.user}</button></div>
+  return `<div class="app-mode"><div class="tab-title-row"><div><h1 class="view-heading">Intake.</h1><p class="view-note">A steady picture of the day.</p></div></div>
     <div class="intake-layout">${renderDial({value:kcalPct,kind:"intake",bars:[{name:"PROTEIN",value:Math.min(totals.protein/state.proteinGoalToday*100,100),weight:.62},{name:"FIBER",value:Math.min(totals.fiber/30*100,100),weight:.46}],labels:true,logged:state.meals.length})}<div class="intake-score"><strong>${Math.round(totals.calories).toLocaleString()}</strong><span>CALORIES</span><small>of 2,200</small></div><button class="intake-log" type="button" data-action="open-food"><span class="log-circle">${state.meals.length ? state.meals.length : "LOG"}</span><span>${state.meals.length ? `${state.meals.length} logged` : "Add a meal"}</span></button></div>
     ${state.proteinGoalToday !== 140 ? '<p class="goal-adjustment-note">Adjusted for today\'s workout</p>' : ""}
     <div class="nutrient-list quiet-nutrients">${nutrients.map(([label,value,goal,unit]) => `<div class="nutrient-progress"><div class="nutrient-line"><span>${label}</span><span>${Math.round(value)} / ${goal} ${unit}</span></div><div class="nutrient-track"><i style="width:${Math.min(value/goal*100,100)}%"></i></div></div>`).join("")}</div>
@@ -463,7 +406,7 @@ function render() {
   tabBar.classList.toggle("visible", isApp && !state.foodOpen && !state.smartNoteOpen);
   renderCaptionPanel();
   if (!isApp) {
-    const screens = { respondent: renderRespondentStart, feedback: renderFeedbackForm, thanks: renderThanks, welcome: renderWelcome, connect: renderConnect, focus: renderFocus };
+    const screens = { respondent: renderRespondentStart, feedback: renderFeedbackForm, thanks: renderThanks };
     view.innerHTML = (screens[state.stage] ?? renderRespondentStart)();
   } else {
     let content;
@@ -485,14 +428,6 @@ function render() {
     handle.textContent = "Quick note";
     tabBar.prepend(handle);
   }
-}
-
-function enterApp() {
-  state.stage = "app";
-  state.tab = "Hub";
-  state.tourVisible = true;
-  render();
-  requestMorningCoachIfNeeded();
 }
 
 function requireRespondentName() {
@@ -685,10 +620,6 @@ function acceptCoach() {
   }
   state.coachSuggestion = null;
   render();
-}
-
-function updateName() {
-  state.name = document.querySelector("#first-name")?.value.trim().slice(0, 28) ?? state.name;
 }
 
 function openFood() {
@@ -912,13 +843,6 @@ function onClick(event) {
   if (action === "show-feedback") { showFeedback(); return; }
   if (action === "back-to-koi") { state.stage = "app"; state.tab = "Hub"; render(); return; }
   if (action === "next-person") { window.location.reload(); return; }
-  if (action === "next-connect") { updateName(); state.stage = "connect"; render(); return; }
-  if (action === "skip-setup") { updateName(); enterApp(); return; }
-  if (action === "next-focus") { state.stage = "focus"; render(); return; }
-  if (action === "toggle-health") { state.health = !state.health; render(); return; }
-  if (action === "toggle-calendar") { state.calendar = !state.calendar; render(); return; }
-  if (action === "select-focus") { state.focus = button.dataset.value; render(); return; }
-  if (action === "start-demo") { enterApp(); return; }
   if (action === "tab") { state.tab = button.dataset.tab; state.foodOpen = false; state.smartNoteOpen = false; state.pondOpen = false; state.tourVisible = false; render(); return; }
   if (action === "profile") { state.tab = "Profile"; render(); return; }
   if (action === "open-food") { openFood(); return; }

@@ -636,3 +636,13 @@ what's partial, known issues, and the next step.
   generates a new ID.
 - Verified JavaScript syntax and the demo API suite (4/4). Visual review of this
   entry change and the remaining browser pass is next.
+- Desktop visual review after the kiosk change confirmed the Hub stays unobstructed
+  and the feedback entry works through first-name and question screens without
+  submitting a test response. Hid the phone-only in-app controls from the desktop
+  phone mockup to avoid duplicating the feedback button already in the site header;
+  those controls remain available at the mobile breakpoint. The public page first
+  served the previous assets; after refresh it showed the new kiosk entry without
+  submitting a test response.
+- The four-tab browser review found and removed duplicate Profile icons on
+  Movement and Intake; both screens now use the single shared header control.
+  The local desktop phone mock was checked across Hub, To-Do, Movement and Intake.

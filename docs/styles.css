@@ -388,7 +388,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .caption-panel .primary-button { margin-top:22px; min-height:48px; font-size:11px; }
 .caption-exit { margin-top:15px; border:0; padding:8px 0; background:transparent; color:var(--ink); opacity:.72; font:300 10px/1.3 var(--font-light); cursor:pointer; }
 .guided-entry { margin-top:2px; }
-.demo-controls { min-height:24px; display:flex; justify-content:space-between; align-items:center; gap:10px; margin:0 0 9px; color:var(--ivory-soft); font:400 8px/1.3 var(--font-regular); letter-spacing:.12em; }
+.demo-controls { display:none; min-height:24px; justify-content:space-between; align-items:center; gap:10px; margin:0 0 9px; color:var(--ivory-soft); font:400 8px/1.3 var(--font-regular); letter-spacing:.12em; }
 .demo-control-actions { display:flex; align-items:center; gap:13px; }
 .demo-controls .quiet-link { margin:0; padding:3px 0; color:var(--ivory); font-size:9px; }
 .mobile-guided-entry,.mobile-feedback-entry { display:none !important; }
@@ -432,7 +432,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   .stage,.demo-presentation.guided-active .stage { order:1; width:100%; grid-column:auto; }
   .phone-frame { height:100svh; }
   .demo-presentation.guided-active .phone-frame { height:calc(100svh - 124px); min-height:560px; }
-  .demo-controls { margin-bottom:6px; }
+  .demo-controls { display:flex; margin-bottom:6px; }
   .mobile-guided-entry,.mobile-feedback-entry { display:inline-flex !important; }
   .pond-chip { right:145px; top:64px; }
 }
@@ -443,7 +443,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .respondent-view form .primary-button { margin-top:30px; }
 .skip-questions-link { align-self:flex-start; margin-top:12px; text-decoration:underline; text-underline-offset:3px; }
 .privacy-note { margin:16px 0 0; color:rgba(240,232,219,.68); font:300 8px/1.55 var(--font-light); }
-.respondent-choice .onboarding-spacer { flex:1; }
 .feedback-view { padding-bottom:22px; }
 .feedback-form { display:grid; gap:16px; margin-top:12px; }
 .feedback-question { min-width:0; margin:0; padding:0; border:0; }
