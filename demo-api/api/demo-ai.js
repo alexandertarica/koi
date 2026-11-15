@@ -46,15 +46,17 @@ function prompts(task, text) {
     const event = typeof context.event === "string" ? context.event : "";
     const rank = typeof context.pondRank === "string" ? context.pondRank : "";
     const calendarEvent = typeof context.firstCalendarEvent === "string" ? context.firstCalendarEvent : "";
+    const today = typeof context.today === "string" ? context.today : "";
+    const timezone = typeof context.timezone === "string" ? context.timezone : "UTC";
     const totals = context.totals && typeof context.totals === "object" ? context.totals : {};
     const goals = context.goals && typeof context.goals === "object" ? context.goals : {};
     const proteinContext = Number(totals.protein) < Number(goals.protein ?? 140);
     const guidedDirection = event === "workout" && proteinContext
       ? "The workout was just logged and protein is under goal: prefer action adjustGoal with nutrient protein and delta 10, and say why this supports today's training."
       : event === "meal" && rank && calendarEvent
-        ? `A meal was just logged. Mention the current pond standing (${rank}) and suggest a 3-mile run tomorrow before the first event (${calendarEvent}); prefer action addTodo with title 3-mile run and a dueDate around 7:00 AM tomorrow.`
+        ? `A meal was just logged. Mention the pond standing (${rank}) and consistency. Suggest a 3-mile run before the first event (${calendarEvent}). Never say that running increases protein intake or connects to protein. Prefer action addTodo with title 3-mile run. The current local date is ${today} in timezone ${timezone}; if you include dueDate, calculate tomorrow at 7:00 AM in that timezone.`
         : "";
-    return `Use this compact Koi day context to offer one calm, useful next step. Return JSON only as {"message":string,"action":{"type":"adjustGoal"|"addTodo"|"none","nutrient"?:string,"delta"?:number,"title"?:string,"dueDate"?:string,"why":string}}. Only suggest an action when it clearly helps; otherwise use type none. adjustGoal is for a temporary target change today, usually +10 g protein after exercise when protein is below goal. addTodo must have a concise title and an ISO-8601 dueDate when timing is known. If tomorrow has a first calendar event, schedule an activity before it and do not conflict with it. Never invent that Calendar is connected or that an event exists. Keep the message under 150 characters and why under 140 characters. ${guidedDirection} Context: ${text}`;
+    return `Use this compact Koi day context to offer one calm, useful next step. Return JSON only as {"message":string,"action":{"type":"adjustGoal"|"addTodo"|"none","nutrient"?:string,"delta"?:number,"title"?:string,"dueDate"?:string,"why":string}}. The current local date is ${today} and the user's timezone is ${timezone}; use those values to understand today and tomorrow, never a remembered date. Only suggest an action when it clearly helps; otherwise use type none. adjustGoal is for a temporary target change today, usually +10 g protein after exercise when protein is below goal. addTodo must have a concise title and an ISO-8601 dueDate when timing is known. If tomorrow has a first calendar event, schedule an activity before it and do not conflict with it. Never invent that Calendar is connected or that an event exists. A run is movement and does not increase protein; never connect running to protein intake. Keep the message under 150 characters and why under 140 characters. ${guidedDirection} Context: ${text}`;
   }
   return `Turn the user's workout notes or photo into a concise, usable routine. Return JSON only in this shape: {"routines":[{"name":string,"exercises":[{"name":string,"sets":number,"reps":string}]}]}. Include only exercises found in the input. Use sensible defaults only when sets or reps are missing. User input: ${text || "Read the workout plan in the image."}`;
 }
@@ -133,7 +135,14 @@ module.exports = async function handler(req, res) {
         if (typeof candidate.dueDate === "string" && !Number.isNaN(Date.parse(candidate.dueDate))) action.dueDate = candidate.dueDate;
         if (!action.title) action.type = "none";
       }
-      return reply(res, 200, { message: typeof result.message === "string" ? result.message.slice(0, 150) : "One small step can help today.", action });
+      let message = typeof result.message === "string" ? result.message.trim().slice(0, 150) : "One small step can help today.";
+      const coachContext = context && typeof context === "object" ? context : {};
+      if (coachContext.event === "meal" && typeof coachContext.pondRank === "string" && coachContext.pondRank && typeof coachContext.firstCalendarEvent === "string" && coachContext.firstCalendarEvent && type === "addTodo") {
+        const time = coachContext.firstCalendarEvent.match(/\b\d{1,2}(?::\d{2})?\s*(?:AM|PM)\b/i)?.[0];
+        const before = time ? `before your ${time} class` : "before your first event";
+        message = `You're ${coachContext.pondRank}. A 3-mile run tomorrow ${before} would build consistency and help you move up.`.slice(0, 150);
+      }
+      return reply(res, 200, { message, action });
     }
     if (task === "estimate") {
       return reply(res, 200, {

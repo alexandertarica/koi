@@ -55,6 +55,24 @@ final class KoiFoundationTests: XCTestCase {
         XCTAssertEqual(result.action.why, "Before class.")
     }
 
+    func testCoachContextIncludesLocalISODateAndTimeZone() throws {
+        let context = KoiCoachContext(
+            event: "meal",
+            today: "2026-11-14",
+            timezone: "America/Los_Angeles",
+            scores: ["habits": 60, "nutrition": 40, "exercise": 20],
+            goals: ["protein": 140],
+            totals: ["protein": 30],
+            pondRank: "3rd of 5",
+            firstCalendarEvent: "Class at 9:00 AM"
+        )
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(context)) as? [String: Any])
+
+        XCTAssertEqual(object["today"] as? String, "2026-11-14")
+        XCTAssertEqual(object["timezone"] as? String, "America/Los_Angeles")
+        XCTAssertNil(object["date"])
+    }
+
     func testDemoSeedBuildsAFullWeekAndLeavesExistingDataAlone() throws {
         let container = try KoiSchema.makeContainer(inMemory: true)
         let context = ModelContext(container)

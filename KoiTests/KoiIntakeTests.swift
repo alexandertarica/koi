@@ -115,10 +115,23 @@ final class KoiIntakeTests: XCTestCase {
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now))!
         let classTime = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: tomorrow)!
         let event = CalendarEventSummary(title: "Class", start: classTime, end: classTime.addingTimeInterval(3_600))
-        let planned = HubViewModel.planTomorrowSlot(proposed: nil, firstEvent: event, calendar: calendar)
+        let planned = HubViewModel.planTomorrowSlot(firstEvent: event, calendar: calendar)
 
         XCTAssertEqual(calendar.component(.hour, from: planned), 7)
         XCTAssertLessThanOrEqual(planned.addingTimeInterval(30 * 60), classTime)
+    }
+
+    func testCoachSchedulesTomorrowLocallyInsteadOfUsingModelDate() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .autoupdatingCurrent
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now))!
+        let ancientModelDate = calendar.date(from: DateComponents(year: 2023, month: 10, day: 4, hour: 7))!
+        let planned = HubViewModel.planTomorrowSlot(firstEvent: nil, calendar: calendar)
+
+        XCTAssertNotEqual(planned, ancientModelDate)
+        XCTAssertEqual(calendar.startOfDay(for: planned), tomorrow)
+        XCTAssertEqual(calendar.component(.hour, from: planned), 7)
+        XCTAssertEqual(calendar.component(.minute, from: planned), 0)
     }
 
     func testAcceptingCoachGoalActionLeavesBalanceAndRecurringGoalAlone() async throws {
@@ -150,18 +163,18 @@ final class KoiIntakeTests: XCTestCase {
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now))!
         let classStart = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: tomorrow)!
         let provider = FakeCoachCalendar(events: [CalendarEventSummary(title: "Class", start: classStart, end: classStart.addingTimeInterval(3_600))])
-        let formatter = ISO8601DateFormatter()
-        formatter.timeZone = calendar.timeZone
-        let afterClass = calendar.date(bySettingHour: 10, minute: 0, second: 0, of: tomorrow)!
-        let suggestion = KoiCoachSuggestion(message: "A run before class could help.", action: KoiCoachAction(type: .addTodo, title: "3-mile run", dueDate: formatter.string(from: afterClass), why: "Before class."))
+        let suggestion = KoiCoachSuggestion(message: "A 3-mile run tomorrow before class would build consistency.", action: KoiCoachAction(type: .addTodo, title: "3-mile run", dueDate: "2023-10-04T07:00:00", why: "Before class."))
         let model = HubViewModel(publishesWidgetSnapshot: false, coachProvider: FixedCoachProvider(suggestion: suggestion))
         model.refresh(using: context)
         await model.requestCoach(event: "meal", using: provider)
         await model.acceptCoach(using: provider)
 
         let task = try XCTUnwrap(context.fetch(FetchDescriptor<KoiTask>()).first)
+        let savedDueDate = try XCTUnwrap(task.dueAt)
         XCTAssertEqual(task.title, "3-mile run")
-        XCTAssertEqual(task.dueAt, classStart.addingTimeInterval(-1_800))
+        XCTAssertEqual(savedDueDate, calendar.date(bySettingHour: 7, minute: 0, second: 0, of: tomorrow))
+        XCTAssertNotEqual(savedDueDate, classStart.addingTimeInterval(-1_800))
+        XCTAssertLessThanOrEqual(savedDueDate.addingTimeInterval(30 * 60), classStart)
         XCTAssertTrue(task.hasTime)
         XCTAssertEqual(task.calendarEventID, "event-id")
     }

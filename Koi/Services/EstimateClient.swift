@@ -77,7 +77,8 @@ struct KoiCoachSuggestion: Codable, Equatable, Sendable {
 
 struct KoiCoachContext: Codable, Sendable {
     let event: String
-    let date: String
+    let today: String
+    let timezone: String
     let scores: [String: Int]
     let goals: [String: Double]
     let totals: [String: Double]

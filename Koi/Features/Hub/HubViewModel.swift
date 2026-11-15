@@ -200,7 +200,8 @@ final class HubViewModel {
             let goals = Dictionary(uniqueKeysWithValues: nutrientGoals.filter(\.isActive).map { ($0.key, $0.goal + DailyGoalAdjustment.delta($0.key, on: .now, calendar: calendar)) })
             let contextValue = KoiCoachContext(
                 event: event,
-                date: Self.dayIdentifier(for: .now, calendar: calendar),
+                today: Self.dayIdentifier(for: .now, calendar: calendar),
+                timezone: calendar.timeZone.identifier,
                 scores: ["habits": Int((balance.habits * 100).rounded()), "nutrition": Int((balance.nutrition * 100).rounded()), "exercise": Int((balance.exercise * 100).rounded())],
                 goals: goals,
                 totals: totals,
@@ -234,8 +235,7 @@ final class HubViewModel {
             refresh(using: context)
         case .addTodo:
             guard let title = action.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty else { dismissCoach(); return }
-            let proposedDate = action.dueDate.flatMap(Self.parseCoachDate)
-            let dueDate = Self.planTomorrowSlot(proposed: proposedDate, firstEvent: coachFirstEvent, calendar: calendar)
+            let dueDate = Self.planTomorrowSlot(firstEvent: coachFirstEvent, calendar: calendar)
             let task = KoiTask(title: title, notes: action.why, dueAt: dueDate, quadrant: 1, timeMinutes: 30, hasTime: true)
             context.insert(task)
             do {
@@ -256,31 +256,25 @@ final class HubViewModel {
             let message = pondRank.map { "You're \($0). A little more protein supports today's training." } ?? "Your workout could use a little more protein today."
             return KoiCoachSuggestion(message: message, action: KoiCoachAction(type: .adjustGoal, nutrient: "protein", delta: 10, why: "Support today's training."))
         }
-        let tomorrow = Calendar.autoupdatingCurrent.date(bySettingHour: 7, minute: 0, second: 0, of: Calendar.autoupdatingCurrent.date(byAdding: .day, value: 1, to: .now) ?? .now) ?? .now
-        let iso = ISO8601DateFormatter().string(from: tomorrow)
-        let beforeEvent = firstEvent.map { " before \($0.title.lowercased())" } ?? ""
-        let message = pondRank.map { "You're \($0). A short walk tomorrow\(beforeEvent) could move you up." } ?? "A short walk tomorrow\(beforeEvent) could round out your movement."
+        let beforeEvent: String
+        if let firstEvent {
+            let time = firstEvent.start.formatted(date: .omitted, time: .shortened)
+            beforeEvent = " before your \(time) \(firstEvent.title.lowercased())"
+        } else { beforeEvent = "" }
+        let message = pondRank.map { "You're \($0). A 3-mile run tomorrow\(beforeEvent) would build consistency and help you move up." } ?? "A 3-mile run tomorrow\(beforeEvent) could round out your movement."
+        let scheduled = planTomorrowSlot(firstEvent: firstEvent, calendar: .autoupdatingCurrent)
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.timeZone = .autoupdatingCurrent
+        let iso = isoFormatter.string(from: scheduled)
         return KoiCoachSuggestion(message: message, action: KoiCoachAction(type: .addTodo, nutrient: nil, delta: nil, title: "3-mile run", dueDate: iso, why: firstEvent.map { "Scheduled before \($0.title)." } ?? "Make a little space for movement."))
     }
 
-    private static func parseCoachDate(_ raw: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: raw) { return date }
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return fractional.date(from: raw)
-    }
-
-    static func planTomorrowSlot(proposed: Date?, firstEvent: CalendarEventSummary?, calendar: Calendar) -> Date {
+    static func planTomorrowSlot(firstEvent: CalendarEventSummary?, calendar: Calendar) -> Date {
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now)) ?? .now
         let preferred = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: tomorrow) ?? tomorrow
-        guard let event = firstEvent, calendar.isDate(event.start, inSameDayAs: tomorrow) else {
-            if let proposed, calendar.isDate(proposed, inSameDayAs: tomorrow) { return proposed }
-            return preferred
-        }
-        let candidate = proposed.flatMap { calendar.isDate($0, inSameDayAs: tomorrow) ? $0 : nil } ?? preferred
+        guard let event = firstEvent, calendar.isDate(event.start, inSameDayAs: tomorrow) else { return preferred }
         let duration: TimeInterval = 30 * 60
-        if candidate < event.start, candidate.addingTimeInterval(duration) <= event.start { return candidate }
+        if preferred < event.start, preferred.addingTimeInterval(duration) <= event.start { return preferred }
         return event.start.addingTimeInterval(-duration)
     }
 

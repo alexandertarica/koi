@@ -558,3 +558,18 @@ what's partial, known issues, and the next step.
   so the guided photo estimate and Coach model response still require a live
   GitHub Pages run after this push. The endpoint source now supports `coach`;
   its owner-operated redeploy is required before live Coach suggestions use AI.
+
+### Coach local scheduling correction (2026-11-14)
+
+- Coach context now sends the local ISO `today` and IANA `timezone` from both
+  the iPhone and browser. The server prompt uses those fields and rejects the
+  idea that running increases protein. For a meal action with Pond rank and a
+  first event, the API returns rank-and-consistency copy with the event time.
+- Both clients ignore the model's `dueDate`: they schedule for tomorrow at
+  7:00 AM local time when that leaves 30 minutes before the first event, or
+  choose a slot 30 minutes before an earlier event. iPhone coverage now checks
+  that a stale 2023 model date still produces tomorrow at 7:00 AM, as well as
+  checking the serialized local date and timezone.
+- The API mock contract check and all 79 iPhone simulator tests pass. The
+  updated API source needs the owner's redeploy before live browser Coach calls
+  receive the corrected copy and prompt. No deployment was run.

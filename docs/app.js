@@ -106,6 +106,12 @@ function dateLabel() {
   return new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" }).format(new Date()).toUpperCase();
 }
 
+function localISODate(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 function ordinal(value) {
   const mod100 = value % 100;
   if (mod100 >= 11 && mod100 <= 13) return `${value}th`;
@@ -542,7 +548,7 @@ function localCoach(event, context) {
     return { message: context.pondRank ? `You're ${context.pondRank}. A little more protein supports today's training.` : "Your workout could use a little more protein today.", action: { type: "adjustGoal", nutrient: "protein", delta: 10, why: "Support today's training." } };
   }
   if (event === "meal" && context.pondRank && context.firstCalendarEvent) {
-    return { message: `You're ${context.pondRank}. A run tomorrow before class could move you up.`, action: { type: "addTodo", title: "3-mile run", dueDate: tomorrowAtSeven().toISOString(), why: "Leave time before your first event." } };
+    return { message: `You're ${context.pondRank}. A 3-mile run tomorrow before class would build consistency and help you move up.`, action: { type: "addTodo", title: "3-mile run", dueDate: tomorrowAtSeven().toISOString(), why: "Leave time before your first event." } };
   }
   return { message: "A short walk tomorrow could round out your movement.", action: { type: "addTodo", title: "Take a short walk", dueDate: tomorrowAtSeven().toISOString(), why: "Make a little space for movement." } };
 }
@@ -553,7 +559,8 @@ async function requestCoach(event) {
   const totals = nutritionTotals();
   const context = {
     event,
-    date: new Date().toLocaleDateString("en-CA"),
+    today: localISODate(),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     scores: { habits: Math.round((state.habits.length ? state.habits.filter((item) => item.done).length / state.habits.length : 0) * 100), nutrition: state.meals.length ? Math.round((Math.min(totals.calories / 2200, 1) + Math.min(totals.protein / state.proteinGoalToday, 1) + Math.min(totals.fiber / 30, 1)) / 3 * 100) : 0, exercise: Math.min(100, Math.round(state.steps / 8000 * 60 + (state.didTrain ? 40 : 0))) },
     goals: { calories: 2200, protein: state.proteinGoalToday, fiber: 30, steps: 8000 },
     totals,
@@ -573,14 +580,12 @@ async function requestCoach(event) {
   render();
 }
 
-function scheduleBeforeSampleEvent(proposed) {
+function scheduleBeforeSampleEvent() {
   const eventDate = state.guidedMode || state.pondViewed ? new Date(state.sampleSchedule || sampleEventDate()) : null;
-  const fallback = proposed && !Number.isNaN(new Date(proposed).getTime()) ? new Date(proposed) : tomorrowAtSeven();
-  if (!eventDate || !Number.isFinite(eventDate.getTime())) return fallback;
-  if (fallback.getTime() + 30 * 60_000 <= eventDate.getTime()) return fallback;
-  const slot = new Date(eventDate.getTime() - 30 * 60_000);
-  slot.setMinutes(0, 0, 0);
-  return slot;
+  const preferred = tomorrowAtSeven();
+  if (!eventDate || !Number.isFinite(eventDate.getTime()) || localISODate(eventDate) !== localISODate(preferred)) return preferred;
+  if (preferred.getTime() + 30 * 60_000 <= eventDate.getTime()) return preferred;
+  return new Date(eventDate.getTime() - 30 * 60_000);
 }
 
 function acceptCoach() {
@@ -597,7 +602,7 @@ function acceptCoach() {
     return;
   }
   if (action.type === "addTodo") {
-    const dueAt = scheduleBeforeSampleEvent(action.dueDate);
+    const dueAt = scheduleBeforeSampleEvent();
     state.tasks.push({ id: crypto.randomUUID(), title: String(action.title || "A little movement").slice(0, 100), done: false, dueAt: dueAt.toISOString() });
     state.coachSuggestion = null;
     state.coachError = "";
