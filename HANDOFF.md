@@ -594,6 +594,23 @@ what's partial, known issues, and the next step.
   exercised locally. The form's success state still needs a redeploy with the
   Redis settings connected before a live browser submission can be verified.
 
+### Browser-to-simulator visual pass (2026-11-14)
+
+- Captured the iPhone 17 Pro Hub, To-Do, Movement, and Intake screens and
+  reviewed them beside the phone-width browser preview. The web Hub dial now
+  fills more of the screen, its guided sample carries the simulator's 12-day
+  streak and best of 18, and the sample schedule is a single quiet line.
+  Movement's three-stat row now sits directly below its dial; the tab bar,
+  Quick note handle, nutrient tracks, glass rows, and water background were
+  checked across the four tabs.
+- The browser demo keeps longer content in its own scroll view; the compact
+  desktop phone preview may show fewer rows until scrolled. The existing
+  phone-width Pages layout and local kiosk screens were reviewed; these latest
+  visual changes publish with this push. The API suite passes 4/4 and the
+  iPhone simulator suite passes 79/79. The API changes remain source-only and
+  require the project owner's redeploy; the Pages changes publish with this
+  push.
+
 ### Browser kiosk feedback storage (2026-11-14)
 
 - Added the separate demo API routes `/api/demo-feedback`, `/api/demo-event`,

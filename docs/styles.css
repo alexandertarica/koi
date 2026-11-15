@@ -300,8 +300,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 }
 
 /* Screen details drawn like ink on the water. */
-.hub-layout { min-height:350px; margin-top:8px; overflow:visible; }
-.koi-dial { position:absolute; inset:0 auto auto 0; width:80%; height:372px; overflow:visible; pointer-events:none; }
+.hub-layout { min-height:365px; margin-top:8px; overflow:visible; }
+.koi-dial { position:absolute; inset:0 auto auto 0; width:80%; height:390px; overflow:visible; pointer-events:none; }
 .dial-tick { stroke:rgba(240,232,219,.27); stroke-width:1; stroke-linecap:round; animation:tick-in 1.65s cubic-bezier(.2,.7,.2,1) both; }
 .dial-tick.lit { stroke:rgba(240,232,219,.8); }
 .dial-tick.major { stroke-width:1.7; }
@@ -322,7 +322,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .progress-chip { position:absolute; top:137px; right:24px; z-index:1; border:1px solid rgba(240,232,219,.34); border-radius:99px; padding:8px 11px; color:var(--ivory); background:rgba(240,232,219,.1); font:300 10px/1 var(--font-light); cursor:pointer; }
 .score-block { top:8px; right:25px; }
 .score-value { font-size:clamp(60px, 9vh, 80px); }
-.streak-block { top:236px; right:29px; }
+.streak-block { top:226px; right:29px; }
 .trend-line { display:none; }
 .today-block { margin-top:0; }
 .section-row .more { border:0; padding:0; background:none; cursor:pointer; }
@@ -356,13 +356,13 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .nutrient-line { padding:5px 0; border:0; font-size:9px; }
 .nutrient-track { height:1px; background:rgba(240,232,219,.18); }
 .nutrient-track i { display:block; height:1px; background:rgba(240,232,219,.74); }
-.movement-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:17px 0 21px; padding:12px 0; border-top:1px solid rgba(240,232,219,.22); border-bottom:1px solid rgba(240,232,219,.22); }
+.movement-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:10px 0 13px; padding:8px 0; border-top:1px solid rgba(240,232,219,.22); border-bottom:1px solid rgba(240,232,219,.22); }
 .movement-stats div { display:grid; gap:5px; }
 .movement-stats strong { font:300 18px/1 var(--font-light); }
 .movement-stats span { color:var(--ivory-soft); font:400 7px/1.25 var(--font-regular); letter-spacing:.1em; }
 @media (max-width:600px) {
-  .hub-layout { min-height:350px; }
-  .koi-dial { width:79%; height:372px; }
+  .hub-layout { min-height:365px; }
+  .koi-dial { width:79%; height:390px; }
   .score-block { right:23px; }
   .progress-chip { right:21px; }
   .streak-block { right:26px; }
@@ -391,7 +391,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .demo-controls { min-height:24px; display:flex; justify-content:space-between; align-items:center; gap:10px; margin:0 0 9px; color:var(--ivory-soft); font:400 8px/1.3 var(--font-regular); letter-spacing:.12em; }
 .demo-control-actions { display:flex; align-items:center; gap:13px; }
 .demo-controls .quiet-link { margin:0; padding:3px 0; color:var(--ivory); font-size:9px; }
-.mobile-guided-entry { display:none !important; }
+.mobile-guided-entry,.mobile-feedback-entry { display:none !important; }
 .sample-day-label,.sample-badge { margin:0 0 8px; color:var(--ivory); font:400 8px/1.4 var(--font-regular); letter-spacing:.14em; }
 .sample-schedule-line { margin:3px 0 0; color:var(--ivory-soft); font:300 8px/1.4 var(--font-light); }
 .pond-chip { position:absolute; top:68px; right:170px; z-index:2; min-height:28px; padding:6px 10px; border:1px solid rgba(240,232,219,.34); border-radius:99px; color:var(--ivory); background:rgba(240,232,219,.12); font:300 9px/1 var(--font-light); cursor:pointer; }
@@ -433,7 +433,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   .phone-frame { height:100svh; }
   .demo-presentation.guided-active .phone-frame { height:calc(100svh - 124px); min-height:560px; }
   .demo-controls { margin-bottom:6px; }
-  .mobile-guided-entry { display:inline-flex !important; }
+  .mobile-guided-entry,.mobile-feedback-entry { display:inline-flex !important; }
   .pond-chip { right:145px; top:64px; }
 }
 .respondent-view { justify-content:flex-start; }

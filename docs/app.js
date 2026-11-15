@@ -31,6 +31,8 @@ const initialState = () => ({
   tasks: [],
   habits: [],
   steps: 0,
+  streak: 0,
+  bestStreak: 0,
   didTrain: false,
   pondOpen: false,
   coachSuggestion: null,
@@ -321,7 +323,7 @@ function renderHub() {
   const items = (state.showAllToday ? allItems : allItems.slice(0, 2)).join("");
   const weights = state.focus === "habits" ? [.5, .25, .25] : state.focus === "nutrition" ? [.25, .5, .25] : state.focus === "exercise" ? [.25, .25, .5] : [1/3, 1/3, 1/3];
   return `<div class="app-mode">
-    ${state.guidedMode ? '<p class="sample-day-label">SAMPLE DAY · SAMPLE SCHEDULE: CLASS 9:00 AM</p>' : ""}
+    ${state.guidedMode ? '<p class="sample-day-label">SAMPLE SCHEDULE · CLASS 9:00 AM</p>' : ""}
     <h1 class="hub-greeting">${greeting}${name}.</h1>
     ${state.guidedMode ? "" : '<p class="sample-schedule-line">Sample schedule: Class 9:00 AM</p>'}
     <div class="hub-layout">
@@ -329,7 +331,7 @@ function renderHub() {
       <button class="pond-chip" type="button" data-action="open-pond">♧ Go to pond</button>
       <button class="progress-chip" type="button" data-action="show-progress">See progress</button>
       <div class="score-block"><div class="score-value">${score}<span>%</span></div><div class="score-label">BALANCE</div></div>
-      <div class="streak-block"><img class="streak-flame" src="assets/flame.svg" alt=""><span class="streak-count">0</span><span class="streak-label">DAY STREAK</span><span class="streak-best">best 0</span></div>
+      <div class="streak-block"><img class="streak-flame" src="assets/flame.svg" alt=""><span class="streak-count">${state.streak}</span><span class="streak-label">DAY STREAK</span><span class="streak-best">best ${state.bestStreak}</span></div>
     </div>
     <div class="today-block">
       <div class="section-row"><span>TODAY</span>${state.habits.length + state.tasks.length > 2 ? `<button type="button" class="more" data-action="show-all">${state.showAllToday ? "Show fewer" : `+${state.habits.length + state.tasks.length - 2} more`}</button>` : ""}</div>
@@ -343,7 +345,7 @@ function renderHub() {
 function renderTodo() {
   const habits = state.habits.map((item) => `<div class="demo-habit"><button class="habit-ring ${item.done ? "checked" : ""}" type="button" data-action="toggle-habit" data-id="${item.id}" aria-label="${item.done ? "Uncheck" : "Check"} ${safe(item.title)}">${item.done ? "✓" : safe(item.title.slice(0,1).toUpperCase())}</button><span>${safe(item.title)}</span></div>`).join("");
   const tasks = state.tasks.map((item) => `<div class="demo-task"><button class="task-check ${item.done ? "checked" : ""}" type="button" data-action="toggle-task" data-id="${item.id}" aria-label="${item.done ? "Uncheck" : "Check"} ${safe(item.title)}">${item.done ? "✓" : ""}</button><span>${safe(item.title)}${item.dueAt ? `<small class="task-due">${safe(new Intl.DateTimeFormat(undefined,{weekday:"short",hour:"numeric",minute:"2-digit"}).format(new Date(item.dueAt)))}</small>` : ""}</span></div>`).join("");
-  return `<div class="app-mode">${state.guidedMode ? '<p class="sample-day-label">SAMPLE DAY · SAMPLE SCHEDULE: CLASS 9:00 AM</p>' : ""}<h1 class="view-heading">Practice.</h1><p class="view-note">A little room for what matters.</p>
+  return `<div class="app-mode">${state.guidedMode ? '<p class="sample-day-label">SAMPLE SCHEDULE · CLASS 9:00 AM</p>' : ""}<h1 class="view-heading">Practice.</h1><p class="view-note">A little room for what matters.</p>
     <p class="small-label">HABITS</p>${habits || '<p class="empty-copy">Your habits will settle here.</p>'}
     <form class="task-form" data-form="habit"><input name="title" maxlength="80" placeholder="A habit to begin" aria-label="A habit to begin"><button type="submit">Add</button></form>
     <p class="small-label">TO-DOS</p>${tasks || '<p class="empty-copy">Your list is clear.</p>'}
@@ -357,8 +359,8 @@ function renderMovement() {
   const stepPercent = Math.min(state.steps / 8000 * 100, 100);
   return `<div class="app-mode"><div class="tab-title-row"><div><h1 class="view-heading">Movement.</h1><p class="view-note">Small steps count.</p></div><button class="header-icon" type="button" data-action="profile" aria-label="Open profile">${icons.user}</button></div>
     <div class="movement-layout">${renderDial({value:stepPercent,kind:"movement",bars:[{name:"STEPS",value:stepPercent,weight:.72},{name:"WORKOUTS",value:workoutCount?100:0,weight:.54}],labels:true,logged:workoutCount})}<div class="movement-score"><strong>${state.steps.toLocaleString()}</strong><span>STEPS</span><small>of 8,000</small></div><button class="movement-log" type="button" data-action="toggle-workout"><span class="log-circle">${workoutCount ? "✓" : "LOG"}</span><span>${workoutCount ? "1 logged" : "Log workout"}</span></button></div>
-    <div class="quick-add-row"><button class="glass-chip" type="button" data-action="steps" data-delta="-500">− 500</button><button class="glass-chip" type="button" data-action="steps" data-delta="500">+ 500 steps</button></div>
     <div class="movement-stats"><div><strong>${workoutCount}</strong><span>WORKOUTS · 7 DAYS</span></div><div><strong>${Math.round(state.steps / 1000 * 10) / 10}k</strong><span>AVG STEPS</span></div><div><strong>${state.steps ? state.steps.toLocaleString() : "—"}</strong><span>BEST DAY</span></div></div>
+    <div class="quick-add-row"><button class="glass-chip" type="button" data-action="steps" data-delta="-500">− 500</button><button class="glass-chip" type="button" data-action="steps" data-delta="500">+ 500 steps</button></div>
     <div class="nutrient-list"><p class="small-label">WORKOUT PLAN</p><p class="view-note">Read text or a photo into a simple routine.</p>
       <textarea class="food-field" id="plan-text" rows="3" maxlength="8000" placeholder="Bench press 3×8, row 3×10">${safe(state.planText)}</textarea>
       <div class="quick-add-row"><button class="glass-chip" type="button" data-action="import-plan">${state.importingPlan ? "Reading…" : "Read plan"}</button><button class="glass-chip" type="button" data-action="pick-plan-photo">Upload a photo</button></div>
@@ -452,7 +454,7 @@ function renderTabBar() {
 }
 
 function renderDemoControls() {
-  if (state.guidedMode) return `<div class="demo-controls"><span>GUIDED DEMO</span><div class="demo-control-actions"><button class="quiet-link" type="button" data-action="show-feedback">Answer questions</button><button class="quiet-link" type="button" data-action="exit-guided">Exit guided demo</button></div></div>`;
+  if (state.guidedMode) return `<div class="demo-controls"><span>GUIDED DEMO</span><div class="demo-control-actions"><button class="quiet-link mobile-feedback-entry" type="button" data-action="show-feedback">Answer questions</button><button class="quiet-link" type="button" data-action="exit-guided">Exit guided demo</button></div></div>`;
   return `<div class="demo-controls"><span>DEMO</span><div class="demo-control-actions"><button class="quiet-link mobile-guided-entry" type="button" data-action="start-guided">Guided demo</button><button class="quiet-link" type="button" data-action="show-feedback">Answer questions</button><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button></div></div>`;
 }
 
@@ -584,6 +586,8 @@ function startGuided() {
   ];
   state.meals = [{ id: crypto.randomUUID(), description: "Oat bowl with berries", calories: 510, protein: 18, carbs: 75, fat: 14, fiber: 9, sugar: 11, sodium: 160, confidence: .72, source: "sample", imageURL: "" }];
   state.steps = 4_800;
+  state.streak = 12;
+  state.bestStreak = 18;
   state.sampleSchedule = sampleEventDate().toISOString();
   state.guidedStartBalance = getBalance();
   render();
