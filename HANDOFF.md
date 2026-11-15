@@ -453,14 +453,24 @@ what's partial, known issues, and the next step.
   and applies per-device (30/day) and global daily quotas in warm-instance
   memory. These quotas are best-effort across Vercel instances; durable global
   enforcement needs a shared counter service.
-- The browser points to `https://koi-demo-api.vercel.app/api/demo-ai`. It will
-  return a setup error until `OPENROUTER_API_KEY` is configured in that separate
-  project. The model defaults to `openai/gpt-4o-mini`; it can be overridden by
-  `OPENROUTER_MODEL`. The app repository does not specify the existing backend's
-  model identifier, so exact model parity has not been confirmed.
+- The browser points to `https://koi-demo-api.vercel.app/api/demo-ai`. Its AI
+  estimate path was confirmed working after the separate project's key was
+  configured. The model defaults to `openai/gpt-4o-mini`; it can be overridden
+  by `OPENROUTER_MODEL`. The app repository does not specify the existing
+  backend's model identifier, so exact model parity has not been confirmed.
 - Static JavaScript syntax checks pass. The first unsigned test attempt crashed
   before test bootstrap because the app-group entitlement was absent; rerunning
   with ad-hoc simulator signing passes all 67 tests. The updated browser demo
-  still needs live Pages visual review at phone size and the separate API project
-  still needs creation/deployment and its key configured.
+  still needs live Pages visual review at phone size.
+
+### Koi Coach endpoint work (2026-11-14)
+
+- Added a `coach` task to `demo-api/api/demo-ai.js`. It accepts compact daily
+  context and returns a short message with one validated `adjustGoal`, `addTodo`,
+  or `none` action. The deployed API project will need a redeploy to expose this
+  new task; no deployment was run.
+- The iPhone Coach implementation is in progress. The app reads its endpoint
+  from `KOI_COACH_URL` in private configuration, calls the AI with a short
+  timeout, and uses local rules if the request is unavailable. Daily target and
+  UI work is being built and has not yet passed the full test suite.
 
