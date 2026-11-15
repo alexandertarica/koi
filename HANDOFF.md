@@ -490,3 +490,30 @@ what's partial, known issues, and the next step.
   composer update, then mirror the completed Coach/Pond flow into the browser
   guided demo and exercise it on GitHub Pages.
 
+### Koi Pond (2026-11-14)
+
+- Added the Hub's in-place Pond panel with username availability checks, a
+  friend lookup by exact username, configurable active sprints, selected
+  pillars, end date and rule text, leaderboard scoring, and a completed-sprint
+  winner state. Scores average the selected pillars over every sprint day so
+  missing days count as zero; each member's daily score is upserted by username
+  and local day.
+- Pond data is behind `PondService`, with a CloudKit public-database
+  implementation in this app's iCloud container and an in-memory service for
+  tests and `-koiDemo`. Demo mode seeds five members and places Alex 3rd. Coach
+  requests now include the cached Pond rank when available, and its offline
+  workout suggestion can refer to that rank.
+- The simulator screenshot shows the Hub entry and the Pond's active sprint,
+  reward line, countdown, and five-member leaderboard. The serial iPhone 17 Pro
+  simulator suite passes all 76 tests, including sprint score/winner math,
+  demo rank, profile/friend/sprint flow, and existing food and Coach coverage.
+- The CloudKit record types and fields must be deployed to the production
+  schema before TestFlight users can use shared Pond data. Live iCloud account,
+  username contention, cross-account friend lookup, and two-user updates still
+  need a signed-in physical-device check. Offline mode displays cached data and
+  offers retry.
+- Next: re-verify the current photo-library estimate flow, then build the
+  browser Coach/Pond mirror and guided demo. The separate AI endpoint has a new
+  Coach task in source and needs its owner-operated redeploy before browser AI
+  Coach responses can work.
+

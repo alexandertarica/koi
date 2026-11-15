@@ -119,6 +119,7 @@ final class HubViewModel {
     private(set) var workoutsText = "0 of 4"
     private(set) var isProfileOpen = false
     private(set) var isProgressOpen = false
+    private(set) var isPondOpen = false
     private(set) var coachSuggestion: KoiCoachSuggestion?
     private(set) var isCoachLoading = false
     private(set) var coachEvent: String?
@@ -147,10 +148,12 @@ final class HubViewModel {
         }
         return "\(salutation), \(profile?.name ?? "Friend")."
     }
+    var displayName: String { profile?.name ?? "Friend" }
 
-    func toggleProfile() { isProfileOpen.toggle(); isProgressOpen = false }
-    func toggleProgress() { isProgressOpen.toggle(); isProfileOpen = false }
-    func closeInPlace() { isProfileOpen = false; isProgressOpen = false }
+    func toggleProfile() { isProfileOpen.toggle(); isProgressOpen = false; isPondOpen = false }
+    func toggleProgress() { isProgressOpen.toggle(); isProfileOpen = false; isPondOpen = false }
+    func togglePond() { isPondOpen.toggle(); isProfileOpen = false; isProgressOpen = false }
+    func closeInPlace() { isProfileOpen = false; isProgressOpen = false; isPondOpen = false }
 
     var dateLabel: String {
         selectedDate.formatted(.dateTime.weekday(.wide).month(.wide).day())
@@ -178,7 +181,7 @@ final class HubViewModel {
         }
     }
 
-    func requestCoach(event: String, using calendarProvider: any CalendarProviding) async {
+    func requestCoach(event: String, pondRank: String? = nil, using calendarProvider: any CalendarProviding) async {
         guard selectedDayOffset == 0, !isCoachLoading else { return }
         isCoachLoading = true
         coachEvent = event
@@ -201,16 +204,16 @@ final class HubViewModel {
                 scores: ["habits": Int((balance.habits * 100).rounded()), "nutrition": Int((balance.nutrition * 100).rounded()), "exercise": Int((balance.exercise * 100).rounded())],
                 goals: goals,
                 totals: totals,
-                pondRank: nil,
+                pondRank: pondRank,
                 firstCalendarEvent: firstEvent.map { "\($0.title) at \($0.start.formatted(date: .omitted, time: .shortened))" }
             )
             do {
                 coachSuggestion = try await coachProvider.suggest(context: contextValue)
             } catch {
-                coachSuggestion = Self.localCoach(event: event, protein: totals["protein"] ?? 0, proteinGoal: goals["protein"] ?? 140, firstEvent: firstEvent)
+                coachSuggestion = Self.localCoach(event: event, protein: totals["protein"] ?? 0, proteinGoal: goals["protein"] ?? 140, firstEvent: firstEvent, pondRank: pondRank)
             }
         } else {
-            coachSuggestion = Self.localCoach(event: event, protein: 0, proteinGoal: 140, firstEvent: nil)
+            coachSuggestion = Self.localCoach(event: event, protein: 0, proteinGoal: 140, firstEvent: nil, pondRank: pondRank)
         }
         isCoachLoading = false
     }
@@ -248,14 +251,16 @@ final class HubViewModel {
         }
     }
 
-    private static func localCoach(event: String, protein: Double, proteinGoal: Double, firstEvent: CalendarEventSummary?) -> KoiCoachSuggestion {
+    private static func localCoach(event: String, protein: Double, proteinGoal: Double, firstEvent: CalendarEventSummary?, pondRank: String?) -> KoiCoachSuggestion {
         if event == "workout", protein < proteinGoal {
-            return KoiCoachSuggestion(message: "Your workout could use a little more protein today.", action: KoiCoachAction(type: .adjustGoal, nutrient: "protein", delta: 10, why: "Support today's training."))
+            let message = pondRank.map { "You're \($0). A little more protein supports today's training." } ?? "Your workout could use a little more protein today."
+            return KoiCoachSuggestion(message: message, action: KoiCoachAction(type: .adjustGoal, nutrient: "protein", delta: 10, why: "Support today's training."))
         }
         let tomorrow = Calendar.autoupdatingCurrent.date(bySettingHour: 7, minute: 0, second: 0, of: Calendar.autoupdatingCurrent.date(byAdding: .day, value: 1, to: .now) ?? .now) ?? .now
         let iso = ISO8601DateFormatter().string(from: tomorrow)
         let beforeEvent = firstEvent.map { " before \($0.title.lowercased())" } ?? ""
-        return KoiCoachSuggestion(message: "A short walk tomorrow\(beforeEvent) could round out your movement.", action: KoiCoachAction(type: .addTodo, nutrient: nil, delta: nil, title: "3-mile run", dueDate: iso, why: firstEvent.map { "Scheduled before \($0.title)." } ?? "Make a little space for movement."))
+        let message = pondRank.map { "You're \($0). A short walk tomorrow\(beforeEvent) could move you up." } ?? "A short walk tomorrow\(beforeEvent) could round out your movement."
+        return KoiCoachSuggestion(message: message, action: KoiCoachAction(type: .addTodo, nutrient: nil, delta: nil, title: "3-mile run", dueDate: iso, why: firstEvent.map { "Scheduled before \($0.title)." } ?? "Make a little space for movement."))
     }
 
     private static func parseCoachDate(_ raw: String) -> Date? {
@@ -567,5 +572,155 @@ final class HubViewModel {
         calendar.timeZone = input.timeZone
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+}
+
+enum PondUsernameStatus: Equatable {
+    case idle, checking, available, taken, invalid
+}
+
+@MainActor
+@Observable
+final class PondViewModel {
+    private let service: any PondService
+    private let calendar: Calendar
+    private(set) var snapshot: PondSnapshot?
+    private(set) var isLoading = false
+    private(set) var isSaving = false
+    private(set) var errorMessage: String?
+    private(set) var usernameStatus: PondUsernameStatus = .idle
+    var username = ""
+    var friendUsername = ""
+    var pillars: Set<PondPillar> = Set(PondPillar.allCases)
+    var endDate: Date
+    var rule = ""
+
+    init(service: any PondService, calendar: Calendar = .autoupdatingCurrent) {
+        self.service = service
+        self.calendar = calendar
+        self.snapshot = service.cachedSnapshot
+        self.endDate = PondEngine.nextThursday(calendar: calendar)
+    }
+
+    var needsUsername: Bool { snapshot == nil && service.currentUsername == nil }
+    var hasFriends: Bool { (snapshot?.members.count ?? 0) > 1 }
+    var isSprintFinished: Bool { snapshot?.sprint.map { $0.endDate <= .now } ?? false }
+    var leaderboard: [PondLeaderboardEntry] { guard let snapshot else { return [] }; return PondEngine.leaderboard(for: snapshot, calendar: calendar) }
+    var winner: PondLeaderboardEntry? { guard let snapshot else { return nil }; return PondEngine.winner(for: snapshot, calendar: calendar) }
+    var currentRank: Int? { leaderboard.first(where: { $0.member.username.lowercased() == snapshot?.currentUsername.lowercased() })?.rank }
+    var rankSummary: String? {
+        guard let rank = currentRank, let count = snapshot?.members.count, count > 1 else { return nil }
+        let suffix: String
+        switch rank % 100 {
+        case 11...13: suffix = "th"
+        default:
+            switch rank % 10 {
+            case 1: suffix = "st"
+            case 2: suffix = "nd"
+            case 3: suffix = "rd"
+            default: suffix = "th"
+            }
+        }
+        return "\(rank)\(suffix) of \(count) in your pond"
+    }
+
+    func load(displayName: String, scores: BalanceResult) async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            if let loaded = try await service.load() { snapshot = loaded }
+            else { snapshot = service.cachedSnapshot }
+            errorMessage = nil
+            announceWinIfNeeded()
+            await syncDailyScore(scores)
+        } catch {
+            snapshot = service.cachedSnapshot ?? snapshot
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "Your pond couldn't load. Try again."
+        }
+    }
+
+    func retry(displayName: String, scores: BalanceResult) async { await load(displayName: displayName, scores: scores) }
+
+    func checkUsername(_ value: String) async {
+        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard PondEngine.isValidUsername(clean) else { usernameStatus = clean.isEmpty ? .idle : .invalid; return }
+        usernameStatus = .checking
+        do {
+            let available = try await service.usernameIsAvailable(clean)
+            guard username.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(clean) == .orderedSame else { return }
+            usernameStatus = available ? .available : .taken
+            errorMessage = nil
+        } catch {
+            guard username.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(clean) == .orderedSame else { return }
+            usernameStatus = .idle
+            errorMessage = (error as? LocalizedError)?.errorDescription
+        }
+    }
+
+    func createProfile(displayName: String) async {
+        guard usernameStatus == .available else { return }
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            snapshot = try await service.createProfile(username: username, displayName: displayName)
+            errorMessage = nil
+            KoiHaptics.success()
+        } catch { setError(error) }
+    }
+
+    func addFriend() async {
+        let name = friendUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            snapshot = try await service.addFriend(username: name)
+            friendUsername = ""
+            errorMessage = nil
+            KoiHaptics.check()
+        } catch { setError(error) }
+    }
+
+    func toggle(_ pillar: PondPillar) {
+        if pillars.contains(pillar) { if pillars.count > 1 { pillars.remove(pillar) } }
+        else { pillars.insert(pillar) }
+        KoiHaptics.change()
+    }
+
+    func startSprint() async {
+        guard !pillars.isEmpty, endDate > .now else { return }
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            snapshot = try await service.startSprint(pillars: pillars, endDate: endDate, rule: rule)
+            errorMessage = nil
+            KoiHaptics.success()
+        } catch { setError(error) }
+    }
+
+    func syncDailyScore(_ scores: BalanceResult) async {
+        guard let username = service.currentUsername ?? snapshot?.currentUsername else { return }
+        let value = PondDailyScore(username: username, date: .now, habits: scores.habits, nutrition: scores.nutrition, exercise: scores.exercise, calendar: calendar)
+        do {
+            try await service.upsertDailyScore(value)
+            if let cached = service.cachedSnapshot { snapshot = cached }
+            announceWinIfNeeded()
+        }
+        catch {
+            if let cached = service.cachedSnapshot { snapshot = cached }
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "Your pond couldn't sync. Try again."
+        }
+    }
+
+    private func setError(_ error: Error) {
+        errorMessage = (error as? LocalizedError)?.errorDescription ?? "Your pond couldn't update. Try again."
+    }
+
+    private func announceWinIfNeeded() {
+        guard let snapshot, let sprint = snapshot.sprint, PondEngine.winner(for: snapshot, calendar: calendar) != nil else { return }
+        let key = "koi.pond.announcedWin.\(sprint.recordName)"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        KoiHaptics.success()
     }
 }

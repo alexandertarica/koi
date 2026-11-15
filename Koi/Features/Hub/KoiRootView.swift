@@ -88,6 +88,7 @@ struct KoiRootView: View {
     @State private var presentsSmartNote = false
     @State private var presentsTour = false
     @State private var showTourOffer = false
+    @State private var pondService: any PondService = CloudKitPondService()
     @State private var didRouteDebugScreen = false
     @State private var launchVisible: Bool = {
         #if DEBUG
@@ -116,6 +117,12 @@ struct KoiRootView: View {
                 .presentationDragIndicator(.visible)
         }
         .task {
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-koiDemo") {
+                pondService = InMemoryPondService.demo()
+                rootRefreshID = UUID()
+            }
+#endif
             analyticsProvider.signal("Screen.opened", parameters: ["screen": selectedTab.title])
             healthProvider.observeMovementChanges {
                 NotificationCenter.default.post(name: .koiHealthMovementDidChange, object: nil)
@@ -198,7 +205,7 @@ struct KoiRootView: View {
 
     private var tabContent: some View {
         TabView(selection: $selectedTab) {
-            HubView(onSelectTab: { selectedTab = $0 }, onPresentSmartNote: { presentsSmartNote = true }).tag(KoiTab.hub)
+            HubView(onSelectTab: { selectedTab = $0 }, onPresentSmartNote: { presentsSmartNote = true }, pondService: pondService).tag(KoiTab.hub)
             TodoView().tag(KoiTab.toDo)
             MovementView().tag(KoiTab.movement)
             IntakeView(presentsMealComposer: $presentsMealComposer, startsCamera: $startsMealCamera).tag(KoiTab.intake)

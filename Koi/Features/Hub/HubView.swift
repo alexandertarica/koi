@@ -8,8 +8,17 @@ struct HubView: View {
     @Environment(\.analyticsProvider) private var analyticsProvider
     @Environment(\.calendarProvider) private var calendarProvider
     @State private var model = HubViewModel()
+    @State private var pondModel: PondViewModel
     let onSelectTab: (KoiTab) -> Void
     let onPresentSmartNote: () -> Void
+    let pondService: any PondService
+
+    init(onSelectTab: @escaping (KoiTab) -> Void, onPresentSmartNote: @escaping () -> Void, pondService: any PondService = CloudKitPondService()) {
+        self.onSelectTab = onSelectTab
+        self.onPresentSmartNote = onPresentSmartNote
+        self.pondService = pondService
+        _pondModel = State(initialValue: PondViewModel(service: pondService))
+    }
 
     var body: some View {
         ZStack {
@@ -18,6 +27,7 @@ struct HubView: View {
                     header.modifier(KoiIntroReveal(order: 0))
                     if model.isProfileOpen { KoiProfileView(onSelectTab: onSelectTab, onPresentSmartNote: onPresentSmartNote).transition(.opacity) }
                     else if model.isProgressOpen { KoiProgressView().transition(.opacity) }
+                    else if model.isPondOpen { PondScreen(model: pondModel, displayName: model.displayName, scores: model.balance).transition(.opacity) }
                     else {
                         hero.modifier(KoiIntroReveal(order: 2))
                         coachCard
@@ -33,12 +43,14 @@ struct HubView: View {
         }
         .onAppear {
             model.refresh(using: modelContext)
+            Task { await pondModel.syncDailyScore(model.balance) }
             requestMorningCoachIfNeeded()
             #if DEBUG
             if let panel = KoiLaunch.screen ?? launchPanelArgument {
                 switch panel.lowercased() {
                 case "progress": model.toggleProgress()
                 case "profile": model.toggleProfile()
+                case "pond": model.togglePond()
                 default: break
                 }
             }
@@ -48,15 +60,20 @@ struct HubView: View {
             if phase == .active {
                 model.refresh(using: modelContext)
                 requestMorningCoachIfNeeded()
+                Task { await pondModel.syncDailyScore(model.balance) }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .koiCoachRequested)) { note in
             model.refresh(using: modelContext)
             let event = note.userInfo?["event"] as? String ?? "morning"
-            Task { await model.requestCoach(event: event, using: calendarProvider) }
+            Task {
+                await pondModel.syncDailyScore(model.balance)
+                await model.requestCoach(event: event, pondRank: pondModel.rankSummary, using: calendarProvider)
+            }
         }
         .animation(KoiTheme.morph, value: model.isProfileOpen)
         .animation(KoiTheme.morph, value: model.isProgressOpen)
+        .animation(KoiTheme.morph, value: model.isPondOpen)
     }
 
     #if DEBUG
@@ -75,7 +92,10 @@ struct HubView: View {
         let key = "koi.coach.morning.presentedDay"
         guard UserDefaults.standard.double(forKey: key) != day else { return }
         UserDefaults.standard.set(day, forKey: key)
-        Task { await model.requestCoach(event: "morning", using: calendarProvider) }
+        Task {
+            await pondModel.syncDailyScore(model.balance)
+            await model.requestCoach(event: "morning", pondRank: pondModel.rankSummary, using: calendarProvider)
+        }
     }
 
     @ViewBuilder
@@ -133,9 +153,12 @@ struct HubView: View {
                 Spacer()
                 Button {
                     KoiHaptics.tap()
-                    withAnimation(KoiTheme.morph) { model.toggleProfile() }
+                    withAnimation(KoiTheme.morph) {
+                        if model.isProfileOpen || model.isProgressOpen || model.isPondOpen { model.closeInPlace() }
+                        else { model.toggleProfile() }
+                    }
                 } label: {
-                    Image(systemName: model.isProfileOpen || model.isProgressOpen ? "xmark" : "person")
+                    Image(systemName: model.isProfileOpen || model.isProgressOpen || model.isPondOpen ? "xmark" : "person")
                         .font(.system(size: 21, weight: .light))
                         .foregroundStyle(KoiTheme.onBase)
                         .frame(width: 44, height: 44)
@@ -143,7 +166,7 @@ struct HubView: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(model.isProfileOpen || model.isProgressOpen ? "Close" : "Profile")
+                .accessibilityLabel(model.isProfileOpen || model.isProgressOpen || model.isPondOpen ? "Close" : "Profile")
             }
             VStack(alignment: .leading, spacing: 0) {
                 Text(model.dateLabel.uppercased())
@@ -151,8 +174,8 @@ struct HubView: View {
                     .tracking(2.7)
                     .foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95).opacity(0.88))
                     .padding(.top, 7)
-                Text(model.isProfileOpen ? "Profile" : (model.isProgressOpen ? "Progress" : model.greeting))
-                    .id(model.isProfileOpen ? "Profile" : (model.isProgressOpen ? "Progress" : model.greeting))
+                Text(model.isProfileOpen ? "Profile" : (model.isProgressOpen ? "Progress" : (model.isPondOpen ? "Your Koi Pond" : model.greeting)))
+                    .id(model.isProfileOpen ? "Profile" : (model.isProgressOpen ? "Progress" : (model.isPondOpen ? "Your Koi Pond" : model.greeting)))
                     .font(KoiTheme.title)
                     .foregroundStyle(Color(red: 0.91, green: 0.93, blue: 0.95))
                     .transition(.opacity.combined(with: .blurReplace))
@@ -237,6 +260,25 @@ struct HubView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .padding(.trailing, KoiTheme.space.s21)
                 .padding(.top, 273)
+            Button {
+                KoiHaptics.tap()
+                withAnimation(KoiTheme.morph) { model.togglePond() }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "person.2").font(.system(size: 10, weight: .regular))
+                    Text("Go to pond").font(.custom("RobotoMono-Regular", size: 10))
+                }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 5)
+                .background(.ultraThinMaterial.opacity(0.55), in: Capsule())
+                .overlay(Capsule().strokeBorder(KoiTheme.onBase.opacity(0.3), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(KoiTheme.onBase)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            .padding(.trailing, 125)
+            .padding(.top, 12)
+            .accessibilityLabel("Go to your pond")
             if model.selectedDayOffset > 0 {
                 Text(model.dateLabel.uppercased())
                     .font(KoiTheme.section).tracking(2.7)
@@ -380,6 +422,184 @@ struct HubView: View {
         }
         .padding(.top, KoiTheme.space.s8)
         .foregroundStyle(KoiTheme.onBase)
+    }
+}
+
+private struct PondScreen: View {
+    @Bindable var model: PondViewModel
+    let displayName: String
+    let scores: BalanceResult
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
+            if model.isLoading && model.snapshot == nil {
+                Text("Finding your pond…").font(KoiTheme.body).padding(.vertical, KoiTheme.space.s21)
+            }
+            if let error = model.errorMessage {
+                VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
+                    Text(error).font(KoiTheme.caption)
+                    Button("Retry") { Task { await model.retry(displayName: displayName, scores: scores) } }
+                        .font(KoiTheme.caption).buttonStyle(.plain)
+                }
+                .padding(.vertical, KoiTheme.space.s8)
+            }
+            if model.needsUsername {
+                usernameSetup
+            } else if let snapshot = model.snapshot {
+                community(snapshot)
+            }
+        }
+        .foregroundStyle(KoiTheme.onBase)
+        .onAppear { Task { await model.load(displayName: displayName, scores: scores) } }
+        .animation(KoiTheme.morph, value: model.snapshot?.sprint?.recordName)
+    }
+
+    private var usernameSetup: some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+            Text("A small circle can make good days easier to keep.").font(KoiTheme.body)
+            TextField("Choose a username", text: $model.username)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .font(.custom("RobotoMono-Regular", size: 15))
+                .padding(.vertical, KoiTheme.space.s8)
+                .overlay(alignment: .bottom) { Rectangle().fill(KoiTheme.onBase.opacity(0.34)).frame(height: 1) }
+                .task(id: model.username) {
+                    try? await Task.sleep(for: .milliseconds(350))
+                    await model.checkUsername(model.username)
+                }
+            Text(usernameStatusText).font(KoiTheme.caption).opacity(0.76)
+            KoiPrimaryButton(title: model.isSaving ? "Creating…" : "Create your pond") {
+                Task { await model.createProfile(displayName: displayName) }
+            }
+            .disabled(model.usernameStatus != .available || model.isSaving)
+            Text("Choose 3–20 letters, numbers, or underscores.").font(KoiTheme.caption).opacity(0.65)
+        }
+    }
+
+    private var usernameStatusText: String {
+        switch model.usernameStatus {
+        case .idle: "Check that your username is available."
+        case .checking: "Checking availability…"
+        case .available: "Available"
+        case .taken: "Taken. Try another one."
+        case .invalid: "Use 3–20 letters, numbers, or underscores."
+        }
+    }
+
+    private func community(_ snapshot: PondSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s21) {
+            if snapshot.members.count <= 1 {
+                Text("Add a friend by username to start your pond.")
+                    .font(KoiTheme.body).fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
+            } else {
+                friendEntry
+            }
+            if let sprint = snapshot.sprint {
+                if model.isSprintFinished {
+                    finishedSprint(sprint)
+                } else {
+                    activeSprint(sprint)
+                }
+            } else {
+                Text("No sprint yet.").font(KoiTheme.caption).opacity(0.76)
+                if snapshot.members.count > 1 { sprintBuilder() }
+            }
+            if snapshot.members.count <= 1 { friendEntry }
+        }
+    }
+
+    private var friendEntry: some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s8) {
+            Text("ADD FRIEND").font(KoiTheme.section).tracking(2).opacity(0.78)
+            HStack(spacing: KoiTheme.space.s13) {
+                TextField("Exact username", text: $model.friendUsername)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .font(.custom("RobotoMono-Regular", size: 14))
+                    .padding(.vertical, KoiTheme.space.s8)
+                    .overlay(alignment: .bottom) { Rectangle().fill(KoiTheme.onBase.opacity(0.34)).frame(height: 1) }
+                Button("Add") { Task { await model.addFriend() } }
+                    .font(KoiTheme.caption).buttonStyle(.plain).disabled(model.friendUsername.isEmpty || model.isSaving)
+            }
+        }
+    }
+
+    private func activeSprint(_ sprint: PondSprint) -> some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+            Text("ACTIVE SPRINT").font(KoiTheme.section).tracking(2).opacity(0.78)
+            Text(sprintTitle(sprint)).font(KoiTheme.title).fixedSize(horizontal: false, vertical: true)
+            if !sprint.rule.isEmpty { Text(sprint.rule).font(KoiTheme.caption).opacity(0.8) }
+            Text("\(PondEngine.daysRemaining(until: sprint.endDate)) days left")
+                .font(.custom("RobotoMono-Regular", size: 13)).opacity(0.82)
+            Text("LEADERBOARD").font(KoiTheme.section).tracking(2).opacity(0.78).padding(.top, KoiTheme.space.s8)
+            ForEach(model.leaderboard) { entry in leaderboardRow(entry, currentUsername: snapshotUsername) }
+        }
+    }
+
+    private func finishedSprint(_ sprint: PondSprint) -> some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+            Text("SPRINT COMPLETE").font(KoiTheme.section).tracking(2).opacity(0.78)
+            if let winner = model.winner {
+                Text(sprint.rule.isEmpty ? "\(winner.member.displayName) wins." : "\(winner.member.displayName) wins. \(sprint.rule)")
+                    .font(KoiTheme.title).fixedSize(horizontal: false, vertical: true)
+            }
+            Text("LEADERBOARD").font(KoiTheme.section).tracking(2).opacity(0.78).padding(.top, KoiTheme.space.s8)
+            ForEach(model.leaderboard) { entry in leaderboardRow(entry, currentUsername: snapshotUsername) }
+            sprintBuilder(buttonTitle: "Start another sprint")
+        }
+    }
+
+    private func sprintBuilder(buttonTitle: String = "Start sprint") -> some View {
+        VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+            Text("START A SPRINT").font(KoiTheme.section).tracking(2).opacity(0.78)
+            HStack(spacing: KoiTheme.space.s8) {
+                ForEach(PondPillar.allCases) { pillar in
+                    Button { model.toggle(pillar) } label: {
+                        Text(pillar.title).font(.custom("RobotoMono-Regular", size: 11))
+                            .padding(.horizontal, 9).padding(.vertical, 7)
+                            .background(model.pillars.contains(pillar) ? KoiTheme.onBase.opacity(0.22) : .clear, in: Capsule())
+                            .overlay(Capsule().strokeBorder(KoiTheme.onBase.opacity(0.34), lineWidth: 1))
+                    }.buttonStyle(.plain)
+                }
+            }
+            DatePicker("Ends", selection: $model.endDate, in: Date.now..., displayedComponents: .date)
+                .font(KoiTheme.caption).tint(KoiTheme.onBase)
+            TextField("Losers buy the winner a coffee", text: $model.rule, axis: .vertical)
+                .font(KoiTheme.caption).lineLimit(2...4)
+                .padding(.vertical, KoiTheme.space.s8)
+                .overlay(alignment: .bottom) { Rectangle().fill(KoiTheme.onBase.opacity(0.34)).frame(height: 1) }
+            KoiPrimaryButton(title: model.isSaving ? "Starting…" : buttonTitle) { Task { await model.startSprint() } }
+                .disabled(model.pillars.isEmpty || model.endDate <= .now || model.isSaving)
+        }
+    }
+
+    private func leaderboardRow(_ entry: PondLeaderboardEntry, currentUsername: String) -> some View {
+        let isCurrent = entry.member.username.lowercased() == currentUsername.lowercased()
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: KoiTheme.space.s8) {
+                Text(entry.rank == 1 ? "♛" : "\(entry.rank)").font(.custom("RobotoMono-Regular", size: 13)).frame(width: 20, alignment: .leading)
+                Text(entry.member.displayName).font(.custom("RobotoMono-Regular", size: 14)).lineLimit(1)
+                Spacer()
+                Text("\(Int((entry.score * 100).rounded()))%").font(.custom("RobotoMono-Regular", size: 13)).monospacedDigit()
+            }
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(KoiTheme.onBase.opacity(0.2)).frame(height: 2)
+                    Capsule().fill(KoiTheme.onBase.opacity(0.6)).frame(width: max(2, proxy.size.width * entry.score), height: 2)
+                    Circle().fill(.white.opacity(0.9)).frame(width: 7, height: 7).offset(x: max(0, proxy.size.width * entry.score - 3.5))
+                }.frame(maxHeight: .infinity)
+            }.frame(height: 7)
+        }
+        .padding(.horizontal, isCurrent ? KoiTheme.space.s8 : 0)
+        .padding(.vertical, KoiTheme.space.s5)
+        .background(isCurrent ? KoiTheme.onBase.opacity(0.11) : .clear, in: RoundedRectangle(cornerRadius: 9))
+    }
+
+    private var snapshotUsername: String { model.snapshot?.currentUsername ?? "" }
+
+    private func sprintTitle(_ sprint: PondSprint) -> String {
+        let names = PondPillar.allCases.filter(sprint.pillars.contains).map(\.title).joined(separator: " + ")
+        return "Highest \(names) by \(sprint.endDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))"
     }
 }
 
