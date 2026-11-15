@@ -646,3 +646,6 @@ what's partial, known issues, and the next step.
 - The four-tab browser review found and removed duplicate Profile icons on
   Movement and Intake; both screens now use the single shared header control.
   The local desktop phone mock was checked across Hub, To-Do, Movement and Intake.
+- After the tab-header polish push, the published phone page still served
+  `styles.css?v=10` and `app.js?v=6`; it shows the open Hub and reachable mobile
+  feedback control, while the latest duplicate-icon cleanup awaits Pages refresh.
