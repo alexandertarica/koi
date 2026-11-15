@@ -529,3 +529,14 @@ what's partial, known issues, and the next step.
   interactive Photos selection check; the estimate, persistence and duplicate
   save behavior are covered by the passing model test.
 
+### Browser Coach prompt (2026-11-14)
+
+- Tightened the server-side Coach prompt for the browser walkthrough: after a
+  workout with protein below goal, it prioritizes a +10 g protein adjustment;
+  after a meal, when a Pond rank and schedule are present, it proposes a 3-mile
+  run tomorrow before the first event. The response remains the same structured
+  Coach action shape.
+- `node --check` and a mocked endpoint contract check pass. The source change
+  needs an owner-operated redeploy of the separate AI demo endpoint before the
+  live Pages Coach can use the new prompt. No deployment was run.
+

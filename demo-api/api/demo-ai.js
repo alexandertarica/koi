@@ -41,7 +41,20 @@ function prompts(task, text) {
     return `Estimate the nutrition for the complete meal shown or described. Treat all quantities as estimates and return JSON only. Required shape: {"calories":number,"protein_g":number,"carbs_g":number,"fat_g":number,"fiber_g":number,"added_sugar_g":number,"sodium_mg":number,"confidence":number,"description":string}. confidence must be 0..1. Use zero when a nutrient cannot reasonably be estimated. Keep description concise. Meal notes: ${text || "Use the image."}`;
   }
   if (task === "coach") {
-    return `Use this compact Koi day context to offer one calm, useful next step. Return JSON only as {"message":string,"action":{"type":"adjustGoal"|"addTodo"|"none","nutrient"?:string,"delta"?:number,"title"?:string,"dueDate"?:string,"why":string}}. Only suggest an action when it clearly helps; otherwise use type none. adjustGoal is for a temporary target change today, usually +10 g protein after exercise when protein is below goal. addTodo must have a concise title and an ISO-8601 dueDate when timing is known. If tomorrow has a first calendar event, schedule an activity before it and do not conflict with it. Never invent that Calendar is connected or that an event exists. Keep the message under 150 characters and why under 140 characters. Context: ${text}`;
+    let context = {};
+    try { context = JSON.parse(text); } catch { /* Keep generic guidance for malformed optional context. */ }
+    const event = typeof context.event === "string" ? context.event : "";
+    const rank = typeof context.pondRank === "string" ? context.pondRank : "";
+    const calendarEvent = typeof context.firstCalendarEvent === "string" ? context.firstCalendarEvent : "";
+    const totals = context.totals && typeof context.totals === "object" ? context.totals : {};
+    const goals = context.goals && typeof context.goals === "object" ? context.goals : {};
+    const proteinContext = Number(totals.protein) < Number(goals.protein ?? 140);
+    const guidedDirection = event === "workout" && proteinContext
+      ? "The workout was just logged and protein is under goal: prefer action adjustGoal with nutrient protein and delta 10, and say why this supports today's training."
+      : event === "meal" && rank && calendarEvent
+        ? `A meal was just logged. Mention the current pond standing (${rank}) and suggest a 3-mile run tomorrow before the first event (${calendarEvent}); prefer action addTodo with title 3-mile run and a dueDate around 7:00 AM tomorrow.`
+        : "";
+    return `Use this compact Koi day context to offer one calm, useful next step. Return JSON only as {"message":string,"action":{"type":"adjustGoal"|"addTodo"|"none","nutrient"?:string,"delta"?:number,"title"?:string,"dueDate"?:string,"why":string}}. Only suggest an action when it clearly helps; otherwise use type none. adjustGoal is for a temporary target change today, usually +10 g protein after exercise when protein is below goal. addTodo must have a concise title and an ISO-8601 dueDate when timing is known. If tomorrow has a first calendar event, schedule an activity before it and do not conflict with it. Never invent that Calendar is connected or that an event exists. Keep the message under 150 characters and why under 140 characters. ${guidedDirection} Context: ${text}`;
   }
   return `Turn the user's workout notes or photo into a concise, usable routine. Return JSON only in this shape: {"routines":[{"name":string,"exercises":[{"name":string,"sets":number,"reps":string}]}]}. Include only exercises found in the input. Use sensible defaults only when sets or reps are missing. User input: ${text || "Read the workout plan in the image."}`;
 }
