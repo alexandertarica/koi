@@ -3,31 +3,165 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#263c63">
-  <meta name="description" content="A click-through tour of real Koi iPhone app screens, followed by a short survey.">
-  <title>Koi — iPhone app tour</title>
+  <meta name="theme-color" content="#2b4066">
+  <meta name="description" content="Koi brings your habits, food and workouts into one daily Balance score, and its AI coach plans your next step.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Koi - Success through balance.">
+  <meta property="og:description" content="Koi brings your habits, food and workouts into one daily Balance score, and its AI coach plans your next step.">
+  <meta property="og:image" content="https://alexandertarica.github.io/koi/assets/og-koi.png">
+  <meta property="og:url" content="https://alexandertarica.github.io/koi/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Koi - Success through balance.">
+  <meta name="twitter:description" content="Koi brings your habits, food and workouts into one daily Balance score, and its AI coach plans your next step.">
+  <meta name="twitter:image" content="https://alexandertarica.github.io/koi/assets/og-koi.png">
+  <title>Koi - Success through balance.</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <link rel="preload" href="assets/RobotoMono-Light.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="preload" href="assets/water.png" as="image">
-  <link rel="stylesheet" href="tour.css?v=4">
+  <link rel="preload" href="assets/RobotoMono-Regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="assets/water.webp" as="image" fetchpriority="high">
+  <link rel="stylesheet" href="styles.css?v=13">
 </head>
 <body>
-  <main class="tour-shell">
-    <header class="tour-header">
-      <a class="tour-brand" href="./" aria-label="Koi tour home"><img src="assets/wordmark.png" alt="Koi"></a>
-      <p class="tour-label">Tour · real screens from the Koi iPhone app</p>
-      <a class="live-link" href="app/" id="live-link">Try the live version <span aria-hidden="true">→</span></a>
-    </header>
-    <section class="tour-layout" id="tour-layout" aria-live="polite">
-      <div class="tour-copy" id="tour-copy"></div>
-      <div class="phone-wrap" id="phone-wrap">
-        <div class="phone-frame">
-          <img class="tour-screen" id="tour-screen" src="assets/tour/01-hub.png" alt="Koi iPhone app screen">
-          <button class="hotspot" id="hotspot" type="button" aria-label="Continue tour"><span class="hotspot-ring"></span><span class="hotspot-arrow">↗</span></button>
+  <div class="water-layer" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="brand" href="#home" aria-label="Koi home">
+      <img src="assets/wordmark.png" alt="Koi" width="128" height="15">
+    </a>
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="#tour" data-route-link="tour">Tour</a>
+      <a href="#demo" data-route-link="demo">Web demo</a>
+      <a class="nav-beta" href="https://balancewithkoi.app/beta">Join the beta</a>
+    </nav>
+  </header>
+
+  <main id="home-view" class="page home-page">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">A calmer way forward</p>
+        <h1 id="hero-title">Success through balance.</h1>
+        <p class="hero-description">Koi brings your habits, food and workouts into one daily Balance score, and its AI coach plans your next step.</p>
+        <p class="honest-note">Koi is a native iPhone app written in Swift, so the full app runs on iPhone. Take the tour to see the real app, or play with a simplified web version.</p>
+        <div class="hero-actions">
+          <a class="button button-strong" href="#tour">See the real app <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="https://balancewithkoi.app/beta">Join the beta <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+      <figure class="hero-device" aria-label="Koi running on iPhone">
+        <div class="device-frame device-tilt">
+          <img class="device-screen" src="assets/shots/01-hub.webp" alt="Koi Hub showing 48 percent Balance, with Go to pond beneath the Balance label" width="804" height="1748" fetchpriority="high">
+        </div>
+        <figcaption class="device-caption glass-surface"><span>Today, in balance</span><span class="caption-mark" aria-hidden="true">48 → 61 → 67</span></figcaption>
+      </figure>
+    </section>
+
+    <div class="proof-strip wrap" aria-label="Built in 48 hours at the CPVC AI Hackathon · Swift · AI coach">
+      <span>Built in 48 hours at the CPVC AI Hackathon</span><i aria-hidden="true"></i><span>Swift</span><i aria-hidden="true"></i><span>AI coach</span>
+    </div>
+
+    <section class="options wrap" aria-labelledby="options-title">
+      <div class="section-heading">
+        <p class="eyebrow">Choose your way in</p>
+        <h2 id="options-title">Three ways to meet Koi.</h2>
+      </div>
+      <div class="option-grid">
+        <article class="option-card glass-surface beta-card">
+          <div class="card-topline"><span class="card-index">01</span><span class="card-symbol" aria-hidden="true">↗</span></div>
+          <h3>Join the beta</h3>
+          <p>Get on the waitlist. Once accepted, this same link becomes your beta download.</p>
+          <a class="button button-strong" href="https://balancewithkoi.app/beta">Join the beta <span aria-hidden="true">→</span></a>
+          <div class="qr-lockup">
+            <img src="assets/beta-qr.png" alt="QR code linking to https://balancewithkoi.app/beta" width="148" height="148" loading="lazy">
+            <span>Scan to join on iPhone</span>
+          </div>
+        </article>
+        <a class="option-card glass-surface option-link" href="#tour">
+          <div class="card-topline"><span class="card-index">02</span><span class="card-symbol" aria-hidden="true">⌁</span></div>
+          <h3>Take the tour</h3>
+          <p>Six real iPhone screens. See how your habits, food and movement connect.</p>
+          <span class="card-action">Explore the app <span aria-hidden="true">→</span></span>
+        </a>
+        <a class="option-card glass-surface option-link" href="#demo">
+          <div class="card-topline"><span class="card-index">03</span><span class="card-symbol" aria-hidden="true">◌</span></div>
+          <h3>Try the web demo</h3>
+          <p>A small, interactive browser version of Koi.</p>
+          <span class="demo-label">Simplified web demo</span>
+          <span class="card-action">See demo details <span aria-hidden="true">→</span></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="pillars-section wrap" aria-labelledby="pillars-title">
+      <div class="pillar-copy">
+        <p class="eyebrow">One connected day</p>
+        <h2 id="pillars-title">The pillars talk to each other.</h2>
+        <p>A workout can change your protein target. A meal can move your Balance. Koi keeps the next step connected to the whole day.</p>
+      </div>
+      <div class="pillar-sequence glass-surface" aria-label="Exercise, AI coach, Nutrition">
+        <span class="sequence-pill" data-sequence="0">Exercise</span>
+        <span class="sequence-arrow" aria-hidden="true">→</span>
+        <span class="sequence-pill sequence-ai" data-sequence="1">AI coach</span>
+        <span class="sequence-arrow" aria-hidden="true">→</span>
+        <span class="sequence-pill" data-sequence="2">Nutrition</span>
+      </div>
+    </section>
+
+    <p class="native-note wrap">Built for iPhone. The tour shows the native app; the browser version is a simplified preview.</p>
+  </main>
+
+  <main id="tour-view" class="page tour-page" hidden>
+    <section class="tour-shell wrap" aria-labelledby="tour-title">
+      <div class="tour-intro">
+        <p class="eyebrow">Real screens from the iPhone app</p>
+        <h1 id="tour-title">A day, in balance.</h1>
+      </div>
+      <div class="tour-layout" aria-live="polite">
+        <div class="tour-copy glass-surface">
+          <div class="tour-copy-inner" id="tour-copy-inner">
+            <p class="eyebrow" id="tour-kicker">KOI · DAILY BALANCE</p>
+            <p class="tour-count" id="tour-count">01 / 06</p>
+            <h2 id="tour-step-title">One score for your day</h2>
+            <p id="tour-step-copy">Habits, food and movement come together in one calm view.</p>
+            <div class="tour-dots" id="tour-dots" role="group" aria-label="Tour steps"></div>
+            <div class="tour-controls">
+              <button class="button button-quiet" id="tour-back" type="button" aria-label="Previous step">← Back</button>
+              <button class="button button-strong" id="tour-next" type="button">Next <span aria-hidden="true">→</span></button>
+            </div>
+            <div class="tour-end" id="tour-end" hidden>
+              <p>That’s Koi: small actions, one clearer picture.</p>
+              <div class="end-actions">
+                <a class="button button-quiet" href="#home">Back to home</a>
+                <button class="button button-strong" id="tour-again" type="button">Take the tour again <span aria-hidden="true">↻</span></button>
+              </div>
+              <a class="optional-link" href="app/">Try the simplified web demo</a>
+            </div>
+          </div>
+        </div>
+        <div class="tour-device-wrap" id="tour-swipe-area" aria-label="Swipe to move through tour screens">
+          <div class="device-frame tour-device">
+            <img id="tour-image" class="device-screen tour-image" src="assets/shots/01-hub.webp" alt="Koi Hub showing 48 percent Balance" width="804" height="1748" fetchpriority="high">
+          </div>
+          <p class="swipe-hint">Swipe to explore <span aria-hidden="true">↔</span></p>
         </div>
       </div>
     </section>
-    <footer class="tour-footer"><span>Tap the highlighted area or use your arrow keys.</span><span>Made for a calmer, more connected day.</span></footer>
   </main>
-  <script src="tour.js?v=4" defer></script>
+
+  <main id="demo-view" class="page demo-page" hidden>
+    <section class="demo-card glass-surface wrap" aria-labelledby="demo-title">
+      <p class="eyebrow">A browser preview</p>
+      <h1 id="demo-title">Simplified web demo.</h1>
+      <p>The web version is a small interactive preview. The full Koi experience is a native iPhone app.</p>
+      <div class="demo-actions">
+        <a class="button button-strong" href="app/">Open the web demo <span aria-hidden="true">↗</span></a>
+        <a class="button button-quiet" href="#tour">Take the real app tour</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer wrap">
+    <span>Built at the CPVC AI Hackathon, Cal Poly, Nov 2026 — Team Koi</span>
+    <span class="footer-links"><a href="https://github.com/alexandertarica/koi">GitHub repo</a><a href="https://balancewithkoi.app/beta">Join the beta</a></span>
+  </footer>
+  <script src="site.js?v=1" defer></script>
 </body>
 </html>
