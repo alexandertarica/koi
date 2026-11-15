@@ -41,7 +41,10 @@ extension Notification.Name {
 
 enum DailyGoalAdjustment {
     static func delta(_ nutrient: String, on date: Date = .now, calendar: Calendar = .autoupdatingCurrent) -> Double {
-        UserDefaults.standard.double(forKey: key("delta", nutrient, date, calendar))
+        #if DEBUG
+        if KoiLaunch.tourState == "intakeAdjusted", nutrient == "protein", calendar.isDateInToday(date) { return 10 }
+        #endif
+        return UserDefaults.standard.double(forKey: key("delta", nutrient, date, calendar))
     }
 
     static func add(_ amount: Double, to nutrient: String, on date: Date = .now, calendar: Calendar = .autoupdatingCurrent) {
@@ -221,6 +224,25 @@ final class HubViewModel {
 
     func dismissCoach() { coachSuggestion = nil; coachEvent = nil; coachFirstEvent = nil }
 
+    #if DEBUG
+    func prepareTourCoach(run: Bool) {
+        if run {
+            coachEvent = "habit"
+            coachSuggestion = KoiCoachSuggestion(
+                message: "You're 3rd of 5 in your pond. A 3-mile run tomorrow before your 9 AM class would move you up.",
+                action: KoiCoachAction(type: .addTodo, title: "3-mile run", why: "Scheduled before your 9:00 AM class.")
+            )
+        } else {
+            coachEvent = "workout"
+            coachSuggestion = KoiCoachSuggestion(
+                message: "Your workout is logged. Add 10 g of protein to today's goal to support recovery.",
+                action: KoiCoachAction(type: .adjustGoal, nutrient: "protein", delta: 10, why: "Support today's training.")
+            )
+        }
+        isCoachLoading = false
+    }
+    #endif
+
     func acceptCoach(using calendarProvider: any CalendarProviding) async {
         guard let context, let action = coachSuggestion?.action else { dismissCoach(); return }
         switch action.type {
@@ -381,7 +403,7 @@ final class HubViewModel {
                 exercise: exerciseScore
             ), focus: selectedFocus
         )
-        let rawBalance = ProcessInfo.processInfo.arguments.contains("-koiDemo") && profile?.name == "Maya" && calendar.isDateInToday(selectedDate)
+        let rawBalance = ProcessInfo.processInfo.arguments.contains("-koiDemo") && profile?.name == "Maya" && calendar.isDateInToday(selectedDate) && KoiLaunch.tourState != "hubAfter"
             ? BalanceEngine.score(pillars: BalancePillars(habits: 0.75, nutrition: 0.64, exercise: 0.93), focus: selectedFocus)
             : liveBalance
         let floor = DailyGoalAdjustment.balanceFloor(on: selectedDate, calendar: calendar)

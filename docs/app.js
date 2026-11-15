@@ -156,7 +156,7 @@ function renderCaptionPanel() {
     : state.guidedStep === "balance"
       ? `Balance moved from ${state.guidedStartBalance}% to ${getBalance()}%. The meal and workout now count in today's score. Next, see the clearly labeled sample Pond.`
       : defaultDescription;
-  panel.innerHTML = `<p class="caption-kicker">GUIDED DEMO · SAMPLE DAY</p><h2>${safe(title)}</h2><p>${safe(description)}</p>${state.guidedStep === "todo" ? '<p class="sample-note">Friends, starting data and the 9:00 AM class are samples.</p><button class="primary-button" type="button" data-action="show-feedback">Help shape Koi →</button><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button>' : ""}<button class="caption-exit" type="button" data-action="exit-guided">${state.guidedStep === "start" ? "Skip guided demo" : "Exit guided demo"}</button>`;
+  panel.innerHTML = `<p class="caption-kicker">GUIDED DEMO · SAMPLE DAY</p><h2>${safe(title)}</h2><p>${safe(description)}</p>${state.guidedStep === "todo" ? '<p class="sample-note">Friends, starting data and the 9:00 AM class are samples.</p><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button>' : ""}<button class="caption-exit" type="button" data-action="exit-guided">${state.guidedStep === "start" ? "Skip guided demo" : "Exit guided demo"}</button>`;
 }
 
 function renderPond() {
@@ -393,8 +393,8 @@ function renderTabBar() {
 }
 
 function renderDemoControls() {
-  if (state.guidedMode) return `<div class="demo-controls"><span>GUIDED DEMO</span><div class="demo-control-actions"><button class="quiet-link mobile-feedback-entry" type="button" data-action="show-feedback">Help shape Koi →</button><button class="quiet-link" type="button" data-action="exit-guided">Exit guided demo</button></div></div>`;
-  return `<div class="demo-controls"><span>DEMO</span><div class="demo-control-actions"><button class="quiet-link mobile-guided-entry" type="button" data-action="start-guided">Guided demo</button><button class="quiet-link" type="button" data-action="show-feedback">Help shape Koi →</button><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button></div></div>`;
+  if (state.guidedMode) return `<div class="demo-controls"><span>GUIDED DEMO</span><div class="demo-control-actions"><button class="quiet-link" type="button" data-action="exit-guided">Exit guided demo</button></div></div>`;
+  return `<div class="demo-controls"><span>DEMO</span><div class="demo-control-actions"><button class="quiet-link mobile-guided-entry" type="button" data-action="start-guided">Guided demo</button><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button></div></div>`;
 }
 
 function render() {

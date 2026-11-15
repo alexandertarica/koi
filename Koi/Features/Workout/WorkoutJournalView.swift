@@ -44,7 +44,7 @@ struct WorkoutJournalView: View {
         .onAppear {
             model.load(modelContext)
             model.setReadiness(readiness)
-            switch KoiLaunch.screen {
+            switch KoiLaunch.screen ?? KoiLaunch.tourState {
             case "workout", "workoutMode":
                 if model.activeSession == nil { model.startEmptyWorkout() }
                 showsWorkoutMode = true

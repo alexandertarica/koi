@@ -649,3 +649,25 @@ what's partial, known issues, and the next step.
 - After the tab-header polish push, the published phone page still served
   `styles.css?v=10` and `app.js?v=6`; it shows the open Hub and reachable mobile
   feedback control, while the latest duplicate-icon cleanup awaits Pages refresh.
+
+### Screenshot-led app tour (2026-11-14)
+
+- The public Pages root is now a nine-step click-through tour with full-resolution
+  screenshots captured from the iPhone 17 Pro Simulator. The original working
+  browser app remains at `/koi/app/`; a persistent “Try the live version” link
+  is shown during the tour and questionnaire.
+- DEBUG launch routes use `-koiDemo -koiTourState` to open the actual Hub,
+  in-progress workout, coach card, adjusted Intake, saved photo-estimate result,
+  higher Balance Hub, Pond leaderboard, run suggestion, and scheduled To-Do.
+  The routes seed SwiftData records and use the normal SwiftUI views. The
+  adjusted target is derived from the launch argument and does not persist into
+  other app or test sessions.
+- After step nine, the same page collects a required first name and two
+  required choices, plus optional daily-use feedback and email. A successful
+  submission goes to `/api/demo-feedback`; Next person reloads the tour with a
+  new respondent ID. Anonymous events include visits, tour step numbers,
+  completion, live-version opens, and survey submission.
+- Captures are in `docs/assets/tour/` (1206×2622 PNG). The main layouts and
+  survey flow were checked locally in desktop Chrome. The app builds and the
+  iPhone simulator test suite passes 79/79; the API suite passes 4/4. Live Pages
+  phone/desktop review and a live survey submission remain to verify after push.

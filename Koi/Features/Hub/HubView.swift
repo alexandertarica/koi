@@ -44,7 +44,20 @@ struct HubView: View {
         .onAppear {
             model.refresh(using: modelContext)
             Task { await pondModel.syncDailyScore(model.balance) }
+            #if DEBUG
+            if let state = KoiLaunch.tourState {
+                switch state {
+                case "coach": model.prepareTourCoach(run: false)
+                case "runSuggestion": model.prepareTourCoach(run: true)
+                case "pond": model.togglePond()
+                default: break
+                }
+            } else {
+                requestMorningCoachIfNeeded()
+            }
+            #else
             requestMorningCoachIfNeeded()
+            #endif
             #if DEBUG
             if let panel = KoiLaunch.screen ?? launchPanelArgument {
                 switch panel.lowercased() {

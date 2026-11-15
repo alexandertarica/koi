@@ -25,7 +25,7 @@ struct MovementView: View {
         .foregroundStyle(KoiTheme.onBase)
         .onAppear {
             model.load(modelContext)
-            if ["workoutJournal", "workout", "workoutMode", "routineBuilder", "run"].contains(KoiLaunch.screen ?? "") {
+            if ["workoutJournal", "workout", "workoutMode", "routineBuilder", "run"].contains(KoiLaunch.screen ?? "") || KoiLaunch.tourState == "workout" {
                 showsWorkoutJournal = true
             }
             Task {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import SwiftData
 import KoiShared
 import OSLog
@@ -53,6 +54,15 @@ enum KoiTab: Int, CaseIterable, Identifiable {
 }
 
 enum KoiLaunch {
+    static var tourState: String? {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "-koiTourState"), arguments.indices.contains(index + 1) else { return nil }
+        return arguments[index + 1]
+        #else
+        return nil
+        #endif
+    }
     static var screen: String? {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
@@ -121,6 +131,16 @@ struct KoiRootView: View {
             if ProcessInfo.processInfo.arguments.contains("-koiDemo") {
                 pondService = InMemoryPondService.demo()
                 rootRefreshID = UUID()
+                if let tourState = KoiLaunch.tourState {
+                    try? KoiDemoSeeder.prepareTourState(tourState, context: modelContext)
+                    switch tourState {
+                    case "intakeAdjusted", "photoResult": selectedTab = .intake
+                    case "todoRun": selectedTab = .toDo
+                    case "coach", "hubAfter", "pond", "runSuggestion": selectedTab = .hub
+                    case "workout": selectedTab = .movement
+                    default: break
+                    }
+                }
             }
 #endif
             analyticsProvider.signal("Screen.opened", parameters: ["screen": selectedTab.title])
@@ -605,6 +625,47 @@ private struct SmartNoteSheet: View {
 
 @MainActor
 enum KoiDemoSeeder {
+    #if DEBUG
+    static func prepareTourState(_ state: String, context: ModelContext, calendar: Calendar = .autoupdatingCurrent) throws {
+        let today = calendar.startOfDay(for: .now)
+        switch state {
+        case "workout":
+            let session = KoiWorkoutSession(name: "Upper strength", muscleGroup: "push", startedAt: .now.addingTimeInterval(-240))
+            let lift = KoiWorkoutLift(sessionID: session.id, name: "Dumbbell bench press", muscleGroup: "push", targetSets: 3, targetReps: 8)
+            context.insert(session)
+            context.insert(lift)
+            context.insert(KoiWorkoutSet(sessionID: session.id, liftID: lift.id, loggedAt: .now.addingTimeInterval(-90), weightLB: 35, reps: 8))
+            try context.save()
+        case "hubAfter":
+            DailyGoalAdjustment.clear("protein")
+            let idealTotals: [String: Double] = ["calories": 2_050, "protein": 140, "fiber": 30]
+            let parts = calendar.dateComponents([.year, .month, .day], from: today)
+            let dayID = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+            for entry in try context.fetch(FetchDescriptor<KoiNutrientEntry>()) where entry.dayID == dayID {
+                if let value = idealTotals[entry.nutrientKey] { entry.value = value }
+            }
+            try context.save()
+        case "intakeAdjusted":
+            DailyGoalAdjustment.clear("protein")
+        case "photoResult":
+            if let image = UIImage(named: "TourProteinBar"), let jpeg = image.jpegData(compressionQuality: 0.82) {
+                context.insert(KoiFoodEntry(name: "Protein bar", calories: 250, proteinGrams: 24, carbohydrateGrams: 34, fatGrams: 6, fiberGrams: 4, addedSugarGrams: 8, sodiumMilligrams: 180, confidence: 0.60, imageJPEG: jpeg, notes: "Protein bar"))
+                try context.save()
+            }
+        case "todoRun":
+            for task in try context.fetch(FetchDescriptor<KoiTask>()) { context.delete(task) }
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+            var parts = calendar.dateComponents([.year, .month, .day], from: tomorrow)
+            parts.hour = 7; parts.minute = 0
+            let due = calendar.date(from: parts) ?? tomorrow
+            let task = KoiTask(title: "3-mile run", notes: "Before your 9:00 AM class.", dueAt: due, quadrant: 1, timeMinutes: 45, hasTime: true)
+            context.insert(task)
+            try context.save()
+        default: break
+        }
+    }
+    #endif
+
     static func seedForDemoLaunch(_ context: ModelContext, calendar: Calendar = .autoupdatingCurrent) throws {
         for item in try context.fetch(FetchDescriptor<KoiWorkoutSet>()) { context.delete(item) }
         for item in try context.fetch(FetchDescriptor<KoiWorkoutLift>()) { context.delete(item) }

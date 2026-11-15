@@ -52,7 +52,7 @@ struct IntakeView: View {
         .onAppear {
             model.load(modelContext)
             #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("-koiShowMealComposer") { openComposer() }
+            if ProcessInfo.processInfo.arguments.contains("-koiShowMealComposer") || KoiLaunch.tourState == "photoResult" { openComposer() }
             #endif
         }
         .onChange(of: presentsMealComposer) { _, presented in if presented { openComposer() } }
@@ -518,6 +518,16 @@ private struct MealComposer: View {
             }
         }
         .onAppear {
+            #if DEBUG
+            if KoiLaunch.tourState == "photoResult" {
+                if let meal = model.meals.first(where: { $0.name == "Protein bar" }) {
+                    savedMeal = meal
+                    description = meal.notes.isEmpty ? meal.name : meal.notes
+                    value = FoodEstimateValue(description: meal.name, calories: meal.calories, proteinGrams: meal.proteinGrams, carbohydrateGrams: meal.carbohydrateGrams, fatGrams: meal.fatGrams, fiberGrams: meal.fiberGrams, addedSugarGrams: meal.addedSugarGrams, sodiumMilligrams: meal.sodiumMilligrams, confidence: meal.confidence)
+                    photoData = meal.imageJPEG
+                }
+            }
+            #endif
             guard startsCamera else { return }
             startsCamera = false
             #if targetEnvironment(simulator)
@@ -586,6 +596,9 @@ private struct MealComposer: View {
 
     private func resultSummary(for meal: KoiFoodEntry) -> some View {
         VStack(alignment: .leading, spacing: KoiTheme.space.s13) {
+            if let data = meal.imageJPEG, let image = UIImage(data: data) {
+                Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 180).frame(maxWidth: .infinity, alignment: .center).clipShape(RoundedRectangle(cornerRadius: 12))
+            }
             HStack(alignment: .firstTextBaseline) {
                 Text("~\(Int(meal.calories.rounded())) kcal").font(.system(size: 30, weight: .regular, design: .rounded)).contentTransition(.numericText())
                 Spacer()
