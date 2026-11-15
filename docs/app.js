@@ -2,8 +2,8 @@ const AI_PROXY_URL = "https://koi-demo-api.vercel.app/api/demo-ai";
 const FEEDBACK_URL = "https://koi-demo-api.vercel.app/api/demo-feedback";
 const EVENT_URL = "https://koi-demo-api.vercel.app/api/demo-event";
 const respondentId = crypto.randomUUID();
-const respondentStartedAt = new Date().toISOString();
-const respondent = { firstName: "", feedbackBusy: false, feedbackError: "" };
+let respondentStartedAt = "";
+const respondent = { firstName: "", feedbackBusy: false, feedbackError: "", morningCoachRequested: false };
 const root = document.querySelector("#app-root");
 const header = document.querySelector("#app-header");
 const view = document.querySelector("#app-view");
@@ -13,7 +13,7 @@ const demoFooter = document.querySelector(".demo-footer");
 const photoInput = document.querySelector("#photo-input");
 
 const initialState = () => ({
-  stage: "respondent",
+  stage: "app",
   guidedMode: false,
   guidedStep: "start",
   guidedStartBalance: 0,
@@ -158,7 +158,7 @@ function renderCaptionPanel() {
     : state.guidedStep === "balance"
       ? `Balance moved from ${state.guidedStartBalance}% to ${getBalance()}%. The meal and workout now count in today's score. Next, see the clearly labeled sample Pond.`
       : defaultDescription;
-  panel.innerHTML = `<p class="caption-kicker">GUIDED DEMO · SAMPLE DAY</p><h2>${safe(title)}</h2><p>${safe(description)}</p>${state.guidedStep === "todo" ? '<p class="sample-note">Friends, starting data and the 9:00 AM class are samples.</p><button class="primary-button" type="button" data-action="show-feedback">Finish & answer questions</button><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button>' : ""}<button class="caption-exit" type="button" data-action="exit-guided">${state.guidedStep === "start" ? "Skip guided demo" : "Exit guided demo"}</button>`;
+  panel.innerHTML = `<p class="caption-kicker">GUIDED DEMO · SAMPLE DAY</p><h2>${safe(title)}</h2><p>${safe(description)}</p>${state.guidedStep === "todo" ? '<p class="sample-note">Friends, starting data and the 9:00 AM class are samples.</p><button class="primary-button" type="button" data-action="show-feedback">Help shape Koi →</button><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button>' : ""}<button class="caption-exit" type="button" data-action="exit-guided">${state.guidedStep === "start" ? "Skip guided demo" : "Exit guided demo"}</button>`;
 }
 
 function renderPond() {
@@ -222,7 +222,7 @@ function renderDial({ value, kind = "balance", bars = [], labels = true, logged 
 
 function renderHeader() {
   if (state.stage !== "app") {
-    const title = ["respondent", "respondent-choice"].includes(state.stage) ? "WELCOME" : state.stage === "feedback" ? "YOUR THOUGHTS" : state.stage === "thanks" ? "THANK YOU" : state.stage === "connect" ? "CONNECT" : "FOCUS";
+    const title = ["respondent", "feedback"].includes(state.stage) ? "YOUR THOUGHTS" : state.stage === "thanks" ? "THANK YOU" : state.stage === "connect" ? "CONNECT" : "FOCUS";
     header.innerHTML = `<div class="header-row"><img class="wordmark" src="assets/wordmark.png" alt="Koi"><span class="header-section">${title}</span></div>`;
     return;
   }
@@ -238,11 +238,7 @@ function renderHeader() {
 const privacyNote = "Student project built at the Cal Poly hackathon. We only keep your first name and answers (plus email if you add it).";
 
 function renderRespondentStart() {
-  return `<section class="onboarding-view respondent-view"><p class="step-label">A QUICK KIOSK DEMO</p><h1 class="welcome-title">Your first name</h1><p class="view-note">One person at a time. Your answers help us make Koi better.</p><form id="respondent-name-form"><label class="respondent-name-label" for="respondent-first-name">FIRST NAME</label><input class="name-field" id="respondent-first-name" name="firstName" maxlength="40" autocomplete="given-name" required placeholder="First name"><button class="primary-button" type="submit">Continue</button></form><button class="quiet-link skip-questions-link" type="button" data-action="skip-to-questions">Skip to questions</button><p class="privacy-note">${privacyNote}</p></section>`;
-}
-
-function renderRespondentChoice() {
-  return `<section class="onboarding-view respondent-view"><p class="step-label">HI, ${safe(respondent.firstName.toUpperCase())}</p><h1 class="step-heading">How would you like to try Koi?</h1><p class="view-note">Follow a short guided day or explore the app at your own pace.</p><div class="onboarding-spacer"></div><button class="primary-button" type="button" data-action="start-guided">Guided demo</button><button class="quiet-link" type="button" data-action="try-koi">Try Koi freely</button><button class="quiet-link skip-questions-link" type="button" data-action="show-feedback">Skip to questions</button><p class="privacy-note">${privacyNote}</p></section>`;
+  return `<section class="onboarding-view respondent-view"><p class="step-label">YOUR THOUGHTS</p><h1 class="welcome-title">Your first name</h1><p class="view-note">Your answers help us make Koi better.</p><form id="respondent-name-form"><label class="respondent-name-label" for="respondent-first-name">FIRST NAME</label><input class="name-field" id="respondent-first-name" name="firstName" maxlength="40" autocomplete="given-name" required placeholder="First name"><button class="primary-button" type="submit">Continue</button></form><button class="quiet-link skip-questions-link" type="button" data-action="back-to-koi">Back to Koi</button><p class="privacy-note">${privacyNote}</p></section>`;
 }
 
 function renderFeedbackForm() {
@@ -454,8 +450,8 @@ function renderTabBar() {
 }
 
 function renderDemoControls() {
-  if (state.guidedMode) return `<div class="demo-controls"><span>GUIDED DEMO</span><div class="demo-control-actions"><button class="quiet-link mobile-feedback-entry" type="button" data-action="show-feedback">Answer questions</button><button class="quiet-link" type="button" data-action="exit-guided">Exit guided demo</button></div></div>`;
-  return `<div class="demo-controls"><span>DEMO</span><div class="demo-control-actions"><button class="quiet-link mobile-guided-entry" type="button" data-action="start-guided">Guided demo</button><button class="quiet-link" type="button" data-action="show-feedback">Answer questions</button><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button></div></div>`;
+  if (state.guidedMode) return `<div class="demo-controls"><span>GUIDED DEMO</span><div class="demo-control-actions"><button class="quiet-link mobile-feedback-entry" type="button" data-action="show-feedback">Help shape Koi →</button><button class="quiet-link" type="button" data-action="exit-guided">Exit guided demo</button></div></div>`;
+  return `<div class="demo-controls"><span>DEMO</span><div class="demo-control-actions"><button class="quiet-link mobile-guided-entry" type="button" data-action="start-guided">Guided demo</button><button class="quiet-link" type="button" data-action="show-feedback">Help shape Koi →</button><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button></div></div>`;
 }
 
 function render() {
@@ -467,7 +463,7 @@ function render() {
   tabBar.classList.toggle("visible", isApp && !state.foodOpen && !state.smartNoteOpen);
   renderCaptionPanel();
   if (!isApp) {
-    const screens = { respondent: renderRespondentStart, "respondent-choice": renderRespondentChoice, feedback: renderFeedbackForm, thanks: renderThanks, welcome: renderWelcome, connect: renderConnect, focus: renderFocus };
+    const screens = { respondent: renderRespondentStart, feedback: renderFeedbackForm, thanks: renderThanks, welcome: renderWelcome, connect: renderConnect, focus: renderFocus };
     view.innerHTML = (screens[state.stage] ?? renderRespondentStart)();
   } else {
     let content;
@@ -509,12 +505,15 @@ function requireRespondentName() {
 }
 
 function showFeedback() {
+  respondentStartedAt = new Date().toISOString();
+  respondent.firstName = "";
+  respondent.feedbackBusy = false;
+  respondent.feedbackError = "";
   state.guidedMode = false;
   state.foodOpen = false;
   state.smartNoteOpen = false;
   state.pondOpen = false;
-  state.stage = "feedback";
-  respondent.feedbackError = "";
+  state.stage = "respondent";
   render();
 }
 
@@ -910,12 +909,6 @@ function onClick(event) {
   if (action === "restart" || action === "start-fresh") { startFresh(); return; }
   if (action === "start-guided") { startGuided(); return; }
   if (action === "exit-guided") { state.guidedMode = false; state.guidedStep = "start"; render(); return; }
-  if (action === "try-koi") { enterApp(); return; }
-  if (action === "skip-to-questions") {
-    if (state.stage === "respondent" && !requireRespondentName()) return;
-    showFeedback();
-    return;
-  }
   if (action === "show-feedback") { showFeedback(); return; }
   if (action === "back-to-koi") { state.stage = "app"; state.tab = "Hub"; render(); return; }
   if (action === "next-person") { window.location.reload(); return; }
@@ -1014,7 +1007,7 @@ view.addEventListener("input", (event) => {
 view.addEventListener("submit", (event) => {
   if (event.target.id === "respondent-name-form") {
     event.preventDefault();
-    if (requireRespondentName()) { state.stage = "respondent-choice"; render(); }
+    if (requireRespondentName()) { state.stage = "feedback"; render(); }
     return;
   }
   if (event.target.id === "feedback-form") {
@@ -1066,3 +1059,4 @@ setClock();
 setInterval(setClock, 30_000);
 render();
 trackDemoEvent("visit");
+requestMorningCoachIfNeeded();

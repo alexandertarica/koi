@@ -622,3 +622,17 @@ what's partial, known issues, and the next step.
   Vercel KV's `KV_REST_API_URL` / `KV_REST_API_TOKEN`; `/api/demo-stats` also
   requires `STATS_KEY`. The environment alias fix is source-only and must be
   redeployed by the project owner before live collection can be verified.
+
+### Browser feedback entry update (2026-11-14)
+
+- Browser visits now open directly to the empty Hub; no name form blocks the
+  demo. A calm “Help shape Koi →” entry is available in the desktop header and
+  phone demo controls, and appears again at the end of the guided walkthrough.
+- Opening feedback begins the respondent timestamp and presents a required
+  first-name step, followed by the two required choice questions and optional
+  daily-use note and launch email. Only successful feedback submissions create
+  respondent records; anonymous visit and interaction events still use a fresh
+  random ID per page load. “Next person” reloads the app into a fresh state and
+  generates a new ID.
+- Verified JavaScript syntax and the demo API suite (4/4). Visual review of this
+  entry change and the remaining browser pass is next.
