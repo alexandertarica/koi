@@ -601,6 +601,7 @@ what's partial, known issues, and the next step.
   respondent ID; event collection validates its allowlist and silently drops
   events when Upstash is not configured. Added `@upstash/redis` as an API-only
   dependency and endpoint tests.
-- The API source requires `UPSTASH_REDIS_REST_URL`,
-  `UPSTASH_REDIS_REST_TOKEN`, and `STATS_KEY` in the separate demo API project
-  before the routes can persist or display data. This source is not deployed.
+- The API accepts `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` or
+  Vercel KV's `KV_REST_API_URL` / `KV_REST_API_TOKEN`; `/api/demo-stats` also
+  requires `STATS_KEY`. The environment alias fix is source-only and must be
+  redeployed by the project owner before live collection can be verified.

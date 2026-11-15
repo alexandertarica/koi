@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const eventHandler = require("../api/demo-event");
 const feedbackHandler = require("../api/demo-feedback");
 const statsHandler = require("../api/demo-stats");
+const { createRedis } = require("../lib/store");
 
 function invoke(handler, { method = "POST", body = {}, url = "/", origin = "https://alexandertarica.github.io", query = {} } = {}) {
   const headers = {};
@@ -24,6 +25,22 @@ function invoke(handler, { method = "POST", body = {}, url = "/", origin = "http
 
 const respondentId = "8d0a1fd5-2c11-4f07-84c4-98c09fcf8302";
 const now = "2026-11-14T19:00:00.000Z";
+
+test("Redis accepts the Vercel KV environment variable aliases", () => {
+  const oldValues = Object.fromEntries(["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_URL", "KV_REST_API_TOKEN"].map((key) => [key, process.env[key]]));
+  delete process.env.UPSTASH_REDIS_REST_URL;
+  delete process.env.UPSTASH_REDIS_REST_TOKEN;
+  process.env.KV_REST_API_URL = "https://redis.example.test";
+  process.env.KV_REST_API_TOKEN = "test-token";
+  try {
+    assert.ok(createRedis());
+  } finally {
+    for (const [key, value] of Object.entries(oldValues)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
 
 test("event endpoint validates events, restricts browser origins, and fails silently without storage", async () => {
   delete process.env.UPSTASH_REDIS_REST_URL;
