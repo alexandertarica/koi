@@ -300,7 +300,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 }
 
 /* Screen details drawn like ink on the water. */
-.hub-layout { min-height:410px; margin-top:8px; overflow:visible; }
+.hub-layout { min-height:350px; margin-top:8px; overflow:visible; }
 .koi-dial { position:absolute; inset:0 auto auto 0; width:80%; height:372px; overflow:visible; pointer-events:none; }
 .dial-tick { stroke:rgba(240,232,219,.27); stroke-width:1; stroke-linecap:round; animation:tick-in 1.65s cubic-bezier(.2,.7,.2,1) both; }
 .dial-tick.lit { stroke:rgba(240,232,219,.8); }
@@ -312,9 +312,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .dial-bead-halo { fill:rgba(240,232,219,.18); stroke:rgba(255,255,255,.65); stroke-width:1; filter:drop-shadow(0 0 6px rgba(255,255,255,.55)); }
 .dial-bead { fill:#f7f2e9; }
 .dial-bar-label,.dial-label-name,.dial-label-value { fill:rgba(240,232,219,.9); font-family:var(--font-light); font-size:9px; letter-spacing:1px; }
+.dial-bar-label { display:none; }
 .dial-label-value { font-size:10px; letter-spacing:0; }
 .dial-bar-track { stroke:rgba(240,232,219,.18); stroke-width:1; }
 .dial-bar-fill { stroke:rgba(240,232,219,.78); stroke-width:1.5; stroke-linecap:round; transition:x2 1.65s ease; }
+.balance-dial .dial-bar-label { display:none; }
 .dial-label { display:none; }
 .balance-dial .dial-label { display:block; }
 .progress-chip { position:absolute; top:137px; right:24px; z-index:1; border:1px solid rgba(240,232,219,.34); border-radius:99px; padding:8px 11px; color:var(--ivory); background:rgba(240,232,219,.1); font:300 10px/1 var(--font-light); cursor:pointer; }
@@ -359,7 +361,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .movement-stats strong { font:300 18px/1 var(--font-light); }
 .movement-stats span { color:var(--ivory-soft); font:400 7px/1.25 var(--font-regular); letter-spacing:.1em; }
 @media (max-width:600px) {
-  .hub-layout { min-height:392px; }
+  .hub-layout { min-height:350px; }
   .koi-dial { width:79%; height:372px; }
   .score-block { right:23px; }
   .progress-chip { right:21px; }
