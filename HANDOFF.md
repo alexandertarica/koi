@@ -415,6 +415,30 @@ what's partial, known issues, and the next step.
   configured. Configured-network workout import has not been exercised in this
   final pass.
 
+### Final-round simulator verification (2026-11-14)
+
+- Rebuilt Release for the same booted iPhone 17 Pro UDID, uninstalled and
+  reinstalled the app, then launched with no arguments. The clean install
+  opened on Welcome with no seeded content. The built app reports `1.0 (2)`;
+  its executable contains no demo or debug-screen launch flags. Release builds
+  successfully, with the two existing sendability warnings noted above.
+- Rebuilt Debug and launched the demo seed through `simctl` routes. Screenshot
+  checks covered the Hub, new to-do, new habit, meal composer, workout journal,
+  and workout mode. The app rendered each without a crash; the food composer is
+  in place and the onboarding form and task/habit controls are visible. The
+  existing test suite passes all 67 tests, including onboarding defaults,
+  task/habit persistence, meal save/edit/delete, routine set/rest behavior, and
+  plate math.
+- The simulator CLI path is limited to install, launch arguments, deep links,
+  and screenshots, so it did not enter text, tap Save, choose a photo, or
+  complete the full first-run sequence interactively. Those UI actions remain
+  unverified end to end in this pass; persistence and core calculations are
+  covered by the passing model tests. A physical device is still needed for the
+  hardware checks listed above.
+- The Pond implementation remains deferred: production CloudKit schema
+  deployment and an iCloud-account-backed two-user check are prerequisites to
+  calling the feature solid for TestFlight.
+
 ### Browser demo refresh (2026-11-14)
 
 - Reworked the browser demo's Hub, To-Do, Movement and Intake visuals around the
