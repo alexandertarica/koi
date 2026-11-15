@@ -3,6 +3,10 @@
 One honest score for your day. Koi turns habits, nutrition and exercise into a
 single daily Balance, on a calm, watery iPhone app.
 
+Try the [browser demo](https://alexandertarica.github.io/koi/). It includes
+interactive onboarding, daily tracking, meal estimates, and workout plan import.
+Apple Health, Calendar, and on-device Apple Intelligence require the iPhone app.
+
 - `SPEC.md`: what Koi does
 - `DESIGN.md`: how it looks
 - `AGENTS.md`: how the code is organized and built
