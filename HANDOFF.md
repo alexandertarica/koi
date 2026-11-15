@@ -683,6 +683,17 @@ what's partial, known issues, and the next step.
   screenshots now show both actions in-frame; the sample pond marks Maya as the
   current third-place member, matching the Hub greeting. Mobile tour navigation
   keeps Back and Next visible.
+- Live phone-sized review confirmed the full task row shows “Tomorrow” and the
+  9 AM class note, but not a 7 AM timestamp. The final caption now says
+  “tomorrow morning” so it matches what the screenshot shows.
+- Rechecked all nine live tour steps in both directions and advanced by the
+  labeled hotspots. The survey rejected a blank name, missing choices, and a
+  malformed email; a synthetic “Demo” response reached “Thanks, Demo!” and
+  Next person returned to step one. The live app link opened the browser app;
+  a typed yogurt-and-berries description received a real AI estimate and was
+  added to today's meal log. Test traffic used `?test=1`; the owner should
+  redeploy the isolated namespace and protected reset, then run the reset URL
+  to remove every `koi-demo:` test record/event.
 - Tour and live-demo event allowlists now include the tour, survey, and live-open
   events. Review sessions using `?test=1` write under `koi-demo:test:*`, so they
   do not appear in respondent totals. Stats also excludes the existing “Demo”

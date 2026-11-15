@@ -12,7 +12,7 @@ const steps = [
   { image: "06-hub-after.png", title: "One score, all three pillars", copy: "The meal and workout now count in today's Balance. It rises from 77% to 90% as your day comes together.", hot: [77, 26], tap: "90 percent Balance" },
   { image: "07-pond.png", title: "Friends keep you consistent", copy: "The sample pond has five friends in a sprint. Maya is currently 3rd of 5.", hot: [55, 71], tap: "Maya's third-place row" },
   { image: "08-run-suggestion.png", title: "Koi plans around your schedule", copy: "The sample schedule has class at 9 AM. Koi suggests a 3-mile run beforehand, then adds it to To-Do.", hot: [18, 81], tap: "Accept the run suggestion" },
-  { image: "09-todo-run.png", title: "A next step, already planned", copy: "The 3-mile run is in To-Do for tomorrow at 7:00 AM, before class.", hot: [31, 48], tap: "3-mile run task" },
+  { image: "09-todo-run.png", title: "A next step, already planned", copy: "The 3-mile run is in To-Do for tomorrow morning, before class.", hot: [31, 48], tap: "3-mile run task" },
 ];
 const copy = document.querySelector("#tour-copy");
 const screen = document.querySelector("#tour-screen");
