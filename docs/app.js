@@ -1,6 +1,7 @@
 const AI_PROXY_URL = "https://koi-demo-api.vercel.app/api/demo-ai";
 const FEEDBACK_URL = "https://koi-demo-api.vercel.app/api/demo-feedback";
 const EVENT_URL = "https://koi-demo-api.vercel.app/api/demo-event";
+const testMode = new URLSearchParams(location.search).get("test") === "1";
 const respondentId = crypto.randomUUID();
 let respondentStartedAt = "";
 const respondent = { firstName: "", feedbackBusy: false, feedbackError: "", morningCoachRequested: false };
@@ -88,7 +89,7 @@ function trackDemoEvent(event) {
   fetch(EVENT_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ respondentId, event, timestamp: new Date().toISOString() }),
+    body: JSON.stringify({ respondentId, event, timestamp: new Date().toISOString(), test: testMode }),
     keepalive: true,
   }).catch(() => {});
 }

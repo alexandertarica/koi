@@ -357,9 +357,9 @@ final class InMemoryPondService: PondService {
             startDate: start,
             endDate: PondEngine.nextThursday(after: now, calendar: calendar),
             rule: "Losers buy the winner a coffee",
-            createdBy: "alex"
+            createdBy: "maya"
         )
-        let values: [(Double, Double, Double)] = [(0.80, 0.78, 0.75), (0.88, 0.91, 0.82), (0.82, 0.80, 0.80), (0.66, 0.72, 0.68), (0.72, 0.70, 0.70)]
+        let values: [(Double, Double, Double)] = [(0.88, 0.91, 0.82), (0.80, 0.78, 0.75), (0.82, 0.80, 0.80), (0.66, 0.72, 0.68), (0.72, 0.70, 0.70)]
         var scores: [PondDailyScore] = []
         for offset in 0...4 {
             guard let date = calendar.date(byAdding: .day, value: offset - 4, to: now) else { continue }
@@ -369,7 +369,7 @@ final class InMemoryPondService: PondService {
                 scores.append(PondDailyScore(username: member.username, date: date, habits: value.0 - variance, nutrition: value.1 - variance, exercise: value.2 - variance, calendar: calendar))
             }
         }
-        let snapshot = PondSnapshot(currentUsername: "alex", name: "Alex's pond", members: members, sprint: sprint, dailyScores: scores)
+        let snapshot = PondSnapshot(currentUsername: "maya", name: "Maya's pond", members: members, sprint: sprint, dailyScores: scores)
         return InMemoryPondService(snapshot: snapshot)
     }
 

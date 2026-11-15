@@ -242,7 +242,7 @@ struct HubView: View {
                     model.selectDay(daysAgo: model.selectedDayOffset - 1)
                 }
             }
-            .frame(height: 470)
+            .frame(height: coachIsVisible ? 390 : 470)
             .padding(.horizontal, -KoiTheme.space.s21)
             .padding(.top, -22)
             .padding(.bottom, -4)
@@ -302,10 +302,12 @@ struct HubView: View {
                     .allowsHitTesting(false)
             }
             }
-            .frame(height: 470)
+            .frame(height: coachIsVisible ? 390 : 470)
             if let pillar = model.selectedPillar { pillarDetail(pillar).transition(.opacity.combined(with: .move(edge: .top))) }
         }
     }
+
+    private var coachIsVisible: Bool { model.coachSuggestion != nil || model.isCoachLoading }
 
     private var streakBlock: some View {
         VStack(alignment: .trailing, spacing: -1) {

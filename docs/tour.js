@@ -1,17 +1,18 @@
 const FEEDBACK_URL = "https://koi-demo-api.vercel.app/api/demo-feedback";
 const EVENT_URL = "https://koi-demo-api.vercel.app/api/demo-event";
+const testMode = new URLSearchParams(location.search).get("test") === "1";
 const respondentId = crypto.randomUUID();
 const startedAt = new Date().toISOString();
 const steps = [
-  { image: "01-hub.png", title: "One score for your day", copy: "Habits, food and movement come together in one calm view. Tap the dial to see what is shaping Balance.", hot: [43, 46] },
-  { image: "02-workout-logged.png", title: "Movement counts", copy: "A workout updates the movement pillar alongside your steps. Small actions add up to a fuller picture.", hot: [78, 49] },
-  { image: "03-coach.png", title: "Pillars talk to each other", copy: "After a workout, Koi notices today's protein target and offers one useful next step.", hot: [51, 87] },
-  { image: "04-intake-adjusted.png", title: "Your target adapts to training", copy: "Accepting adds 10 g to today's protein target. The adjusted target is visible in Intake while Balance stays protected.", hot: [45, 66] },
-  { image: "05-photo-result.png", title: "AI reads a photo", copy: "A protein bar photo becomes a meal estimate with calories and macros, ready to edit if anything looks off.", hot: [51, 55] },
-  { image: "06-hub-after.png", title: "One score, all three pillars", copy: "Once the meal is logged, it contributes to the day and Balance rises with the rest of your progress.", hot: [77, 26] },
-  { image: "07-pond.png", title: "Friends keep you consistent", copy: "A sprint gives friends a shared goal. This sample pond places you 3rd of 5.", hot: [52, 74] },
-  { image: "08-run-suggestion.png", title: "Koi plans around your schedule", copy: "With a 9 AM class on the calendar, Koi suggests a run before it and can turn that idea into a dated to-do.", hot: [51, 87] },
-  { image: "09-todo-run.png", title: "A next step, already planned", copy: "The run appears in To-Do for tomorrow morning. Your habits, food and movement now have a shared plan.", hot: [49, 53] },
+  { image: "01-hub.png", title: "One score for your day", copy: "Habits, food and movement come together in one calm view. Tap a pillar label to see what is shaping Balance.", hot: [35, 46], tap: "Nutrition pillar" },
+  { image: "02-workout-logged.png", title: "Movement counts", copy: "The first set is logged. Each workout adds to movement alongside your daily steps.", hot: [50, 85], tap: "Log the next set" },
+  { image: "03-coach.png", title: "Pillars talk to each other", copy: "After the workout, Koi suggests 10 g more protein today. Accept it and see the new target in Intake.", hot: [18, 81], tap: "Accept the protein suggestion" },
+  { image: "04-intake-adjusted.png", title: "Your target adapts to training", copy: "The protein target is now 150 g for today. Logging food closes the gap, while Balance stays protected.", hot: [82, 83], tap: "Protein target, 150 grams" },
+  { image: "05-photo-result.png", title: "AI reads a photo", copy: "A protein bar photo becomes a meal estimate with calories and macros. Fix the numbers if anything looks off.", hot: [27, 61], tap: "Fix meal numbers" },
+  { image: "06-hub-after.png", title: "One score, all three pillars", copy: "The meal and workout now count in today's Balance. It rises from 77% to 90% as your day comes together.", hot: [77, 26], tap: "90 percent Balance" },
+  { image: "07-pond.png", title: "Friends keep you consistent", copy: "The sample pond has five friends in a sprint. Maya is currently 3rd of 5.", hot: [55, 71], tap: "Maya's third-place row" },
+  { image: "08-run-suggestion.png", title: "Koi plans around your schedule", copy: "The sample schedule has class at 9 AM. Koi suggests a 3-mile run beforehand, then adds it to To-Do.", hot: [18, 81], tap: "Accept the run suggestion" },
+  { image: "09-todo-run.png", title: "A next step, already planned", copy: "The 3-mile run is in To-Do for tomorrow at 7:00 AM, before class.", hot: [31, 48], tap: "3-mile run task" },
 ];
 const copy = document.querySelector("#tour-copy");
 const screen = document.querySelector("#tour-screen");
@@ -28,11 +29,16 @@ function track(event) {
   fetch(EVENT_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ respondentId, event, timestamp: new Date().toISOString() }),
+    body: JSON.stringify({ respondentId, event, timestamp: new Date().toISOString(), test: testMode }),
     keepalive: true,
   }).catch(() => {});
 }
 track("visit");
+if (testMode) {
+  const testLiveURL = new URL("app/", location.href);
+  testLiveURL.searchParams.set("test", "1");
+  liveLink.href = testLiveURL.href;
+}
 
 function showTourStep() {
   surveyStage = "";
@@ -46,6 +52,7 @@ function showTourStep() {
   imageNode.alt = `${current.title} — Koi iPhone app screenshot`;
   hotspotNode.style.left = `${current.hot[0]}%`;
   hotspotNode.style.top = `${current.hot[1]}%`;
+  hotspotNode.setAttribute("aria-label", current.tap);
   hotspotNode.addEventListener("click", next);
   copyNode.innerHTML = `<p class="step-kicker">KOI · DAILY BALANCE</p><h1>${current.title}</h1><p>${current.copy}</p><div class="progress-line" aria-label="Tour progress"><i style="width:${((index + 1) / steps.length) * 100}%"></i></div><div class="step-count">${index + 1} of ${steps.length}</div><div class="tour-controls"><button class="nav-button" type="button" data-back aria-label="Previous step" ${index === 0 ? "disabled" : ""}>←</button><button class="nav-button" type="button" data-next aria-label="Next step">→</button><span class="nav-hint">Use the highlighted spot,<br>or your arrow keys.</span></div>`;
   copyNode.querySelector("[data-back]").addEventListener("click", previous);
@@ -82,7 +89,8 @@ function showSurvey() {
     document.querySelector("#feedback-form").addEventListener("submit", submitSurvey);
     document.querySelector("#back-to-name").addEventListener("click", () => { surveyStage = "name"; showSurvey(); });
   } else {
-    layout.innerHTML = `<p class="step-kicker">RECEIVED</p><h1>Thanks, ${escapeHTML(firstName)}!</h1><p>Your note helps shape what Koi becomes.</p><div class="thanks-actions"><button class="primary-button" id="next-person" type="button">Next person</button><a class="live-link" href="app/" id="thanks-live">Try the live version →</a></div>`;
+    const liveHref = testMode ? "app/?test=1" : "app/";
+    layout.innerHTML = `<p class="step-kicker">RECEIVED</p><h1>Thanks, ${escapeHTML(firstName)}!</h1><p>Your note helps shape what Koi becomes.</p><div class="thanks-actions"><button class="primary-button" id="next-person" type="button">Next person</button><a class="live-link" href="${liveHref}" id="thanks-live">Try the live version →</a></div>`;
     document.querySelector("#next-person").addEventListener("click", () => window.location.reload());
     document.querySelector("#thanks-live").addEventListener("click", () => track("live_opened"));
   }
@@ -111,6 +119,7 @@ async function submitSurvey(event) {
         email: fields.get("email")?.toString().trim() || "",
         startedAt,
         finishedAt: new Date().toISOString(),
+        test: testMode,
       }),
     });
     if (!response.ok) {

@@ -79,8 +79,8 @@ final class KoiHubTests: XCTestCase {
 
         XCTAssertEqual(snapshot.members.count, 5)
         XCTAssertNotNil(snapshot.sprint)
-        XCTAssertEqual(PondEngine.leaderboard(for: snapshot).first?.member.username, "maya")
-        XCTAssertEqual(PondEngine.leaderboard(for: snapshot).first(where: { $0.member.username == "alex" })?.rank, 3)
+        XCTAssertEqual(PondEngine.leaderboard(for: snapshot).first?.member.username, "alex")
+        XCTAssertEqual(PondEngine.leaderboard(for: snapshot).first(where: { $0.member.username == "maya" })?.rank, 3)
         XCTAssertEqual(model.rankSummary, "3rd of 5 in your pond")
     }
 

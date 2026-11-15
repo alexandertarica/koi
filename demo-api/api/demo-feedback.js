@@ -1,5 +1,5 @@
 const { applyCors, respond, validRespondentId } = require("../lib/http");
-const { createRedis } = require("../lib/store");
+const store = require("../lib/store");
 
 const CHOICES = new Set(["Yes", "Maybe", "No"]);
 
@@ -23,8 +23,9 @@ module.exports = async function handler(req, res) {
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return respond(res, 400, { error: "Check the email address or leave it blank." });
 
   try {
-    const redis = createRedis();
+    const redis = store.createRedis();
     if (!redis) return respond(res, 503, { error: "Feedback storage is not connected yet." });
+    const namespace = body.test === true ? "koi-demo:test" : "koi-demo";
     const record = {
       respondentId: body.respondentId,
       firstName,
@@ -34,14 +35,14 @@ module.exports = async function handler(req, res) {
       finishedAt: body.finishedAt,
       submittedAt: new Date().toISOString(),
     };
-    const stored = await redis.set(`koi-demo:feedback:${record.respondentId}`, JSON.stringify(record), { nx: true });
+    const stored = await redis.set(`${namespace}:feedback:${record.respondentId}`, JSON.stringify(record), { nx: true });
     if (stored !== "OK") {
-      const existing = await redis.get(`koi-demo:feedback:${record.respondentId}`);
+      const existing = await redis.get(`${namespace}:feedback:${record.respondentId}`);
       if (!existing) return respond(res, 503, { error: "Feedback could not be saved. Please try again." });
-      await redis.sadd("koi-demo:feedback-index", record.respondentId);
+      await redis.sadd(`${namespace}:feedback-index`, record.respondentId);
       return respond(res, 200, { ok: true });
     }
-    await redis.sadd("koi-demo:feedback-index", record.respondentId);
+    await redis.sadd(`${namespace}:feedback-index`, record.respondentId);
     return respond(res, 200, { ok: true });
   } catch {
     return respond(res, 503, { error: "Feedback could not be saved. Please try again." });

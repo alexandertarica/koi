@@ -674,3 +674,24 @@ what's partial, known issues, and the next step.
   answers and showed “Thanks, Demo!”. The “Try the live version” link is present
   throughout the tour and on the confirmation screen. The app builds and the
   iPhone simulator test suite passes 79/79; the API suite passes 4/4.
+
+### Tour review and test data isolation (2026-11-14)
+
+- Corrected the tour hotspots to point at the UI item named by each caption,
+  including the workout set control, coach Accept controls, the protein target,
+  meal edit chip, Balance value, highlighted pond row, and scheduled run. Coach
+  screenshots now show both actions in-frame; the sample pond marks Maya as the
+  current third-place member, matching the Hub greeting. Mobile tour navigation
+  keeps Back and Next visible.
+- Tour and live-demo event allowlists now include the tour, survey, and live-open
+  events. Review sessions using `?test=1` write under `koi-demo:test:*`, so they
+  do not appear in respondent totals. Stats also excludes the existing “Demo”
+  test respondent and its events until the owner runs the protected reset.
+- Added `GET /api/demo-stats?key=<STATS_KEY>&reset=confirm`. It scans and deletes
+  only Redis keys whose names start with `koi-demo:`. Keys used by other apps
+  are never passed to delete. This API change is source-only; the project owner
+  must redeploy it and run the reset after the review.
+- Rebuilt the updated coach and pond screenshots from the real iPhone app. The
+  iPhone simulator suite passes 79/79 and the API suite passes 9/9. The
+  `CODE_SIGNING_ALLOWED=NO` test invocation cannot launch this App Group app in
+  Simulator; running tests with normal simulator signing succeeds.

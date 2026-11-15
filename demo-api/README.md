@@ -16,4 +16,8 @@ success and are dropped; feedback returns a friendly service-unavailable error.
 Set `STATS_KEY` to a private value to enable `/api/demo-stats?key=...`. The page
 shows aggregate answers, respondent comments, separately listed opt-in emails,
 event totals and a CSV download. The stats route returns not found unless the
-provided key matches `STATS_KEY`.
+provided key matches `STATS_KEY`. Add `&reset=confirm` to the keyed stats URL to
+delete every Redis key beginning with `koi-demo:`. The reset scans the prefix and
+deletes matching keys in batches, leaving keys for any other app untouched.
+Requests carrying `test: true` are stored under `koi-demo:test:*` and stay out of
+the normal respondent totals and event stream.
