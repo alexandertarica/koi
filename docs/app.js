@@ -443,7 +443,7 @@ function renderTabBar() {
 
 function renderDemoControls() {
   if (state.guidedMode) return `<div class="demo-controls"><span>GUIDED DEMO</span><button class="quiet-link" type="button" data-action="exit-guided">Exit guided demo</button></div>`;
-  return `<div class="demo-controls"><span>DEMO DATA STAYS IN THIS BROWSER</span><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button></div>`;
+  return `<div class="demo-controls"><span>DEMO DATA STAYS IN THIS BROWSER</span><div class="demo-control-actions"><button class="quiet-link mobile-guided-entry" type="button" data-action="start-guided">Guided demo</button><button class="quiet-link" type="button" data-action="start-fresh">Start fresh</button></div></div>`;
 }
 
 function render() {

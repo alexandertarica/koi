@@ -573,3 +573,10 @@ what's partial, known issues, and the next step.
 - The API mock contract check and all 79 iPhone simulator tests pass. The
   updated API source needs the owner's redeploy before live browser Coach calls
   receive the corrected copy and prompt. No deployment was run.
+
+### Mobile guided-demo entry (2026-11-14)
+
+- Added an in-app Guided demo entry beside Start fresh on narrow screens, where
+  the outer desktop demo toolbar is hidden. Existing app-state visitors can now
+  start the sample walkthrough without clearing browser storage or returning to
+  onboarding. Script and style query versions were advanced for Pages caching.

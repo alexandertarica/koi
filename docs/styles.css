@@ -389,7 +389,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .caption-exit { margin-top:15px; border:0; padding:8px 0; background:transparent; color:var(--ink); opacity:.72; font:300 10px/1.3 var(--font-light); cursor:pointer; }
 .guided-entry { margin-top:2px; }
 .demo-controls { min-height:24px; display:flex; justify-content:space-between; align-items:center; gap:10px; margin:0 0 9px; color:var(--ivory-soft); font:400 8px/1.3 var(--font-regular); letter-spacing:.12em; }
+.demo-control-actions { display:flex; align-items:center; gap:13px; }
 .demo-controls .quiet-link { margin:0; padding:3px 0; color:var(--ivory); font-size:9px; }
+.mobile-guided-entry { display:none !important; }
 .sample-day-label,.sample-badge { margin:0 0 8px; color:var(--ivory); font:400 8px/1.4 var(--font-regular); letter-spacing:.14em; }
 .sample-schedule-line { margin:3px 0 0; color:var(--ivory-soft); font:300 8px/1.4 var(--font-light); }
 .pond-chip { position:absolute; top:68px; right:170px; z-index:2; min-height:28px; padding:6px 10px; border:1px solid rgba(240,232,219,.34); border-radius:99px; color:var(--ivory); background:rgba(240,232,219,.12); font:300 9px/1 var(--font-light); cursor:pointer; }
@@ -431,5 +433,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   .phone-frame { height:100svh; }
   .demo-presentation.guided-active .phone-frame { height:calc(100svh - 124px); min-height:560px; }
   .demo-controls { margin-bottom:6px; }
+  .mobile-guided-entry { display:inline-flex !important; }
   .pond-chip { right:145px; top:64px; }
 }
