@@ -540,3 +540,21 @@ what's partial, known issues, and the next step.
   needs an owner-operated redeploy of the separate AI demo endpoint before the
   live Pages Coach can use the new prompt. No deployment was run.
 
+
+### Browser Coach and guided demo (2026-11-14)
+
+- The browser demo now includes Coach suggestions after morning open, habit
+  completion, workout logging, and meal logging. Accepting a Coach action updates
+  today's protein target without lowering Balance, or adds a dated to-do before
+  the labeled sample class. The Hub opens a sample five-person Pond with an
+  active sprint and a clearly marked third-place row.
+- Guided mode starts from a labeled sample day, leads through workout, target
+  adjustment, photo estimate, higher Balance, sample Pond, and a scheduled run,
+  and can be exited at any point. Start fresh resets to an empty Hub. Desktop
+  shows the phone beside step captions; narrow screens place captions above it.
+- The local UI path has verified workout logging, the protein target adjustment,
+  manual task and habit creation, sample-photo preparation/preview, and the Pond
+  view. The local origin is rejected by the AI endpoint's Pages-only CORS policy,
+  so the guided photo estimate and Coach model response still require a live
+  GitHub Pages run after this push. The endpoint source now supports `coach`;
+  its owner-operated redeploy is required before live Coach suggestions use AI.

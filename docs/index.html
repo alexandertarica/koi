@@ -8,7 +8,7 @@
     <title>Koi — Browser demo</title>
     <link rel="preload" href="assets/RobotoMono-Light.ttf" as="font" type="font/ttf" crossorigin>
     <link rel="preload" href="assets/water.png" as="image">
-    <link rel="stylesheet" href="styles.css?v=4">
+    <link rel="stylesheet" href="styles.css?v=5">
   </head>
   <body>
     <main class="demo-shell">
@@ -19,25 +19,29 @@
         </a>
         <div class="bar-actions">
           <span class="demo-note">A small, interactive preview</span>
-          <button class="restart-button" type="button" data-action="restart">Start over</button>
+          <button class="restart-button" type="button" data-action="start-guided">Guided demo</button>
+          <button class="restart-button" type="button" data-action="start-fresh">Start fresh</button>
         </div>
       </header>
 
-      <section class="stage" aria-label="Koi app preview">
-        <div class="phone-frame">
-          <div class="phone-screen" id="app-root">
-            <div class="status-bar" aria-hidden="true">
-              <span id="clock">9:41</span>
-              <span class="dynamic-island"></span>
-              <span class="status-icons"><i></i><i></i><b></b></span>
+      <div class="demo-presentation">
+        <aside class="caption-panel" id="caption-panel" aria-live="polite" hidden></aside>
+        <section class="stage" aria-label="Koi app preview">
+          <div class="phone-frame">
+            <div class="phone-screen" id="app-root">
+              <div class="status-bar" aria-hidden="true">
+                <span id="clock">9:41</span>
+                <span class="dynamic-island"></span>
+                <span class="status-icons"><i></i><i></i><b></b></span>
+              </div>
+              <div class="app-header" id="app-header"></div>
+              <div class="app-view" id="app-view" aria-live="polite"></div>
+              <div class="tab-bar-wrap" id="tab-bar-wrap"></div>
+              <div class="home-indicator" aria-hidden="true"></div>
             </div>
-            <div class="app-header" id="app-header"></div>
-            <div class="app-view" id="app-view" aria-live="polite"></div>
-            <div class="tab-bar-wrap" id="tab-bar-wrap"></div>
-            <div class="home-indicator" aria-hidden="true"></div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       <footer class="demo-footer">
         <span>Demo data stays in this browser.</span>
